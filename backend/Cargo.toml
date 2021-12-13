@@ -1,0 +1,16 @@
+[package]
+name = "mozaic4-backend"
+version = "0.0.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+rocket = "0.4.10"
+diesel = { version = "1.4.4", features = ["postgres"] }
+dotenv = "0.15.0"
+
+[dependencies.rocket_contrib]
+version = "0.4.10"
+default-features = false
+features = ["diesel_postgres_pool"]
