@@ -21,3 +21,6 @@ base64 = "0.13.0"
 [dependencies.rocket_sync_db_pools]
 version = "0.1.0-rc.1"
 features = ["diesel_postgres_pool"]
+
+[dev-dependencies]
+parking_lot = "0.11"
