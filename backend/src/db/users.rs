@@ -58,24 +58,26 @@ pub fn create_user(credentials: &Credentials, conn: &PgConnection) -> QueryResul
 }
 
 pub fn authenticate_user(credentials: &Credentials, db_conn: &PgConnection) -> Option<User> {
-    let user = users::table
+    users::table
         .filter(users::username.eq(&credentials.username))
         .first::<User>(db_conn)
-        .unwrap();
+        .optional()
+        .unwrap()
+        .and_then(|user| {
+            let password_matches = argon2::verify_raw(
+                credentials.password.as_bytes(),
+                &user.password_salt,
+                &user.password_hash,
+                &argon2_config(),
+            )
+            .unwrap();
 
-    let password_matches = argon2::verify_raw(
-        credentials.password.as_bytes(),
-        &user.password_salt,
-        &user.password_hash,
-        &argon2_config(),
-    )
-    .unwrap();
-
-    if password_matches {
-        return Some(user);
-    } else {
-        return None;
-    }
+            if password_matches {
+                return Some(user);
+            } else {
+                return None;
+            }
+        })
 }
 
 #[test]

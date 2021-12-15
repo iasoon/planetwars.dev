@@ -7,7 +7,8 @@ use rocket::serde::json::Json;
 use serde::{Deserialize, Serialize};
 
 use rocket::http::Status;
-use rocket::request::{self, FromRequest, Outcome, Request};
+use rocket::request::{FromRequest, Outcome, Request};
+use rocket::response::status;
 
 #[derive(Debug)]
 pub enum AuthTokenError {
@@ -23,17 +24,25 @@ impl<'r> FromRequest<'r> for User {
 
     async fn from_request(request: &'r Request<'_>) -> Outcome<Self, Self::Error> {
         let keys: Vec<_> = request.headers().get("Authorization").collect();
-        let token = match keys.len() {
+        let auth_header = match keys.len() {
             0 => return Outcome::Failure((Status::BadRequest, AuthTokenError::Missing)),
-            1 => keys[0].to_string(),
+            1 => keys[0],
             _ => return Outcome::Failure((Status::BadRequest, AuthTokenError::BadCount)),
         };
+
+        let token = match auth_header.strip_prefix("Bearer ") {
+            Some(token) => token.to_string(),
+            None => return Outcome::Failure((Status::BadRequest, AuthTokenError::Invalid)),
+        };
+
         let db = request.guard::<DbConn>().await.unwrap();
-        let (_session, user) = db
+        let res = db
             .run(move |conn| sessions::find_user_by_session(&token, conn))
-            .await
-            .unwrap();
-        Outcome::Success(user)
+            .await;
+        match res {
+            Ok((_session, user)) => Outcome::Success(user),
+            Err(_) => Outcome::Failure((Status::Unauthorized, AuthTokenError::Invalid)),
+        }
     }
 }
 
@@ -79,7 +88,10 @@ pub struct LoginParams {
 }
 
 #[post("/login", data = "<params>")]
-pub async fn login(db_conn: DbConn, params: Json<LoginParams>) -> String {
+pub async fn login(
+    db_conn: DbConn,
+    params: Json<LoginParams>,
+) -> Result<String, status::Forbidden<&'static str>> {
     db_conn
         .run(move |conn| {
             let credentials = Credentials {
@@ -87,9 +99,15 @@ pub async fn login(db_conn: DbConn, params: Json<LoginParams>) -> String {
                 password: &params.password,
             };
             // TODO: handle failures
-            let user = users::authenticate_user(&credentials, conn).unwrap();
-            let session = sessions::create_session(&user, conn);
-            return session.token;
+            let authenticated = users::authenticate_user(&credentials, conn);
+
+            match authenticated {
+                None => Err(status::Forbidden(Some("invalid auth"))),
+                Some(user) => {
+                    let session = sessions::create_session(&user, conn);
+                    Ok(session.token)
+                }
+            }
         })
         .await
 }

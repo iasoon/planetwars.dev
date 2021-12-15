@@ -37,6 +37,22 @@ macro_rules! run_test {
     }};
 }
 
+pub struct BearerAuth {
+    token: String,
+}
+
+impl BearerAuth {
+    pub fn new(token: String) -> Self {
+        Self { token }
+    }
+}
+
+impl<'a> Into<Header<'a>> for BearerAuth {
+    fn into(self) -> Header<'a> {
+        Header::new("Authorization", format!("Bearer {}", self.token))
+    }
+}
+
 #[test]
 fn test_registration() {
     run_test!(|client, _conn| {
@@ -62,7 +78,7 @@ fn test_registration() {
 
         let response = client
             .get("/users/me")
-            .header(Header::new("Authorization", token))
+            .header(BearerAuth::new(token))
             .dispatch()
             .await;
 
@@ -71,5 +87,20 @@ fn test_registration() {
         let resp = response.into_string().await.unwrap();
         let json: serde_json::Value = serde_json::from_str(&resp).unwrap();
         assert_eq!(json["username"], "piepkonijn");
+    });
+}
+
+#[test]
+fn test_reject_invalid_credentials() {
+    run_test!(|client, _conn| {
+        let response = client
+            .post("/login")
+            .header(ContentType::JSON)
+            .body(r#"{"username": "piepkonijn", "password": "letmeinplease"}"#)
+            .dispatch()
+            .await;
+
+        assert_eq!(response.status(), Status::Forbidden);
+        // assert_eq!(response.content_type(), Some(ContentType::JSON));
     });
 }
