@@ -55,7 +55,7 @@ pub struct UserData {
 impl From<User> for UserData {
     fn from(user: User) -> Self {
         UserData {
-            user_id: user.user_id,
+            user_id: user.id,
             username: user.username,
         }
     }

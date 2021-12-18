@@ -2,7 +2,7 @@ use std::future::Future;
 
 use diesel::RunQueryDsl;
 use mozaic4_backend::DbConn;
-use rocket::local::asynchronous::Client;
+use rocket::{http::Header, local::asynchronous::Client};
 
 // We use a lock to synchronize between tests so DB operations don't collide.
 // For now. In the future, we'll have a nice way to run each test in a DB
@@ -11,9 +11,13 @@ static DB_LOCK: parking_lot::Mutex<()> = parking_lot::const_mutex(());
 
 async fn reset_db(db: &DbConn) {
     db.run(|conn| {
-        diesel::sql_query("TRUNCATE TABLE users, sessions")
-            .execute(conn)
-            .expect("drop all tables");
+        diesel::sql_query(
+            r#"
+            TRUNCATE TABLE users, sessions,
+            bots, code_bundles"#,
+        )
+        .execute(conn)
+        .expect("drop all tables");
     })
     .await
 }
@@ -36,4 +40,20 @@ where
     reset_db(&db).await;
 
     test_closure(client, db).await;
+}
+
+pub struct BearerAuth {
+    token: String,
+}
+
+impl BearerAuth {
+    pub fn new(token: String) -> Self {
+        Self { token }
+    }
+}
+
+impl<'a> Into<Header<'a>> for BearerAuth {
+    fn into(self) -> Header<'a> {
+        Header::new("Authorization", format!("Bearer {}", self.token))
+    }
 }

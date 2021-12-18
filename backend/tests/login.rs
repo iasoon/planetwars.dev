@@ -1,26 +1,10 @@
 #![feature(async_closure)]
 extern crate mozaic4_backend;
 
-use rocket::http::{ContentType, Header, Status};
+use rocket::http::{ContentType, Status};
 
 mod util;
 use util::run_test;
-
-pub struct BearerAuth {
-    token: String,
-}
-
-impl BearerAuth {
-    pub fn new(token: String) -> Self {
-        Self { token }
-    }
-}
-
-impl<'a> Into<Header<'a>> for BearerAuth {
-    fn into(self) -> Header<'a> {
-        Header::new("Authorization", format!("Bearer {}", self.token))
-    }
-}
 
 #[rocket::async_test]
 async fn test_registration() {
@@ -47,7 +31,7 @@ async fn test_registration() {
 
         let response = client
             .get("/users/me")
-            .header(BearerAuth::new(token))
+            .header(util::BearerAuth::new(token))
             .dispatch()
             .await;
 
@@ -56,7 +40,8 @@ async fn test_registration() {
         let resp = response.into_string().await.unwrap();
         let json: serde_json::Value = serde_json::from_str(&resp).unwrap();
         assert_eq!(json["username"], "piepkonijn");
-    }).await
+    })
+    .await
 }
 
 #[rocket::async_test]
@@ -71,5 +56,6 @@ async fn test_reject_invalid_credentials() {
 
         assert_eq!(response.status(), Status::Forbidden);
         // assert_eq!(response.content_type(), Some(ContentType::JSON));
-    }).await
+    })
+    .await
 }

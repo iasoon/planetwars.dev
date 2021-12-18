@@ -22,7 +22,7 @@ pub struct Session {
 pub fn create_session(user: &User, conn: &PgConnection) -> Session {
     let new_session = NewSession {
         token: gen_session_token(),
-        user_id: user.user_id,
+        user_id: user.id,
     };
     let session = insert_into(sessions::table)
         .values(&new_session)

@@ -20,7 +20,7 @@ pub struct NewUser<'a> {
 
 #[derive(Queryable, Debug)]
 pub struct User {
-    pub user_id: i32,
+    pub id: i32,
     pub username: String,
     pub password_salt: Vec<u8>,
     pub password_hash: Vec<u8>,

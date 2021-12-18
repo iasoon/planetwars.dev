@@ -8,9 +8,9 @@ extern crate rocket;
 #[macro_use]
 extern crate diesel;
 
-mod db;
-mod routes;
-mod schema;
+pub mod db;
+pub mod routes;
+pub mod schema;
 
 #[database("postgresql_database")]
 pub struct DbConn(diesel::PgConnection);
@@ -29,6 +29,9 @@ pub fn rocket() -> Rocket<Build> {
                 routes::users::register,
                 routes::users::login,
                 routes::users::current_user,
+                routes::bots::create_bot,
+                routes::bots::get_bot,
+                routes::bots::upload_bot_code,
             ],
         )
         .attach(DbConn::fairing())
