@@ -47,8 +47,7 @@ impl<'a> Serializer<'a> {
     /// rotated based on the number offset for this serializer.
     fn player_num(&self, player_id: usize) -> usize {
         let num_players = self.state.players.len();
-        let rotated_id =
-            (player_id + num_players - self.player_num_offset) % num_players;
+        let rotated_id = (player_id + num_players - self.player_num_offset) % num_players;
         // protocol player ids start at 1
         return rotated_id + 1;
     }

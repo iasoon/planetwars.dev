@@ -50,8 +50,7 @@ pub struct Dispatch {
 
 impl PwState {
     pub fn dispatch(&mut self, dispatch: &Dispatch) {
-        let distance = self.planets[dispatch.origin]
-            .distance(&self.planets[dispatch.target]);
+        let distance = self.planets[dispatch.origin].distance(&self.planets[dispatch.target]);
 
         let origin = &mut self.planets[dispatch.origin];
         origin.fleets[0].ship_count -= dispatch.ship_count;

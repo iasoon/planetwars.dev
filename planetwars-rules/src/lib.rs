@@ -7,16 +7,16 @@ pub mod protocol;
 pub mod rules;
 pub mod serializer;
 
-use std::collections::HashMap;
-pub use rules::{PwState, Dispatch};
-pub use protocol::CommandError;
 pub use config::Config as PwConfig;
+pub use protocol::CommandError;
+pub use rules::{Dispatch, PwState};
+use std::collections::HashMap;
 
 pub struct PlanetWars {
     /// Game state
     state: rules::PwState,
     /// Map planet names to their ids
-    planet_map: HashMap<String, usize>
+    planet_map: HashMap<String, usize>,
 }
 
 impl PlanetWars {
@@ -28,7 +28,7 @@ impl PlanetWars {
             .iter()
             .map(|p| (p.name.clone(), p.id))
             .collect();
-        
+
         PlanetWars { state, planet_map }
     }
 
@@ -58,9 +58,8 @@ impl PlanetWars {
     pub fn execute_command(
         &mut self,
         player_num: usize,
-        cmd: &protocol::Command
-    ) -> Result<(), CommandError>
-    {
+        cmd: &protocol::Command,
+    ) -> Result<(), CommandError> {
         let dispatch = self.parse_command(player_num, cmd)?;
         self.state.dispatch(&dispatch);
         return Ok(());
@@ -69,13 +68,15 @@ impl PlanetWars {
     /// Check the given command for validity.
     /// If it is valid, return an internal representation of the dispatch
     /// described by the command.
-    pub fn parse_command(&self, player_id: usize, cmd: &protocol::Command)
-        -> Result<Dispatch, CommandError>
-    {
+    pub fn parse_command(
+        &self,
+        player_id: usize,
+        cmd: &protocol::Command,
+    ) -> Result<Dispatch, CommandError> {
         let origin_id = *self
-        .planet_map
-        .get(&cmd.origin)
-        .ok_or(CommandError::OriginDoesNotExist)?;
+            .planet_map
+            .get(&cmd.origin)
+            .ok_or(CommandError::OriginDoesNotExist)?;
 
         let target_id = *self
             .planet_map
