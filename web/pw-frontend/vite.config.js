@@ -1,12 +1,20 @@
 import { defineConfig } from 'vite'
 import { svelte } from '@sveltejs/vite-plugin-svelte'
-import nodePolyfills from 'rollup-plugin-polyfill-node'
-
+import { viteCommonjs } from '@originjs/vite-plugin-commonjs'
 
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [
     svelte(),
-    nodePolyfills()
+    viteCommonjs({
+      transformMixedEsModules: true,
+    }),
   ],
+  build: {
+    commonjsOptions: {
+      transformMixedEsModules: true,
+    },
+    minify: false,
+    target: "modules",
+  },
 })
