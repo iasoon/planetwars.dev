@@ -5,10 +5,12 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "wasm": "wasm-pack build ./planetwars-rs --target web",
     "preview": "vite preview",
     "check": "svelte-check --tsconfig ./tsconfig.json"
   },
   "devDependencies": {
+    "@originjs/vite-plugin-commonjs": "^1.0.1",
     "@sveltejs/vite-plugin-svelte": "^1.0.0-next.30",
     "@tsconfig/svelte": "^2.0.1",
     "rollup-plugin-polyfill-node": "^0.8.0",
@@ -17,13 +19,13 @@
     "svelte-preprocess": "^4.9.8",
     "tslib": "^2.3.1",
     "typescript": "^4.4.4",
-    "vite": "^2.7.2"
+    "vite": "^2.7.2",
+    "vite-plugin-wasm-pack": "^0.1.9"
   },
   "dependencies": {
     "buffer": "^6.0.3",
     "extract-svg-path": "^2.1.0",
     "load-svg": "^1.0.0",
-    "planetwars-rs": "file:./planetwars-rs/pkg",
     "svg-mesh-3d": "^1.1.0",
     "ts-heap": "^1.1.3"
   }
