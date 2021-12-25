@@ -98,6 +98,7 @@ async fn run_match(command: RunMatchCommand) -> io::Result<()> {
         .collect();
 
     let match_config = MatchConfig {
+        map_name: command.map,
         map_path,
         log_path,
         players,

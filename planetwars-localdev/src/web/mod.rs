@@ -11,10 +11,14 @@ use mime_guess;
 use rust_embed::RustEmbed;
 use serde::{Deserialize, Serialize};
 use std::{
+    fs,
+    io::{self, BufRead},
     net::SocketAddr,
     path::{self, PathBuf},
     sync::Arc,
 };
+
+use crate::match_runner::MatchMeta;
 
 struct State {
     project_root: PathBuf,
@@ -47,11 +51,13 @@ pub async fn run(project_root: PathBuf) {
 }
 
 #[derive(Serialize, Deserialize)]
-struct Match {
+struct MatchData {
     name: String,
+    #[serde(flatten)]
+    meta: MatchMeta,
 }
 
-async fn list_matches(Extension(state): Extension<Arc<State>>) -> Json<Vec<Match>> {
+async fn list_matches(Extension(state): Extension<Arc<State>>) -> Json<Vec<MatchData>> {
     let matches = state
         .project_root
         .join("matches")
@@ -59,29 +65,48 @@ async fn list_matches(Extension(state): Extension<Arc<State>>) -> Json<Vec<Match
         .unwrap()
         .filter_map(|entry| {
             let entry = entry.unwrap();
-            extract_match_name(entry).map(|name| Match { name })
+            get_match_data(&entry).ok()
         })
         .collect::<Vec<_>>();
     Json(matches)
 }
 
 // extracts 'filename' if the entry matches'$filename.log'.
-fn extract_match_name(entry: std::fs::DirEntry) -> Option<String> {
+fn get_match_data(entry: &fs::DirEntry) -> io::Result<MatchData> {
     let file_name = entry.file_name();
     let path = path::Path::new(&file_name);
-    if path.extension() == Some("log".as_ref()) {
-        path.file_stem()
-            .and_then(|name| name.to_str())
-            .map(|name| name.to_string())
-    } else {
-        None
+
+    let name = get_match_name(&path)
+        .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "invalid match name"))?;
+
+    let meta = read_match_meta(&entry.path())?;
+
+    Ok(MatchData { name, meta })
+}
+
+fn get_match_name(path: &path::Path) -> Option<String> {
+    if path.extension() != Some("log".as_ref()) {
+        return None;
     }
+
+    path.file_stem()
+        .and_then(|name| name.to_str())
+        .map(|name| name.to_string())
+}
+
+fn read_match_meta(path: &path::Path) -> io::Result<MatchMeta> {
+    let file = fs::File::open(path)?;
+    let mut reader = io::BufReader::new(file);
+    let mut line = String::new();
+    reader.read_line(&mut line)?;
+    let meta: MatchMeta = serde_json::from_str(&line)?;
+    Ok(meta)
 }
 
 async fn get_match(Extension(state): Extension<Arc<State>>, Path(id): Path<String>) -> String {
     let mut match_path = state.project_root.join("matches").join(id);
     match_path.set_extension("log");
-    std::fs::read_to_string(match_path).unwrap()
+    fs::read_to_string(match_path).unwrap()
 }
 
 async fn index_handler() -> impl IntoResponse {

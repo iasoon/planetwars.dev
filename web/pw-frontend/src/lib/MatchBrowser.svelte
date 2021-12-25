@@ -1,6 +1,19 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import Visualizer from "./Visualizer.svelte";
+  import moment from "moment";
+
+  const PLAYER_COLORS = [
+    "#FF8000",
+    "#0080FF",
+    "#FF6693",
+    "#3FCB55",
+    "#CBC33F",
+    "#CF40E9",
+    "#FF3F0D",
+    "#1BEEF0",
+    "#0DC5FF",
+  ];
 
   let matches = [];
   let selectedMatch = null;
@@ -21,6 +34,19 @@
         selectedMatchLog = log;
       });
   }
+
+  function showTimestamp(dateStr: string): string {
+    let t = moment(dateStr);
+    if (t.day() == moment().day()) {
+      return moment(dateStr).format("HH:mm");
+    } else {
+      return moment(dateStr).format("DD/MM");
+    }
+  }
+
+  function playerColor(player_num: number): string {
+    return PLAYER_COLORS[player_num % PLAYER_COLORS.length];
+  }
 </script>
 
 <div class="container">
@@ -33,7 +59,15 @@
           class:selected={selectedMatch === match.name}
           class="match-card"
         >
-          {match.name}
+          <span class="match-timestamp"> {showTimestamp(match.timestamp)}</span>
+          <span class="match-mapname">{match.map_name}</span>
+          <ul class="match-player-list">
+            {#each match.players as player, ix}
+              <li class="match-player" style="color: {playerColor(ix)}">
+                {player.name}
+              </li>
+            {/each}
+          </ul>
         </li>
       {/each}
     </ul>
@@ -85,5 +119,20 @@
 
   .match-card:hover {
     background-color: #333;
+  }
+
+  .match-timestamp {
+    color: #ccc;
+  }
+
+  .match-mapname {
+    padding: 0 0.5em;
+  }
+
+  .match-player-list {
+    list-style: none;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding-left: 18px;
   }
 </style>
