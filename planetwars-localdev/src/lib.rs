@@ -26,6 +26,8 @@ enum Commands {
     InitProject(InitProjectCommand),
     /// Run a match
     RunMatch(RunMatchCommand),
+    /// Host local webserver
+    Serve(ServeCommand),
 }
 
 #[derive(Parser)]
@@ -41,6 +43,9 @@ struct InitProjectCommand {
     /// project root directory
     path: String,
 }
+
+#[derive(Parser)]
+struct ServeCommand;
 
 #[derive(Serialize, Deserialize, Debug)]
 struct ProjectConfig {
@@ -58,6 +63,7 @@ pub async fn run() {
     let res = match matches.command {
         Commands::RunMatch(command) => run_match(command).await,
         Commands::InitProject(command) => init_project(command),
+        Commands::Serve(_) => run_webserver().await,
     };
     if let Err(err) = res {
         eprintln!("{}", err);
@@ -137,5 +143,13 @@ fn init_project(command: InitProjectCommand) -> io::Result<()> {
     copy_asset!(path.join("maps"), "hex.json");
     copy_asset!(path.join("bots/simplebot"), "simplebot.py");
 
+    Ok(())
+}
+
+mod web;
+async fn run_webserver() -> io::Result<()> {
+    let project_dir = env::current_dir().unwrap();
+
+    web::run(project_dir).await;
     Ok(())
 }
