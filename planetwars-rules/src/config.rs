@@ -1,6 +1,7 @@
 use std::fs::File;
 use std::io;
 use std::io::Read;
+use std::path::PathBuf;
 
 use serde_json;
 
@@ -9,7 +10,7 @@ use super::rules::*;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
-    pub map_file: String,
+    pub map_file: PathBuf,
     pub max_turns: u64,
 }
 
