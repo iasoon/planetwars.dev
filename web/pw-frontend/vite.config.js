@@ -16,7 +16,10 @@ export default defineConfig({
     commonjsOptions: {
       transformMixedEsModules: true,
     },
-    minify: false,
-    target: "modules",
+  },
+  server: {
+    proxy: {
+      "/api/": "http://localhost:5000",
+    },
   },
 })

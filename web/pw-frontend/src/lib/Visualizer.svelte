@@ -2,12 +2,24 @@
   import { onMount } from 'svelte';
   import * as visualizer from '../lib/visualizer/index';
 
+  export let matchLog = null;
+
+  let initialized = false;
+
   onMount(() => {
     visualizer.init();
-    fetch("match.log")
-      .then(response => response.text())
-      .then(data => visualizer.set_instance(data));
+    initialized = true;
+    visualizer.set_loading(false);
   });
+
+  $: if (initialized) {
+    if (matchLog === null) {
+      visualizer.set_loading(true);
+    } else {
+      visualizer.set_instance(matchLog);
+      visualizer.set_loading(false);
+    }
+  }
 </script>
 
 <div id="main" class="loading">
