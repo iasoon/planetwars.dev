@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "wasm": "wasm-pack build ./planetwars-rs --target web",
+    "build-wasm": "wasm-pack build ./planetwars-rs --target web",
     "preview": "vite preview",
     "check": "svelte-check --tsconfig ./tsconfig.json"
   },
