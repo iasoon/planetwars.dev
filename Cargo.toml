@@ -2,5 +2,5 @@
 
 members = [
     "planetwars-rules",
-    "planetwars-localdev",
+    "planetwars-cli",
 ]
