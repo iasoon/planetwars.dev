@@ -59,7 +59,8 @@
           class:selected={selectedMatch === match.name}
           class="match-card"
         >
-          <span class="match-timestamp"> {showTimestamp(match.timestamp)}</span>
+          <div class="match-name">{match.name}</div>
+          <span class="match-timestamp">{showTimestamp(match.timestamp)}</span>
           <span class="match-mapname">{match.map_name}</span>
           <ul class="match-player-list">
             {#each match.players as player, ix}
@@ -127,6 +128,7 @@
 
   .match-mapname {
     padding: 0 0.5em;
+    color: #ccc;
   }
 
   .match-player-list {
