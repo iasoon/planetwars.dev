@@ -27,7 +27,7 @@ impl Cli {
 
 #[derive(Subcommand)]
 enum Command {
-    /// Initialize a new project
+    /// Initialize a new workspace
     Init(init::InitCommand),
     /// Run a match
     RunMatch(run_match::RunMatchCommand),

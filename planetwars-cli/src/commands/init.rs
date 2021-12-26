@@ -5,7 +5,7 @@ use futures::io;
 
 #[derive(Parser)]
 pub struct InitCommand {
-    /// project root directory
+    /// workspace root directory
     path: String,
 }
 
@@ -29,7 +29,7 @@ impl InitCommand {
         std::fs::create_dir_all(path.join("bots/simplebot"))?;
 
         // create files
-        copy_asset!(path, "pw_project.toml");
+        copy_asset!(path, "pw_workspace.toml");
         copy_asset!(path.join("maps"), "hex.json");
         copy_asset!(path.join("bots/simplebot"), "simplebot.py");
 

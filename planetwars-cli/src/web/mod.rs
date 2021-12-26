@@ -21,17 +21,17 @@ use std::{
 use crate::match_runner::MatchMeta;
 
 struct State {
-    project_root: PathBuf,
+    workspace_root: PathBuf,
 }
 
 impl State {
-    fn new(project_root: PathBuf) -> Self {
-        Self { project_root }
+    fn new(workspace_root: PathBuf) -> Self {
+        Self { workspace_root }
     }
 }
 
-pub async fn run(project_root: PathBuf) {
-    let shared_state = Arc::new(State::new(project_root));
+pub async fn run(workspace_root: PathBuf) {
+    let shared_state = Arc::new(State::new(workspace_root));
 
     // build our application with a route
     let app = Router::new()
@@ -59,7 +59,7 @@ struct MatchData {
 
 async fn list_matches(Extension(state): Extension<Arc<State>>) -> Json<Vec<MatchData>> {
     let matches = state
-        .project_root
+        .workspace_root
         .join("matches")
         .read_dir()
         .unwrap()
@@ -104,7 +104,7 @@ fn read_match_meta(path: &path::Path) -> io::Result<MatchMeta> {
 }
 
 async fn get_match(Extension(state): Extension<Arc<State>>, Path(id): Path<String>) -> String {
-    let mut match_path = state.project_root.join("matches").join(id);
+    let mut match_path = state.workspace_root.join("matches").join(id);
     match_path.set_extension("log");
     fs::read_to_string(match_path).unwrap()
 }

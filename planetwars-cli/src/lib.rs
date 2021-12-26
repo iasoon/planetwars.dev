@@ -9,7 +9,7 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 #[derive(Serialize, Deserialize, Debug)]
-struct ProjectConfig {
+struct WorkspaceConfig {
     bots: HashMap<String, BotConfig>,
 }
 
@@ -27,8 +27,8 @@ pub async fn run() {
     }
 }
 
-fn resolve_bot_config(project_dir: &Path, config: BotConfig) -> BotConfig {
-    let mut path = PathBuf::from(project_dir);
+fn resolve_bot_config(workspace_dir: &Path, config: BotConfig) -> BotConfig {
+    let mut path = PathBuf::from(workspace_dir);
     path.push(&config.path);
     BotConfig {
         path: path.to_str().unwrap().to_string(),

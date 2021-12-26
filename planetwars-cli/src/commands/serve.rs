@@ -10,9 +10,9 @@ pub struct ServeCommand;
 
 impl ServeCommand {
     pub async fn run(self) -> io::Result<()> {
-        let project_dir = env::current_dir().unwrap();
+        let workspace_root = env::current_dir().unwrap();
 
-        web::run(project_dir).await;
+        web::run(workspace_root).await;
         Ok(())
     }
 }
