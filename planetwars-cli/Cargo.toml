@@ -20,5 +20,5 @@ clap = { version = "3.0.0-rc.8", features = ["derive"] }
 chrono = { version = "0.4", features = ["serde"] }
 
 rust-embed = "6.3.0"
-axum = "0.4"
+axum = { version = "0.4", features = ["ws"] }
 mime_guess = "2"

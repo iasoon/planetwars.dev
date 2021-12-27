@@ -1,6 +1,6 @@
 use axum::{
     body::{boxed, Full},
-    extract::{Extension, Path},
+    extract::{ws::WebSocket, Extension, Path, WebSocketUpgrade},
     handler::Handler,
     http::{header, StatusCode, Uri},
     response::{IntoResponse, Response},
@@ -36,6 +36,7 @@ pub async fn run(workspace_root: PathBuf) {
     // build our application with a route
     let app = Router::new()
         .route("/", get(index_handler))
+        .route("/ws", get(ws_handler))
         .route("/api/matches", get(list_matches))
         .route("/api/matches/:match_id", get(get_match))
         .fallback(static_handler.into_service())
@@ -48,6 +49,26 @@ pub async fn run(workspace_root: PathBuf) {
         .serve(app.into_make_service())
         .await
         .unwrap();
+}
+
+async fn ws_handler(ws: WebSocketUpgrade) -> impl IntoResponse {
+    ws.on_upgrade(handle_socket)
+}
+
+async fn handle_socket(mut socket: WebSocket) {
+    while let Some(msg) = socket.recv().await {
+        let msg = if let Ok(msg) = msg {
+            msg
+        } else {
+            // client disconnected
+            return;
+        };
+
+        if socket.send(msg).await.is_err() {
+            // client disconnected
+            return;
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize)]

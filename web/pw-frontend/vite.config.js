@@ -20,6 +20,7 @@ export default defineConfig({
   server: {
     proxy: {
       "/api/": "http://localhost:5000",
+      "/ws": "ws://localhost:5000/ws",
     },
   },
 })
