@@ -40,7 +40,12 @@ impl RunMatchCommand {
         match_runner::run_match(match_config).await;
         println!("match completed successfully");
         // TODO: maybe print the match result as well?
-        println!("wrote match log to {}", log_path.to_str().unwrap());
+
+        let relative_path = match log_path.strip_prefix(&workspace.root_path) {
+            Ok(path) => path.to_str().unwrap(),
+            Err(_) => log_path.to_str().unwrap(),
+        };
+        println!("wrote match log to {}", relative_path);
         Ok(())
     }
 }

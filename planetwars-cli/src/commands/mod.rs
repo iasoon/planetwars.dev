@@ -1,3 +1,4 @@
+mod build;
 mod init;
 mod run_match;
 mod serve;
@@ -21,6 +22,7 @@ impl Cli {
             Command::Init(command) => command.run().await,
             Command::RunMatch(command) => command.run().await,
             Command::Serve(command) => command.run().await,
+            Command::Build(command) => command.run().await,
         }
     }
 }
@@ -33,4 +35,6 @@ enum Command {
     RunMatch(run_match::RunMatchCommand),
     /// Host local webserver
     Serve(serve::ServeCommand),
+    /// Run build command for a bot
+    Build(build::BuildCommand),
 }

@@ -33,9 +33,18 @@ pub struct BotConfig {
 }
 
 impl BotConfig {
+    // TODO: these commands should not be here
     pub fn get_run_argv(&self) -> Vec<String> {
         // TODO: proper error handling
         shlex::split(&self.run_command)
             .expect("Failed to parse bot run command. Check for unterminated quotes.")
+    }
+
+    pub fn get_build_argv(&self) -> Option<Vec<String>> {
+        // TODO: proper error handling
+        self.build_command.as_ref().map(|cmd| {
+            shlex::split(cmd)
+                .expect("Failed to parse bot build command. Check for unterminated quotes.")
+        })
     }
 }
