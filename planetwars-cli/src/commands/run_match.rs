@@ -1,14 +1,10 @@
-use std::env;
 use std::io;
 
 use clap::Parser;
 
-use crate::match_runner;
-use crate::match_runner::MatchBot;
 use crate::match_runner::MatchConfig;
-use crate::resolve_bot_config;
-use crate::WorkspaceConfig;
-
+use crate::match_runner::{self, MatchPlayer};
+use crate::workspace::Workspace;
 #[derive(Parser)]
 pub struct RunMatchCommand {
     /// map name
@@ -19,30 +15,20 @@ pub struct RunMatchCommand {
 
 impl RunMatchCommand {
     pub async fn run(self) -> io::Result<()> {
-        let workspace_root = env::current_dir().unwrap();
-
-        let config_path = workspace_root.join("pw_workspace.toml");
-
-        let map_path = workspace_root.join(format!("maps/{}.json", self.map));
+        let workspace = Workspace::open_current_dir()?;
+        let map_path = workspace.maps_dir().join(format!("{}.json", &self.map));
 
         let timestamp = chrono::Local::now().format("%Y-%m-%d-%H-%M-%S");
-        let log_path = workspace_root.join(format!("matches/{}.log", timestamp));
+        let log_path = workspace.match_path(&format!("{}-{}", &self.map, &timestamp));
 
-        let config_str = std::fs::read_to_string(config_path).unwrap();
-        let workspace_config: WorkspaceConfig = toml::from_str(&config_str).unwrap();
-
-        let players = self
-            .bots
-            .into_iter()
-            .map(|bot_name| {
-                let bot_config = workspace_config.bots.get(&bot_name).unwrap().clone();
-                let resolved_config = resolve_bot_config(&workspace_root, bot_config);
-                MatchBot {
-                    name: bot_name,
-                    bot_config: resolved_config,
-                }
-            })
-            .collect();
+        let mut players = Vec::new();
+        for bot_name in &self.bots {
+            let bot = workspace.get_bot(&bot_name)?;
+            players.push(MatchPlayer {
+                name: bot_name.clone(),
+                bot,
+            });
+        }
 
         let match_config = MatchConfig {
             map_name: self.map,

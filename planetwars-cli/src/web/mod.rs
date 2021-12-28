@@ -18,20 +18,20 @@ use std::{
     sync::Arc,
 };
 
-use crate::match_runner::MatchMeta;
+use crate::{match_runner::MatchMeta, workspace::Workspace};
 
 struct State {
-    workspace_root: PathBuf,
+    workspace: Workspace,
 }
 
 impl State {
-    fn new(workspace_root: PathBuf) -> Self {
-        Self { workspace_root }
+    fn new(workspace: Workspace) -> Self {
+        Self { workspace }
     }
 }
 
-pub async fn run(workspace_root: PathBuf) {
-    let shared_state = Arc::new(State::new(workspace_root));
+pub async fn run(workspace: Workspace) {
+    let shared_state = Arc::new(State::new(workspace));
 
     // build our application with a route
     let app = Router::new()
@@ -80,8 +80,8 @@ struct MatchData {
 
 async fn list_matches(Extension(state): Extension<Arc<State>>) -> Json<Vec<MatchData>> {
     let matches = state
-        .workspace_root
-        .join("matches")
+        .workspace
+        .matches_dir()
         .read_dir()
         .unwrap()
         .filter_map(|entry| {
@@ -125,7 +125,7 @@ fn read_match_meta(path: &path::Path) -> io::Result<MatchMeta> {
 }
 
 async fn get_match(Extension(state): Extension<Arc<State>>, Path(id): Path<String>) -> String {
-    let mut match_path = state.workspace_root.join("matches").join(id);
+    let mut match_path = state.workspace.matches_dir().join(id);
     match_path.set_extension("log");
     fs::read_to_string(match_path).unwrap()
 }

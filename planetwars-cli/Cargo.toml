@@ -18,6 +18,7 @@ toml = "0.5"
 planetwars-rules = { path = "../planetwars-rules" }
 clap = { version = "3.0.0-rc.8", features = ["derive"] }
 chrono = { version = "0.4", features = ["serde"] }
+shlex = "1.1"
 
 rust-embed = "6.3.0"
 axum = { version = "0.4", features = ["ws"] }

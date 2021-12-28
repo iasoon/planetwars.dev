@@ -1,10 +1,6 @@
-[bots]
+[paths]
+maps_dir = "maps"
+matches_dir = "matches"
 
-# define a bot called simplebot
 [bots.simplebot]
-
-# The working directory for the bot. 
-path = "./bots/simplebot"
-
-# What command to use for running the bot
-argv = ["python", "simplebot.py"]
+path = "bots/simplebot"

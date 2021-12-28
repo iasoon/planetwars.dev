@@ -31,8 +31,8 @@ impl InitCommand {
         // create files
         copy_asset!(path, "pw_workspace.toml");
         copy_asset!(path.join("maps"), "hex.json");
-        copy_asset!(path.join("bots/simplebot"), "simplebot.py");
-
+        copy_asset!(path.join("bots/"), "simplebot/botconfig.toml");
+        copy_asset!(path.join("bots/"), "simplebot/simplebot.py");
         Ok(())
     }
 }

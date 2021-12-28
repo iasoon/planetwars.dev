@@ -1,4 +1,5 @@
 use std::io;
+use std::path::PathBuf;
 use std::process::Stdio;
 use std::sync::Arc;
 use std::sync::Mutex;
@@ -75,7 +76,7 @@ impl LocalBotRunner {
 
 #[derive(Debug, Clone)]
 pub struct Bot {
-    pub working_dir: String,
+    pub working_dir: PathBuf,
     pub argv: Vec<String>,
 }
 
