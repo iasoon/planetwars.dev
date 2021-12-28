@@ -14,7 +14,7 @@ use std::{
     fs,
     io::{self, BufRead},
     net::SocketAddr,
-    path::{self, PathBuf},
+    path,
     sync::Arc,
 };
 
@@ -79,7 +79,7 @@ struct MatchData {
 }
 
 async fn list_matches(Extension(state): Extension<Arc<State>>) -> Json<Vec<MatchData>> {
-    let matches = state
+    let mut matches = state
         .workspace
         .matches_dir()
         .read_dir()
@@ -89,6 +89,11 @@ async fn list_matches(Extension(state): Extension<Arc<State>>) -> Json<Vec<Match
             get_match_data(&entry).ok()
         })
         .collect::<Vec<_>>();
+    matches.sort_by(|a, b| {
+        let a = a.meta.timestamp;
+        let b = b.meta.timestamp;
+        a.cmp(&b).reverse()
+    });
     Json(matches)
 }
 
