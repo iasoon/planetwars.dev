@@ -16,8 +16,8 @@ pub struct RunMatchCommand {
 impl RunMatchCommand {
     pub async fn run(self) -> io::Result<()> {
         let workspace = Workspace::open_current_dir()?;
-        let map_path = workspace.maps_dir().join(format!("{}.json", &self.map));
 
+        let map_path = workspace.map_path(&self.map);
         let timestamp = chrono::Local::now().format("%Y-%m-%d-%H-%M-%S");
         let log_path = workspace.match_path(&format!("{}-{}", &self.map, &timestamp));
 
@@ -33,15 +33,14 @@ impl RunMatchCommand {
         let match_config = MatchConfig {
             map_name: self.map,
             map_path,
-            log_path,
+            log_path: log_path.clone(),
             players,
         };
 
         match_runner::run_match(match_config).await;
         println!("match completed successfully");
-        // TODO: don't hardcode match path.
-        // maybe print the match result as well?
-        println!("wrote match log to matches/{}.log", timestamp);
+        // TODO: maybe print the match result as well?
+        println!("wrote match log to {}", log_path.to_str().unwrap());
         Ok(())
     }
 }

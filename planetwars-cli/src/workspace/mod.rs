@@ -12,8 +12,8 @@ const WORKSPACE_CONFIG_FILENAME: &str = "pw_workspace.toml";
 pub mod bot;
 
 pub struct Workspace {
-    root_path: PathBuf,
-    config: WorkspaceConfig,
+    pub root_path: PathBuf,
+    pub config: WorkspaceConfig,
 }
 
 #[derive(Serialize, Deserialize, Debug)]

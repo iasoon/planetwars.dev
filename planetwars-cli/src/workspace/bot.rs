@@ -29,6 +29,7 @@ impl WorkspaceBot {
 pub struct BotConfig {
     pub name: String,
     pub run_command: String,
+    pub build_command: Option<String>,
 }
 
 impl BotConfig {
