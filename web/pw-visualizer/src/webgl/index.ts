@@ -4,15 +4,22 @@ import { VertexBuffer, IndexBuffer } from './buffer';
 import { VertexArray, VertexBufferLayout } from './vertexBufferLayout';
 import { Renderer } from './renderer';
 import { Texture } from './texture';
+import * as assets from "../assets";
 
-const URL = window.location.origin+window.location.pathname;
-const LOCATION = URL.substring(0, URL.lastIndexOf("/") + 1);
+// const URL = window.location.origin+window.location.pathname;
+// const LOCATION = URL.substring(0, URL.lastIndexOf("/") + 1);
 
 async function create_texture_from_svg(gl: WebGLRenderingContext, name: string, path: string, width: number, height: number): Promise<Texture> {
 
     const [mesh, factory] = await Promise.all([
         url_to_mesh(path),
-        ShaderFactory.create_factory(LOCATION + "static/shaders/frag/static_color.glsl", LOCATION + "static/shaders/vert/svg.glsl")
+        ShaderFactory.create_factory(
+            // assets.simpleFragmentShader,
+            // assets.simpleVertexShader,
+            // TODO: previously: this was the old code, which was not working.
+            // what is the correct shader here?
+            "static/shaders/frag/static_color.glsl", "static/shaders/vert/svg.glsl"
+        )
     ]);
 
     const program = factory.create_shader(gl);
@@ -54,7 +61,7 @@ async function main() {
     console.log(Math.max(...mesh.positions), Math.min(...mesh.positions));
     const renderer = new Renderer();
 
-    const factory = await ShaderFactory.create_factory(LOCATION + "static/shaders/frag/static_color.glsl", LOCATION + "static/shaders/vert/simple.glsl");
+    const factory = await ShaderFactory.create_factory(assets.simpleFragmentShader, assets.simpleVertexShader);
     const program = factory.create_shader(gl);
 
     var positionBuffer = new VertexBuffer(gl, mesh.positions);

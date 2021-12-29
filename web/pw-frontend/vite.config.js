@@ -22,5 +22,9 @@ export default defineConfig({
       "/api/": "http://localhost:5000",
       "/ws": "ws://localhost:5000/ws",
     },
+    fs: {
+      // Allow serving files from one level up to the project root
+      allow: ['..']
+    }
   },
 })

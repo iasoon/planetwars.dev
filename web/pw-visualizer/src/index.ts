@@ -27,6 +27,7 @@ import { VertexBuffer, IndexBuffer } from "./webgl/buffer";
 import { VertexBufferLayout, VertexArray } from "./webgl/vertexBufferLayout";
 import { defaultLabelFactory, LabelFactory, Align, Label } from "./webgl/text";
 import { VoronoiBuilder } from "./voronoi/voronoi";
+import * as assets from "./assets";
 
 // svg-mesh requires global to exist
 (window as any).global = window;
@@ -585,34 +586,38 @@ var meshes: Mesh[];
 var shaders: Dictionary<ShaderFactory>;
 
 export async function set_instance(source: string): Promise<GameInstance> {
+  // TODO: embed shader programs
   if (!meshes || !shaders) {
-    const mesh_promises = ["ship.svg", "earth.svg", "mars.svg", "venus.svg"]
-      .map((name) => "/static/res/assets/" + name)
-      .map(url_to_mesh);
+    const mesh_promises = [
+      assets.shipSvg,
+      assets.earthSvg,
+      assets.marsSvg,
+      assets.venusSvg,
+    ].map(url_to_mesh);
 
     const shader_promies = [
       (async () =>
         <[string, ShaderFactory]>[
           "normal",
           await ShaderFactory.create_factory(
-            "/static/shaders/frag/simple.glsl",
-            "/static/shaders/vert/simple.glsl"
+            assets.simpleFragmentShader,
+            assets.simpleVertexShader,
           ),
         ])(),
       (async () =>
         <[string, ShaderFactory]>[
           "vor",
           await ShaderFactory.create_factory(
-            "/static/shaders/frag/vor.glsl",
-            "/static/shaders/vert/vor.glsl"
+            assets.vorFragmentShader,
+            assets.vorVertexShader,
           ),
         ])(),
       (async () =>
         <[string, ShaderFactory]>[
           "image",
           await ShaderFactory.create_factory(
-            "/static/shaders/frag/image.glsl",
-            "/static/shaders/vert/simple.glsl"
+            assets.imageFragmentShader,
+            assets.simpleVertexShader,
           ),
         ])(),
     ];

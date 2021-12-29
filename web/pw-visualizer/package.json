@@ -7,7 +7,7 @@
     "build": "vite build",
     "build-wasm": "wasm-pack build ../planetwars-rs --target web"
   },
-  "files": ["src"],
+  "files": ["src", "assets"],
   "main": "src/index.ts",
   "devDependencies": {
     "@originjs/vite-plugin-commonjs": "^1.0.1",

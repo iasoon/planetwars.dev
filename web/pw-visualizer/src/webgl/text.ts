@@ -4,6 +4,7 @@ import { Texture } from "./texture";
 import { DefaultRenderable } from "./renderer";
 import { IndexBuffer, VertexBuffer } from "./buffer";
 import { VertexBufferLayout, VertexArray } from "./vertexBufferLayout";
+import { fontPng } from "../assets";
 
 
 export enum Align {
@@ -188,5 +189,5 @@ export function defaultLabelFactory(gl: WebGLRenderingContext, shader: Shader): 
         },
     };
 
-    return new LabelFactory(gl, '/static/res/assets/font.png', fontInfo, shader);
+    return new LabelFactory(gl, fontPng, fontInfo, shader);
 }
