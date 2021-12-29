@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import * as visualizer from '../lib/visualizer/index';
+  import * as visualizer from "pw-visualizer";
 
   export let matchLog = null;
 
@@ -20,6 +20,7 @@
       visualizer.set_loading(false);
     }
   }
+
 </script>
 
 <div id="main" class="loading">
@@ -57,5 +58,5 @@
 </div>
 
 <style scoped>
-  @import 'visualizer/style.css';
+  @import 'pw-visualizer/src/style.css';
 </style>
