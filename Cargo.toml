@@ -3,4 +3,5 @@
 members = [
     "planetwars-rules",
     "planetwars-cli",
+    "backend",
 ]
