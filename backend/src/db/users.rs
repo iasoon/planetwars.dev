@@ -1,4 +1,4 @@
-use crate::{schema::users, DbConn};
+use crate::schema::users;
 use argon2;
 use diesel::{prelude::*, PgConnection};
 use rand::Rng;

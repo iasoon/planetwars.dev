@@ -2,7 +2,6 @@ use diesel::prelude::*;
 use serde::{Deserialize, Serialize};
 
 use crate::schema::{bots, code_bundles};
-use crate::DbConn;
 use chrono;
 
 #[derive(Insertable)]

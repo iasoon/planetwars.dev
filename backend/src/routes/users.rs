@@ -1,48 +1,32 @@
+use crate::db::users::{Credentials, User};
 use crate::db::{sessions, users};
-use crate::{
-    db::users::{Credentials, User},
-    DbConn,
-};
-use rocket::serde::json::Json;
+use crate::DatabaseConnection;
+use axum::extract::{FromRequest, RequestParts, TypedHeader};
+use axum::headers::authorization::Bearer;
+use axum::headers::Authorization;
+use axum::http::StatusCode;
+use axum::{async_trait, Json};
 use serde::{Deserialize, Serialize};
 
-use rocket::http::Status;
-use rocket::request::{FromRequest, Outcome, Request};
-use rocket::response::status;
+type AuthorizationHeader = TypedHeader<Authorization<Bearer>>;
 
-#[derive(Debug)]
-pub enum AuthTokenError {
-    BadCount,
-    Missing,
-    Invalid,
-}
+#[async_trait]
+impl<B> FromRequest<B> for User
+where
+    B: Send,
+{
+    type Rejection = (StatusCode, String);
 
-// TODO: error handling and proper lifetimes
-#[rocket::async_trait]
-impl<'r> FromRequest<'r> for User {
-    type Error = AuthTokenError;
+    async fn from_request(req: &mut RequestParts<B>) -> Result<Self, Self::Rejection> {
+        let conn = DatabaseConnection::from_request(req).await?;
+        let TypedHeader(Authorization(bearer)) = AuthorizationHeader::from_request(req)
+            .await
+            .map_err(|_| (StatusCode::UNAUTHORIZED, "".to_string()))?;
 
-    async fn from_request(request: &'r Request<'_>) -> Outcome<Self, Self::Error> {
-        let keys: Vec<_> = request.headers().get("Authorization").collect();
-        let auth_header = match keys.len() {
-            0 => return Outcome::Failure((Status::BadRequest, AuthTokenError::Missing)),
-            1 => keys[0],
-            _ => return Outcome::Failure((Status::BadRequest, AuthTokenError::BadCount)),
-        };
+        let (_session, user) = sessions::find_user_by_session(bearer.token(), &conn)
+            .map_err(|_| (StatusCode::UNAUTHORIZED, "".to_string()))?;
 
-        let token = match auth_header.strip_prefix("Bearer ") {
-            Some(token) => token.to_string(),
-            None => return Outcome::Failure((Status::BadRequest, AuthTokenError::Invalid)),
-        };
-
-        let db = request.guard::<DbConn>().await.unwrap();
-        let res = db
-            .run(move |conn| sessions::find_user_by_session(&token, conn))
-            .await;
-        match res {
-            Ok((_session, user)) => Outcome::Success(user),
-            Err(_) => Outcome::Failure((Status::Unauthorized, AuthTokenError::Invalid)),
-        }
+        Ok(user)
     }
 }
 
@@ -67,18 +51,16 @@ pub struct RegistrationParams {
     pub password: String,
 }
 
-#[post("/register", data = "<params>")]
-pub async fn register(db_conn: DbConn, params: Json<RegistrationParams>) -> Json<UserData> {
-    db_conn
-        .run(move |conn| {
-            let credentials = Credentials {
-                username: &params.username,
-                password: &params.password,
-            };
-            let user = users::create_user(&credentials, conn).unwrap();
-            Json(user.into())
-        })
-        .await
+pub async fn register(
+    conn: DatabaseConnection,
+    params: Json<RegistrationParams>,
+) -> Json<UserData> {
+    let credentials = Credentials {
+        username: &params.username,
+        password: &params.password,
+    };
+    let user = users::create_user(&credentials, &conn).unwrap();
+    Json(user.into())
 }
 
 #[derive(Deserialize)]
@@ -87,32 +69,26 @@ pub struct LoginParams {
     pub password: String,
 }
 
-#[post("/login", data = "<params>")]
 pub async fn login(
-    db_conn: DbConn,
+    conn: DatabaseConnection,
     params: Json<LoginParams>,
-) -> Result<String, status::Forbidden<&'static str>> {
-    db_conn
-        .run(move |conn| {
-            let credentials = Credentials {
-                username: &params.username,
-                password: &params.password,
-            };
-            // TODO: handle failures
-            let authenticated = users::authenticate_user(&credentials, conn);
+) -> Result<String, StatusCode> {
+    let credentials = Credentials {
+        username: &params.username,
+        password: &params.password,
+    };
+    // TODO: handle failures
+    let authenticated = users::authenticate_user(&credentials, &conn);
 
-            match authenticated {
-                None => Err(status::Forbidden(Some("invalid auth"))),
-                Some(user) => {
-                    let session = sessions::create_session(&user, conn);
-                    Ok(session.token)
-                }
-            }
-        })
-        .await
+    match authenticated {
+        None => Err(StatusCode::FORBIDDEN),
+        Some(user) => {
+            let session = sessions::create_session(&user, &conn);
+            Ok(session.token)
+        }
+    }
 }
 
-#[get("/users/me")]
 pub async fn current_user(user: User) -> Json<UserData> {
     Json(user.into())
 }
