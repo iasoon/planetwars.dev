@@ -1,16 +1,20 @@
-use axum::extract::{Path, RawBody};
+use axum::extract::{Multipart, Path, RawBody};
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use axum::Json;
+use rand::distributions::Alphanumeric;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 use std::io::Cursor;
-use std::path;
+use std::path::{self, PathBuf};
 
 use crate::db::bots::{self, CodeBundle};
 use crate::db::users::User;
 use crate::DatabaseConnection;
 use bots::Bot;
+
+// TODO: make this a parameter
+const BOTS_DIR: &str = "./data/bots";
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct BotParams {
@@ -46,41 +50,48 @@ pub async fn get_my_bots(
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
 }
 
-// TODO: proper error handling
-pub async fn upload_bot_code(
+// TODO: currently this only implements the happy flow
+pub async fn upload_code_multipart(
     conn: DatabaseConnection,
     user: User,
     Path(bot_id): Path<i32>,
-    RawBody(body): RawBody,
-) -> (StatusCode, Json<CodeBundle>) {
-    // TODO: put in config somewhere
-    let data_path = "./data/bots";
+    mut multipart: Multipart,
+) -> Result<Json<CodeBundle>, StatusCode> {
+    let bots_dir = PathBuf::from(BOTS_DIR);
 
-    let bot = bots::find_bot(bot_id, &conn).expect("Bot not found");
+    let bot = bots::find_bot(bot_id, &conn).map_err(|_| StatusCode::NOT_FOUND)?;
 
-    assert_eq!(user.id, bot.owner_id);
+    if user.id != bot.owner_id {
+        return Err(StatusCode::FORBIDDEN);
+    }
 
-    // generate a random filename
-    let token: [u8; 16] = rand::thread_rng().gen();
-    let name = base64::encode(&token);
+    let data = multipart
+        .next_field()
+        .await
+        .map_err(|_| StatusCode::BAD_REQUEST)?
+        .ok_or(StatusCode::BAD_REQUEST)?
+        .bytes()
+        .await
+        .map_err(|_| StatusCode::BAD_REQUEST)?;
 
-    let path = path::Path::new(data_path).join(name);
-    // let capped_buf = data.open(10usize.megabytes()).into_bytes().await.unwrap();
-    // assert!(capped_buf.is_complete());
-    // let buf = capped_buf.into_inner();
-    let buf = hyper::body::to_bytes(body).await.unwrap();
+    // TODO: this random path might be a bit redundant
+    let folder_name: String = rand::thread_rng()
+        .sample_iter(&Alphanumeric)
+        .take(16)
+        .map(char::from)
+        .collect();
 
-    zip::ZipArchive::new(Cursor::new(buf))
-        .unwrap()
-        .extract(&path)
-        .unwrap();
+    zip::ZipArchive::new(Cursor::new(data))
+        .map_err(|_| StatusCode::BAD_REQUEST)?
+        .extract(bots_dir.join(&folder_name))
+        .map_err(|_| StatusCode::BAD_REQUEST)?;
 
     let bundle = bots::NewCodeBundle {
         bot_id: bot.id,
-        path: path.to_str().unwrap(),
+        path: &folder_name,
     };
     let code_bundle =
         bots::create_code_bundle(&bundle, &conn).expect("Failed to create code bundle");
 
-    (StatusCode::CREATED, Json(code_bundle))
+    Ok(Json(code_bundle))
 }

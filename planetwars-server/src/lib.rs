@@ -36,7 +36,10 @@ pub async fn api() -> Router {
         .route("/bots", post(routes::bots::create_bot))
         .route("/bots/my_bots", get(routes::bots::get_my_bots))
         .route("/bots/:bot_id", get(routes::bots::get_bot))
-        .route("/bots/:bot_id/upload", post(routes::bots::upload_bot_code))
+        .route(
+            "/bots/:bot_id/upload",
+            post(routes::bots::upload_code_multipart),
+        )
         .layer(AddExtensionLayer::new(pool));
     api
 }
