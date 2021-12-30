@@ -22,27 +22,27 @@ use axum::{
     AddExtensionLayer, Router,
 };
 
-async fn index_handler() -> &'static str {
-    "Hello, world!"
-}
-
 type ConnectionPool = bb8::Pool<DieselConnectionManager<PgConnection>>;
 
-pub async fn app() -> Router {
+pub async fn api() -> Router {
     let database_url = "postgresql://planetwars:planetwars@localhost/planetwars";
     let manager = DieselConnectionManager::<PgConnection>::new(database_url);
     let pool = bb8::Pool::builder().build(manager).await.unwrap();
 
-    let app = Router::new()
-        .route("/", get(index_handler))
-        .route("/users/register", post(routes::users::register))
-        .route("/users/login", post(routes::users::login))
+    let api = Router::new()
+        .route("/register", post(routes::users::register))
+        .route("/login", post(routes::users::login))
         .route("/users/me", get(routes::users::current_user))
         .route("/bots", post(routes::bots::create_bot))
         .route("/bots/:bot_id", get(routes::bots::get_bot))
         .route("/bots/:bot_id/upload", post(routes::bots::upload_bot_code))
         .layer(AddExtensionLayer::new(pool));
-    app
+    api
+}
+
+pub async fn app() -> Router {
+    let api = api().await;
+    Router::new().nest("/api", api)
 }
 
 // we can also write a custom extractor that grabs a connection from the pool
