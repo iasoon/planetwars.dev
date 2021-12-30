@@ -1,5 +1,5 @@
 [package]
-name = "mozaic4-backend"
+name = "planetwars-server"
 version = "0.0.0"
 edition = "2021"
 
