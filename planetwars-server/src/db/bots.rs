@@ -28,6 +28,12 @@ pub fn find_bot(id: i32, conn: &PgConnection) -> QueryResult<Bot> {
     bots::table.find(id).first(conn)
 }
 
+pub fn find_bots_by_owner(owner_id: i32, conn: &PgConnection) -> QueryResult<Vec<Bot>> {
+    bots::table
+        .filter(bots::owner_id.eq(owner_id))
+        .get_results(conn)
+}
+
 #[derive(Insertable)]
 #[table_name = "code_bundles"]
 pub struct NewCodeBundle<'a> {

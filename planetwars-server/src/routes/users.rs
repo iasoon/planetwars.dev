@@ -19,6 +19,7 @@ where
 
     async fn from_request(req: &mut RequestParts<B>) -> Result<Self, Self::Rejection> {
         let conn = DatabaseConnection::from_request(req).await?;
+
         let TypedHeader(Authorization(bearer)) = AuthorizationHeader::from_request(req)
             .await
             .map_err(|_| (StatusCode::UNAUTHORIZED, "".to_string()))?;

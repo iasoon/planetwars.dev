@@ -1,5 +1,6 @@
 use axum::extract::{Path, RawBody};
 use axum::http::StatusCode;
+use axum::response::IntoResponse;
 use axum::Json;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
@@ -30,9 +31,19 @@ pub async fn create_bot(
 }
 
 // TODO: handle errors
-pub async fn get_bot(conn: DatabaseConnection, Path(bot_id): Path<i32>) -> Json<Bot> {
-    let bot = bots::find_bot(bot_id, &conn).unwrap();
-    Json(bot)
+pub async fn get_bot(conn: DatabaseConnection, Path(bot_id): Path<i32>) -> impl IntoResponse {
+    bots::find_bot(bot_id, &conn)
+        .map(Json)
+        .map_err(|_| StatusCode::NOT_FOUND)
+}
+
+pub async fn get_my_bots(
+    conn: DatabaseConnection,
+    user: User,
+) -> Result<Json<Vec<Bot>>, StatusCode> {
+    bots::find_bots_by_owner(user.id, &conn)
+        .map(Json)
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
 }
 
 // TODO: proper error handling
