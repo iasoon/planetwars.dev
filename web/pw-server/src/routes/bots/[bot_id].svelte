@@ -1,6 +1,6 @@
 <script lang="ts" context="module">
   import { get_session_token } from "$lib/auth";
-import { mount_component } from "svelte/internal";
+  import { mount_component } from "svelte/internal";
 
   export async function load({ page }) {
     const token = get_session_token();
@@ -30,7 +30,7 @@ import { mount_component } from "svelte/internal";
 
 <script lang="ts">
   import dayjs from "dayjs";
-  
+
   export let bot: object;
   export let bundles: object[];
 
