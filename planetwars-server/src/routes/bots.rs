@@ -5,6 +5,7 @@ use axum::Json;
 use rand::distributions::Alphanumeric;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
+use serde_json::{json, value::Value as JsonValue};
 use std::io::Cursor;
 use std::path::{self, PathBuf};
 
@@ -35,10 +36,17 @@ pub async fn create_bot(
 }
 
 // TODO: handle errors
-pub async fn get_bot(conn: DatabaseConnection, Path(bot_id): Path<i32>) -> impl IntoResponse {
-    bots::find_bot(bot_id, &conn)
-        .map(Json)
-        .map_err(|_| StatusCode::NOT_FOUND)
+pub async fn get_bot(
+    conn: DatabaseConnection,
+    Path(bot_id): Path<i32>,
+) -> Result<Json<JsonValue>, StatusCode> {
+    let bot = bots::find_bot(bot_id, &conn).map_err(|_| StatusCode::NOT_FOUND)?;
+    let bundles = bots::find_bot_code_bundles(bot.id, &conn)
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    Ok(Json(json!({
+        "bot": bot,
+        "bundles": bundles,
+    })))
 }
 
 pub async fn get_my_bots(

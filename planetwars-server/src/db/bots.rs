@@ -57,3 +57,9 @@ pub fn create_code_bundle(
         .values(new_code_bundle)
         .get_result(conn)
 }
+
+pub fn find_bot_code_bundles(bot_id: i32, conn: &PgConnection) -> QueryResult<Vec<CodeBundle>> {
+    code_bundles::table
+        .filter(code_bundles::bot_id.eq(bot_id))
+        .get_results(conn)
+}
