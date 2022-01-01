@@ -34,6 +34,11 @@ pub fn find_bots_by_owner(owner_id: i32, conn: &PgConnection) -> QueryResult<Vec
         .get_results(conn)
 }
 
+pub fn find_all_bots(conn: &PgConnection) -> QueryResult<Vec<Bot>> {
+    // TODO: filter out bots that cannot be run (have no valid code bundle associated with them)
+    bots::table.get_results(conn)
+}
+
 #[derive(Insertable)]
 #[table_name = "code_bundles"]
 pub struct NewCodeBundle<'a> {

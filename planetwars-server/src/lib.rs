@@ -33,13 +33,17 @@ pub async fn api() -> Router {
         .route("/register", post(routes::users::register))
         .route("/login", post(routes::users::login))
         .route("/users/me", get(routes::users::current_user))
-        .route("/bots", post(routes::bots::create_bot))
+        .route(
+            "/bots",
+            get(routes::bots::list_bots).post(routes::bots::create_bot),
+        )
         .route("/bots/my_bots", get(routes::bots::get_my_bots))
         .route("/bots/:bot_id", get(routes::bots::get_bot))
         .route(
             "/bots/:bot_id/upload",
             post(routes::bots::upload_code_multipart),
         )
+        .route("/matches", post(routes::matches::play_match))
         .layer(AddExtensionLayer::new(pool));
     api
 }

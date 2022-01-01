@@ -58,6 +58,12 @@ pub async fn get_my_bots(
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
 }
 
+pub async fn list_bots(conn: DatabaseConnection) -> Result<Json<Vec<Bot>>, StatusCode> {
+    bots::find_all_bots(&conn)
+        .map(Json)
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
+}
+
 // TODO: currently this only implements the happy flow
 pub async fn upload_code_multipart(
     conn: DatabaseConnection,
