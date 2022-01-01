@@ -22,6 +22,11 @@ use axum::{
     AddExtensionLayer, Router,
 };
 
+// TODO: make these configurable
+const BOTS_DIR: &str = "./data/bots";
+const MATCHES_DIR: &str = "./data/matches";
+const MAPS_DIR: &str = "./data/maps";
+
 type ConnectionPool = bb8::Pool<DieselConnectionManager<PgConnection>>;
 
 pub async fn api() -> Router {

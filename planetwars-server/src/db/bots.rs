@@ -68,3 +68,10 @@ pub fn find_bot_code_bundles(bot_id: i32, conn: &PgConnection) -> QueryResult<Ve
         .filter(code_bundles::bot_id.eq(bot_id))
         .get_results(conn)
 }
+
+pub fn active_code_bundle(bot_id: i32, conn: &PgConnection) -> QueryResult<CodeBundle> {
+    code_bundles::table
+        .filter(code_bundles::bot_id.eq(bot_id))
+        .order(code_bundles::created_at.desc())
+        .first(conn)
+}

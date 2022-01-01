@@ -1,21 +1,17 @@
-use axum::extract::{Multipart, Path, RawBody};
+use axum::extract::{Multipart, Path};
 use axum::http::StatusCode;
-use axum::response::IntoResponse;
 use axum::Json;
 use rand::distributions::Alphanumeric;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, value::Value as JsonValue};
 use std::io::Cursor;
-use std::path::{self, PathBuf};
+use std::path::PathBuf;
 
 use crate::db::bots::{self, CodeBundle};
 use crate::db::users::User;
-use crate::DatabaseConnection;
+use crate::{DatabaseConnection, BOTS_DIR};
 use bots::Bot;
-
-// TODO: make this a parameter
-const BOTS_DIR: &str = "./data/bots";
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct BotParams {
