@@ -2,6 +2,7 @@
 
 members = [
     "planetwars-rules",
+    "planetwars-matchrunner",
     "planetwars-cli",
     "planetwars-server",
 ]

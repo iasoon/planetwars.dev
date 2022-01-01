@@ -12,8 +12,6 @@ use match_context::MatchCtx;
 use planetwars_rules::PwConfig;
 use serde::{Deserialize, Serialize};
 
-use crate::workspace::bot::WorkspaceBot;
-
 use self::match_context::{EventBus, PlayerHandle};
 
 pub struct MatchConfig {
@@ -37,7 +35,8 @@ pub struct PlayerInfo {
 
 pub struct MatchPlayer {
     pub name: String,
-    pub bot: WorkspaceBot,
+    pub path: PathBuf,
+    pub argv: Vec<String>,
 }
 
 pub async fn run_match(config: MatchConfig) {
@@ -56,8 +55,8 @@ pub async fn run_match(config: MatchConfig) {
         .map(|(player_id, player)| {
             let player_id = (player_id + 1) as u32;
             let bot = bot_runner::Bot {
-                working_dir: player.bot.path.clone(),
-                argv: player.bot.config.get_run_argv(),
+                working_dir: player.path.clone(),
+                argv: player.argv.clone(),
             };
             let handle = bot_runner::run_local_bot(player_id, event_bus.clone(), bot);
             (player_id, Box::new(handle) as Box<dyn PlayerHandle>)

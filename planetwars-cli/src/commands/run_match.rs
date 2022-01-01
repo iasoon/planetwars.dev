@@ -1,9 +1,8 @@
 use std::io;
 
 use clap::Parser;
+use planetwars_matchrunner::{run_match, MatchConfig, MatchPlayer};
 
-use crate::match_runner::MatchConfig;
-use crate::match_runner::{self, MatchPlayer};
 use crate::workspace::Workspace;
 #[derive(Parser)]
 pub struct RunMatchCommand {
@@ -26,7 +25,8 @@ impl RunMatchCommand {
             let bot = workspace.get_bot(&bot_name)?;
             players.push(MatchPlayer {
                 name: bot_name.clone(),
-                bot,
+                path: bot.path.clone(),
+                argv: bot.config.get_run_argv(),
             });
         }
 
@@ -37,7 +37,7 @@ impl RunMatchCommand {
             players,
         };
 
-        match_runner::run_match(match_config).await;
+        run_match(match_config).await;
         println!("match completed successfully");
         // TODO: maybe print the match result as well?
 

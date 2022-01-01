@@ -8,6 +8,7 @@ use axum::{
     AddExtensionLayer, Json,
 };
 use mime_guess;
+use planetwars_matchrunner::MatchMeta;
 use rust_embed::RustEmbed;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -18,7 +19,7 @@ use std::{
     sync::Arc,
 };
 
-use crate::{match_runner::MatchMeta, workspace::Workspace};
+use crate::workspace::Workspace;
 
 struct State {
     workspace: Workspace,
