@@ -48,7 +48,10 @@ pub async fn api() -> Router {
             "/bots/:bot_id/upload",
             post(routes::bots::upload_code_multipart),
         )
-        .route("/matches", post(routes::matches::play_match))
+        .route(
+            "/matches",
+            get(routes::matches::list_matches).post(routes::matches::play_match),
+        )
         .layer(AddExtensionLayer::new(pool));
     api
 }
