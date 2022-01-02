@@ -52,6 +52,7 @@ pub async fn api() -> Router {
             "/matches",
             get(routes::matches::list_matches).post(routes::matches::play_match),
         )
+        .route("/matches/:match_id", get(routes::matches::get_match_log))
         .layer(AddExtensionLayer::new(pool));
     api
 }

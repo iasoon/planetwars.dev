@@ -1,6 +1,9 @@
-use std::path::PathBuf;
+use std::{io::Read, path::PathBuf};
 
-use axum::{extract::Extension, Json};
+use axum::{
+    extract::{Extension, Path},
+    Json,
+};
 use hyper::StatusCode;
 use planetwars_matchrunner::{run_match, MatchConfig, MatchPlayer};
 use rand::{distributions::Alphanumeric, Rng};
@@ -30,7 +33,7 @@ pub async fn play_match(
         .take(16)
         .map(char::from)
         .collect();
-    let log_path = PathBuf::from(MATCHES_DIR).join(&format!("{}.log", slug));
+    let log_file_name = format!("{}.log", slug);
 
     let mut players = Vec::new();
     let mut bot_ids = Vec::new();
@@ -58,22 +61,27 @@ pub async fn play_match(
     let match_config = MatchConfig {
         map_name: "hex".to_string(),
         map_path,
-        log_path: log_path.clone(),
+        log_path: PathBuf::from(MATCHES_DIR).join(&log_file_name),
         players: players,
     };
 
-    tokio::spawn(run_match_task(match_config, bot_ids, pool.clone()));
+    tokio::spawn(run_match_task(
+        match_config,
+        log_file_name,
+        bot_ids,
+        pool.clone(),
+    ));
     Ok(())
 }
 
 async fn run_match_task(
     config: MatchConfig,
+    log_file_name: String,
     match_players: Vec<matches::MatchPlayerData>,
     pool: ConnectionPool,
 ) {
-    let log_path = config.log_path.as_os_str().to_str().unwrap().to_string();
     let match_data = matches::NewMatch {
-        log_path: &log_path,
+        log_path: &log_file_name,
     };
 
     run_match(config).await;
@@ -118,4 +126,14 @@ pub struct BotConfig {
     pub name: String,
     pub run_command: String,
     pub build_command: Option<String>,
+}
+
+pub async fn get_match_log(
+    Path(match_id): Path<i32>,
+    conn: DatabaseConnection,
+) -> Result<Vec<u8>, StatusCode> {
+    let match_base = matches::find_mach_base(match_id, &conn).map_err(|_| StatusCode::NOT_FOUND)?;
+    let log_path = PathBuf::from(MATCHES_DIR).join(&match_base.log_path);
+    let log_contents = std::fs::read(log_path).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    Ok(log_contents)
 }

@@ -1,5 +1,5 @@
 use chrono::NaiveDateTime;
-use diesel::{BelongingToDsl, RunQueryDsl};
+use diesel::{BelongingToDsl, QueryDsl, RunQueryDsl};
 use diesel::{Connection, GroupedBy, PgConnection, QueryResult};
 
 use crate::schema::{match_players, matches};
@@ -94,4 +94,23 @@ pub fn list_matches(conn: &PgConnection) -> QueryResult<Vec<MatchData>> {
 
         Ok(res)
     })
+}
+
+pub fn find_match(id: i32, conn: &PgConnection) -> QueryResult<MatchData> {
+    conn.transaction(|| {
+        let match_base = matches::table.find(id).get_result::<MatchBase>(conn)?;
+
+        let match_players = MatchPlayer::belonging_to(&match_base).load::<MatchPlayer>(conn)?;
+
+        let res = MatchData {
+            base: match_base,
+            match_players,
+        };
+
+        Ok(res)
+    })
+}
+
+pub fn find_mach_base(id: i32, conn: &PgConnection) -> QueryResult<MatchBase> {
+    matches::table.find(id).get_result::<MatchBase>(conn)
 }
