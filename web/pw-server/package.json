@@ -32,7 +32,9 @@
   },
   "dependencies": {
     "dayjs": "^1.10.7",
-    "moment": "^2.29.1"
+    "svelte-select": "^4.4.7",
+    "pw-visualizer": "file:../pw-visualizer",
+    "planetwars-rs": "file:../planetwars-rs/pkg"
   },
   "type": "module"
 }

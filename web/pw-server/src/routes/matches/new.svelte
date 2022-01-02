@@ -28,6 +28,7 @@
 
 <script lang="ts">
   import Select from "svelte-select";
+import { goto } from "$app/navigation";
   export let bots: object[];
   let items: object[];
   let players: object[] = [];
@@ -64,6 +65,7 @@
 
     if (res.ok) {
       // TODO
+      goto("/matches")
     } else {
       alert(res.statusText);
     }

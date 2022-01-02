@@ -1,6 +1,5 @@
 import adapter from "@sveltejs/adapter-auto";
 import preprocess from "svelte-preprocess";
-// import { svelte } from '@sveltejs/vite-plugin-svelte'
 import { viteCommonjs } from "@originjs/vite-plugin-commonjs";
 import wasmPack from "vite-plugin-wasm-pack";
 
@@ -18,8 +17,7 @@ const config = {
     ssr: false,
     vite: {
       plugins: [
-        // svelte(),
-        // wasmPack([], ["planetwars-rs"]),
+        wasmPack([], ["planetwars-rs"]),
         viteCommonjs({
           transformMixedEsModules: true,
         }),
