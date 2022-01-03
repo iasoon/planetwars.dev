@@ -1,3 +1,4 @@
+pub use crate::db_types::MatchState;
 use chrono::NaiveDateTime;
 use diesel::{BelongingToDsl, QueryDsl, RunQueryDsl};
 use diesel::{Connection, GroupedBy, PgConnection, QueryResult};
@@ -7,6 +8,7 @@ use crate::schema::{match_players, matches};
 #[derive(Insertable)]
 #[table_name = "matches"]
 pub struct NewMatch<'a> {
+    pub state: MatchState,
     pub log_path: &'a str,
 }
 
@@ -25,6 +27,7 @@ pub struct NewMatchPlayer {
 #[table_name = "matches"]
 pub struct MatchBase {
     pub id: i32,
+    pub state: MatchState,
     pub log_path: String,
     pub created_at: NaiveDateTime,
 }

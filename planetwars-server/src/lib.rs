@@ -4,6 +4,7 @@
 extern crate diesel;
 
 pub mod db;
+pub mod db_types;
 pub mod routes;
 pub mod schema;
 

@@ -1,5 +1,8 @@
+CREATE TYPE match_state AS ENUM ('playing', 'ended');
+
 CREATE TABLE matches (
-    id SERIAL PRIMARY KEY,
+    id SERIAL PRIMARY KEY NOT NULL,
+    state match_state NOT NULL,
     log_path text NOT NULL,
     created_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
 );

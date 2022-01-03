@@ -10,6 +10,7 @@ tokio = { version = "1.15", features = ["full"] }
 hyper = "0.14"
 axum = { version = "0.4", features = ["json", "headers", "multipart"] }
 diesel = { version = "1.4.4", features = ["postgres", "chrono"] }
+diesel-derive-enum = { version = "1.1", features = ["postgres"] }
 bb8 = "0.7"
 bb8-diesel = "0.2"
 dotenv = "0.15.0"

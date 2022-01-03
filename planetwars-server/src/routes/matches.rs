@@ -1,4 +1,4 @@
-use std::{io::Read, path::PathBuf};
+use std::path::PathBuf;
 
 use axum::{
     extract::{Extension, Path},
@@ -10,7 +10,11 @@ use rand::{distributions::Alphanumeric, Rng};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    db::{bots, matches, users::User},
+    db::{
+        bots,
+        matches::{self, MatchState},
+        users::User,
+    },
     ConnectionPool, DatabaseConnection, BOTS_DIR, MAPS_DIR, MATCHES_DIR,
 };
 
@@ -81,6 +85,7 @@ async fn run_match_task(
     pool: ConnectionPool,
 ) {
     let match_data = matches::NewMatch {
+        state: MatchState::Finished,
         log_path: &log_file_name,
     };
 
