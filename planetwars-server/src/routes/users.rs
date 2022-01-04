@@ -5,6 +5,7 @@ use axum::extract::{FromRequest, RequestParts, TypedHeader};
 use axum::headers::authorization::Bearer;
 use axum::headers::Authorization;
 use axum::http::StatusCode;
+use axum::response::{Headers, IntoResponse, Response};
 use axum::{async_trait, Json};
 use serde::{Deserialize, Serialize};
 
@@ -70,10 +71,7 @@ pub struct LoginParams {
     pub password: String,
 }
 
-pub async fn login(
-    conn: DatabaseConnection,
-    params: Json<LoginParams>,
-) -> Result<String, StatusCode> {
+pub async fn login(conn: DatabaseConnection, params: Json<LoginParams>) -> Response {
     let credentials = Credentials {
         username: &params.username,
         password: &params.password,
@@ -82,10 +80,13 @@ pub async fn login(
     let authenticated = users::authenticate_user(&credentials, &conn);
 
     match authenticated {
-        None => Err(StatusCode::FORBIDDEN),
+        None => StatusCode::FORBIDDEN.into_response(),
         Some(user) => {
             let session = sessions::create_session(&user, &conn);
-            Ok(session.token)
+            let user_data: UserData = user.into();
+            let headers = Headers(vec![("Token", &session.token)]);
+
+            (headers, Json(user_data)).into_response()
         }
     }
 }

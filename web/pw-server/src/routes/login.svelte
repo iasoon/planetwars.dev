@@ -5,8 +5,8 @@
   let username: string | undefined;
   let password: string | undefined;
 
-  const onSubmit = () => {
-    fetch("/api/login", {
+  async function login() {
+    let response = await fetch("/api/login", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -15,21 +15,23 @@
         username,
         password,
       }),
-    })
-      .then((response) => {
-        if (!response.ok) {
-          throw Error(response.statusText);
-        }
-        return response.text();
-      })
-      .then((token) => {
-        set_session_token(token);
-        goto("/");
-      });
-  };
+    });
+
+    if (!response.ok) {
+      throw Error(response.statusText);
+    }
+
+    let token = response.headers.get("Token");
+    set_session_token(token);
+
+    let user = await response.json();
+
+    goto("/");
+  }
 
   function loggedIn(): boolean {
-    return get_session_token() != null;
+    let session = get_session_token();
+    return session !== null && session !== undefined;
   }
 </script>
 
@@ -37,7 +39,7 @@
   you are logged in
 {/if}
 
-<form on:submit|preventDefault={onSubmit}>
+<form on:submit|preventDefault={login}>
   <label for="username">Username</label>
   <input name="username" bind:value={username} />
   <label for="password">Password</label>
