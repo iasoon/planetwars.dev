@@ -1,6 +1,6 @@
-mod bot_runner;
-mod match_context;
-mod pw_match;
+pub mod bot_runner;
+pub mod match_context;
+pub mod pw_match;
 
 use std::{
     io::Write,
