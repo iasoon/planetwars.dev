@@ -17,12 +17,11 @@ use planetwars_matchrunner::{
     pw_match, MatchConfig, MatchMeta, PlayerInfo,
 };
 use planetwars_rules::protocol as proto;
-use planetwars_rules::PwConfig;
 use std::env;
 use tokio::io::{AsyncWrite, AsyncWriteExt};
 use tokio::sync::mpsc;
 
-const IMAGE: &'static str = "simplebot:latest";
+const IMAGE: &'static str = "python:3.10-slim-buster";
 
 #[tokio::main]
 async fn main() {
@@ -38,8 +37,13 @@ async fn _run_match(map_path: String) {
 }
 
 async fn create_player_process(docker: &Docker) -> Result<(), bollard::errors::Error> {
+    let bot_code_dir = "../simplebot";
     let config = container::Config {
         image: Some(IMAGE),
+        host_config: Some(container::HostConfig {
+            binds: Some(vec![format!("{}:{}", bot_code_dir, "/workdir")]),
+            ..Default::default()
+        }),
         ..Default::default()
     };
 
@@ -57,6 +61,7 @@ async fn create_player_process(docker: &Docker) -> Result<(), bollard::errors::E
                 attach_stdin: Some(true),
                 attach_stdout: Some(true),
                 attach_stderr: Some(true),
+                working_dir: Some("/workdir"),
                 cmd: Some(vec!["python", "simplebot.py"]),
                 ..Default::default()
             },
