@@ -3,11 +3,11 @@ extern crate tokio;
 
 use std::collections::HashMap;
 use std::io::{self, Write};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 
-use bollard::container::{self, LogOutput};
+use bollard::container::{self, AttachContainerOptions, AttachContainerResults, LogOutput};
 use bollard::exec::StartExecResults;
 use bollard::Docker;
 use bytes::Bytes;
@@ -21,7 +21,8 @@ use std::env;
 use tokio::io::{AsyncWrite, AsyncWriteExt};
 use tokio::sync::mpsc;
 
-const IMAGE: &'static str = "python:3.10-slim-buster";
+const IMAGE: &'static str = "python:3.10.1-slim-buster";
+// const IMAGE: &'static str = "simplebot:latest";
 
 #[tokio::main]
 async fn main() {
@@ -33,51 +34,13 @@ async fn main() {
 
 async fn _run_match(map_path: String) {
     let docker = Docker::connect_with_socket_defaults().unwrap();
-    create_player_process(&docker).await.unwrap();
-}
-
-async fn create_player_process(docker: &Docker) -> Result<(), bollard::errors::Error> {
-    let bot_code_dir = "../simplebot";
-    let config = container::Config {
-        image: Some(IMAGE),
-        host_config: Some(container::HostConfig {
-            binds: Some(vec![format!("{}:{}", bot_code_dir, "/workdir")]),
-            ..Default::default()
-        }),
-        ..Default::default()
+    let code_dir_path = PathBuf::from("../simplebot");
+    let params = BotParams {
+        image: IMAGE,
+        code_path: &code_dir_path,
+        argv: vec!["python", "simplebot.py"],
     };
-
-    let response = docker.create_container::<&str, &str>(None, config).await?;
-    let container_id = response.id;
-
-    docker
-        .start_container::<String>(&container_id, None)
-        .await?;
-
-    let exec_id = docker
-        .create_exec::<&str>(
-            &container_id,
-            bollard::exec::CreateExecOptions {
-                attach_stdin: Some(true),
-                attach_stdout: Some(true),
-                attach_stderr: Some(true),
-                working_dir: Some("/workdir"),
-                cmd: Some(vec!["python", "simplebot.py"]),
-                ..Default::default()
-            },
-        )
-        .await
-        .unwrap()
-        .id;
-
-    let start_exec_results = docker.start_exec(&exec_id, None).await?;
-    let mut process = match start_exec_results {
-        StartExecResults::Detached => panic!("failed to get io channels"),
-        StartExecResults::Attached { input, output } => ContainerProcess {
-            stdin: input,
-            output,
-        },
-    };
+    let mut process = spawn_docker_process(&docker, params).await.unwrap();
 
     let state = proto::State {
         planets: vec![
@@ -100,11 +63,64 @@ async fn create_player_process(docker: &Docker) -> Result<(), bollard::errors::E
     };
 
     let serialized = serde_json::to_vec(&state).unwrap();
-    let out = process.communicate(&serialized).await?;
+    let out = process.communicate(&serialized).await.unwrap();
 
-    print!("{}", String::from_utf8(out.to_vec()).unwrap());
+    print!("got output: {}", String::from_utf8(out.to_vec()).unwrap());
+}
 
-    Ok(())
+pub struct BotParams<'a> {
+    pub image: &'a str,
+    pub code_path: &'a Path,
+    pub argv: Vec<&'a str>,
+}
+
+async fn spawn_docker_process(
+    docker: &Docker,
+    params: BotParams<'_>,
+) -> Result<ContainerProcess, bollard::errors::Error> {
+    let bot_code_dir = std::fs::canonicalize(params.code_path).unwrap();
+    let code_dir_str = bot_code_dir.as_os_str().to_str().unwrap();
+
+    let config = container::Config {
+        image: Some(params.image),
+        host_config: Some(bollard::models::HostConfig {
+            binds: Some(vec![format!("{}:{}", code_dir_str, "/workdir")]),
+            ..Default::default()
+        }),
+        working_dir: Some("/workdir"),
+        cmd: Some(params.argv),
+        attach_stdin: Some(true),
+        attach_stdout: Some(true),
+        attach_stderr: Some(true),
+        open_stdin: Some(true),
+        ..Default::default()
+    };
+
+    let response = docker.create_container::<&str, &str>(None, config).await?;
+    let container_id = response.id;
+
+    docker
+        .start_container::<String>(&container_id, None)
+        .await?;
+
+    let AttachContainerResults { output, input } = docker
+        .attach_container(
+            &container_id,
+            Some(AttachContainerOptions::<String> {
+                stdout: Some(true),
+                stderr: Some(true),
+                stdin: Some(true),
+                stream: Some(true),
+                logs: Some(true),
+                ..Default::default()
+            }),
+        )
+        .await?;
+
+    Ok(ContainerProcess {
+        stdin: input,
+        output,
+    })
 }
 
 pub struct ContainerProcess {
@@ -135,7 +151,7 @@ impl ContainerProcess {
                 }
                 LogOutput::StdErr { message } => {
                     // TODO
-                    println!("stderr: {}", String::from_utf8_lossy(&message));
+                    println!("{}", String::from_utf8_lossy(&message));
                 }
                 _ => (),
             }
