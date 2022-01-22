@@ -1,4 +1,5 @@
 pub mod bot_runner;
+pub mod docker_runner;
 pub mod match_context;
 pub mod pw_match;
 
@@ -8,6 +9,8 @@ use std::{
     sync::{Arc, Mutex},
 };
 
+use async_trait::async_trait;
+use futures::{stream::FuturesOrdered, FutureExt, StreamExt};
 use match_context::MatchCtx;
 use planetwars_rules::PwConfig;
 use serde::{Deserialize, Serialize};
@@ -35,8 +38,16 @@ pub struct PlayerInfo {
 
 pub struct MatchPlayer {
     pub name: String,
-    pub path: PathBuf,
-    pub argv: Vec<String>,
+    pub bot_spec: Box<dyn BotSpec>,
+}
+
+#[async_trait]
+pub trait BotSpec {
+    async fn run_bot(
+        &self,
+        player_id: u32,
+        event_bus: Arc<Mutex<EventBus>>,
+    ) -> Box<dyn PlayerHandle>;
 }
 
 pub async fn run_match(config: MatchConfig) {
@@ -48,20 +59,22 @@ pub async fn run_match(config: MatchConfig) {
     let event_bus = Arc::new(Mutex::new(EventBus::new()));
 
     // start bots
+    // TODO: what happens when a bot fails?
     let players = config
         .players
         .iter()
         .enumerate()
         .map(|(player_id, player)| {
             let player_id = (player_id + 1) as u32;
-            let bot = bot_runner::Bot {
-                working_dir: player.path.clone(),
-                argv: player.argv.clone(),
-            };
-            let handle = bot_runner::run_local_bot(player_id, event_bus.clone(), bot);
-            (player_id, Box::new(handle) as Box<dyn PlayerHandle>)
+            player
+                .bot_spec
+                .run_bot(player_id, event_bus.clone())
+                .map(move |handle| (player_id, handle))
         })
-        .collect();
+        .collect::<FuturesOrdered<_>>()
+        // await all results
+        .collect()
+        .await;
     let mut log_file = std::fs::File::create(config.log_path).expect("could not create log file");
 
     // assemble the math meta struct

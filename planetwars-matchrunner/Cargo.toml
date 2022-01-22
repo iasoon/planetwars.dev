@@ -20,3 +20,4 @@ planetwars-rules = { path = "../planetwars-rules" }
 chrono = { version = "0.4", features = ["serde"] }
 bollard = { git = "https://github.com/antoinert/bollard" }
 bytes = "1.1"
+async-trait = "0.1"
