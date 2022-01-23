@@ -5,7 +5,7 @@ use axum::{
     Json,
 };
 use hyper::StatusCode;
-use planetwars_matchrunner::{run_match, MatchConfig, MatchPlayer};
+use planetwars_matchrunner::{docker_runner::DockerBotSpec, run_match, MatchConfig, MatchPlayer};
 use rand::{distributions::Alphanumeric, Rng};
 use serde::{Deserialize, Serialize};
 
@@ -53,10 +53,13 @@ pub async fn play_match(
 
         players.push(MatchPlayer {
             name: bot.name.clone(),
-            path: PathBuf::from(BOTS_DIR).join(code_bundle.path),
-            argv: shlex::split(&bot_config.run_command)
-                // TODO: this is an user error, should ideally be handled before we get here
-                .ok_or_else(|| StatusCode::INTERNAL_SERVER_ERROR)?,
+            bot_spec: Box::new(DockerBotSpec {
+                code_path: PathBuf::from(BOTS_DIR).join(code_bundle.path),
+                image: "python:3.10-slim-buster".to_string(),
+                argv: shlex::split(&bot_config.run_command)
+                    // TODO: this is an user error, should ideally be handled before we get here
+                    .ok_or_else(|| StatusCode::INTERNAL_SERVER_ERROR)?,
+            }),
         });
 
         bot_ids.push(matches::MatchPlayerData { bot_id: bot.id });
@@ -66,7 +69,7 @@ pub async fn play_match(
         map_name: "hex".to_string(),
         map_path,
         log_path: PathBuf::from(MATCHES_DIR).join(&log_file_name),
-        players: players,
+        players,
     };
 
     tokio::spawn(run_match_task(

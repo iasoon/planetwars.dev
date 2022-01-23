@@ -42,7 +42,7 @@ pub struct MatchPlayer {
 }
 
 #[async_trait]
-pub trait BotSpec {
+pub trait BotSpec : Send + Sync{
     async fn run_bot(
         &self,
         player_id: u32,
@@ -66,10 +66,7 @@ pub async fn run_match(config: MatchConfig) {
         .enumerate()
         .map(|(player_id, player)| {
             let player_id = (player_id + 1) as u32;
-            player
-                .bot_spec
-                .run_bot(player_id, event_bus.clone())
-                .map(move |handle| (player_id, handle))
+            start_bot(player_id, event_bus.clone(), &player.bot_spec)
         })
         .collect::<FuturesOrdered<_>>()
         // await all results
@@ -100,4 +97,14 @@ pub async fn run_match(config: MatchConfig) {
 
     let match_state = pw_match::PwMatch::create(match_ctx, pw_config);
     match_state.run().await;
+}
+
+// writing this as a closure causes lifetime inference errors
+async fn start_bot(
+    player_id: u32,
+    event_bus: Arc<Mutex<EventBus>>,
+    bot_spec: &Box<dyn BotSpec>,
+) -> (u32, Box<dyn PlayerHandle>) {
+    let player_handle = bot_spec.run_bot(player_id, event_bus).await;
+    (player_id, player_handle)
 }
