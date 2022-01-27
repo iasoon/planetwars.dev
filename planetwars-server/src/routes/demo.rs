@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use axum::Json;
+use axum::{extract::Path, Json};
 use hyper::StatusCode;
 use planetwars_matchrunner::{docker_runner::DockerBotSpec, run_match, MatchConfig, MatchPlayer};
 use rand::{distributions::Alphanumeric, Rng};
@@ -67,4 +67,11 @@ pub async fn submit_bot(
     .await;
 
     Ok(Json(SubmitBotResponse { match_id }))
+}
+
+// TODO: unify this with existing match API
+pub async fn get_submission_match_log(Path(match_id): Path<String>) -> Result<String, StatusCode> {
+    let log_path = PathBuf::from(MATCHES_DIR).join(format!("{}.log", match_id));
+
+    std::fs::read_to_string(&log_path).map_err(|_| StatusCode::NOT_FOUND)
 }
