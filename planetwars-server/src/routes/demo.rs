@@ -49,7 +49,7 @@ pub async fn submit_bot(
             MatchPlayer {
                 name: "bot".to_string(),
                 bot_spec: Box::new(DockerBotSpec {
-                    code_path: PathBuf::from(SIMPLEBOT_PATH),
+                    code_path: uploaded_bot_dir,
                     image: PYTHON_IMAGE.to_string(),
                     argv: vec!["python".to_string(), "bot.py".to_string()],
                 }),
