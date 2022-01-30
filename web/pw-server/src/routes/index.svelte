@@ -1,2 +1,27 @@
-<h1>Welcome to SvelteKit</h1>
-<p>Visit <a href="https://kit.svelte.dev">kit.svelte.dev</a> to read the documentation</p>
+<script lang="ts">
+  let code = "";
+
+  async function submitCode() {
+    console.log("click");
+    let response = await fetch("/api/submit_bot", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        "code": code,
+      }),
+    });
+
+    if (!response.ok) {
+      throw Error(response.statusText);
+    }
+
+    let responseData = await response.json()
+    console.log(responseData);
+  }
+</script>
+
+<h1>Planetwars</h1>
+<textarea bind:value={code} />
+<button on:click={submitCode}>Submit</button>
