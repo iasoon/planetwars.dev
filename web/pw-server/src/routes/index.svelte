@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { goto } from "$app/navigation";
+
   let code = "";
 
   async function submitCode() {
@@ -9,7 +11,7 @@
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        "code": code,
+        code: code,
       }),
     });
 
@@ -17,8 +19,9 @@
       throw Error(response.statusText);
     }
 
-    let responseData = await response.json()
-    console.log(responseData);
+    let responseData = await response.json();
+    let matchId = responseData["match_id"];
+    goto(`/submission_matches/${matchId}`);
   }
 </script>
 
