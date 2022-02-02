@@ -31,10 +31,11 @@
     "vite-plugin-wasm-pack": "^0.1.9"
   },
   "dependencies": {
+    "ace-builds": "^1.4.14",
     "dayjs": "^1.10.7",
-    "svelte-select": "^4.4.7",
+    "planetwars-rs": "file:../planetwars-rs/pkg",
     "pw-visualizer": "file:../pw-visualizer",
-    "planetwars-rs": "file:../planetwars-rs/pkg"
+    "svelte-select": "^4.4.7"
   },
   "type": "module"
 }

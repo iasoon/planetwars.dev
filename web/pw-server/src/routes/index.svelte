@@ -1,17 +1,26 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
+  import { onMount } from "svelte";
 
-  let code = "";
+  let editor;
+
+  onMount(async () => {
+    const ace = await import("ace-builds");
+    editor = ace.edit("editor");
+  });
 
   async function submitCode() {
-    console.log("click");
+    if (editor === undefined) {
+      return;
+    }
+
     let response = await fetch("/api/submit_bot", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        code: code,
+        code: editor.getValue(),
       }),
     });
 
@@ -26,5 +35,13 @@
 </script>
 
 <h1>Planetwars</h1>
-<textarea bind:value={code} />
+<div id="editor" />
 <button on:click={submitCode}>Submit</button>
+
+<style scoped>
+  #editor {
+    width: 100%;
+    max-width: 800px;
+    height: 600px;
+  }
+</style>
