@@ -66,11 +66,6 @@ impl MatchCtx {
         };
     }
 
-    pub fn send_info(&mut self, player_id: u32, msg: String) {
-        let player = self.players.get_mut(&player_id).unwrap();
-        player.handle.send_info(msg);
-    }
-
     pub fn players(&self) -> Vec<u32> {
         self.players.keys().cloned().collect()
     }
@@ -83,7 +78,6 @@ impl MatchCtx {
 
 pub trait PlayerHandle: Send {
     fn send_request(&mut self, r: RequestMessage);
-    fn send_info(&mut self, msg: String);
 }
 
 struct PlayerData {

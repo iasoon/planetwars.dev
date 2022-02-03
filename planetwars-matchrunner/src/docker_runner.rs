@@ -152,11 +152,6 @@ impl PlayerHandle for DockerBotHandle {
             .send(r)
             .expect("failed to send message to local bot");
     }
-
-    fn send_info(&mut self, _msg: String) {
-        // TODO: log this somewhere
-        // drop info message
-    }
 }
 
 pub struct DockerBotRunner {

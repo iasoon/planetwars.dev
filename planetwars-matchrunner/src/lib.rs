@@ -42,7 +42,7 @@ pub struct MatchPlayer {
 }
 
 #[async_trait]
-pub trait BotSpec : Send + Sync{
+pub trait BotSpec: Send + Sync {
     async fn run_bot(
         &self,
         player_id: u32,

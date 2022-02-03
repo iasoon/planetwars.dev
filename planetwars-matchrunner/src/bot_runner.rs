@@ -22,11 +22,6 @@ impl PlayerHandle for LocalBotHandle {
             .send(r)
             .expect("failed to send message to local bot");
     }
-
-    fn send_info(&mut self, _msg: String) {
-        // TODO: log this somewhere
-        // drop info message
-    }
 }
 
 pub fn run_local_bot(player_id: u32, event_bus: Arc<Mutex<EventBus>>, bot: Bot) -> LocalBotHandle {

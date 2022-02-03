@@ -45,7 +45,7 @@ impl PwMatch {
                 let res = self.execute_action(player_id, turn);
                 if let Some(err) = action_errors(res) {
                     let info_str = serde_json::to_string(&err).unwrap();
-                    self.match_ctx.send_info(player_id as u32, info_str);
+                    println!("player {}: {}", player_id, info_str);
                 }
             }
             self.match_state.step();
