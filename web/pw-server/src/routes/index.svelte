@@ -7,6 +7,12 @@
   onMount(async () => {
     const ace = await import("ace-builds");
     editor = ace.edit("editor");
+
+    const python_mode = await import("ace-builds/src-noconflict/mode-python");
+    editor.getSession().setMode(new python_mode.Mode());
+
+    const gh_theme = await import ("ace-builds/src-noconflict/theme-github");
+    editor.setTheme(gh_theme);
   });
 
   async function submitCode() {
