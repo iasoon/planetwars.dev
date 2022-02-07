@@ -29,10 +29,6 @@ import { defaultLabelFactory, LabelFactory, Align, Label } from "./webgl/text";
 import { VoronoiBuilder } from "./voronoi/voronoi";
 import * as assets from "./assets";
 
-// svg-mesh requires global to exist
-(window as any).global = window;
-
-
 
 function to_bbox(box: number[]): BBox {
   return {
