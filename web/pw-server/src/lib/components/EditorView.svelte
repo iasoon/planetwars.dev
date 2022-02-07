@@ -10,11 +10,15 @@
   let editorDiv: HTMLDivElement | undefined;
   let editor: Ace.Editor | undefined;
 
-  onMount(async () => {
+  onMount(() => {
     let renderer = new ace.VirtualRenderer(editorDiv);
     editor = new ace.Editor(renderer, editSession);
     editor.setTheme(aceGithubTheme);
   });
+
+  $: if (editor !== undefined) {
+    editor.setSession(editSession);
+  }
 </script>
 
 <div bind:this={editorDiv} class="editor" />

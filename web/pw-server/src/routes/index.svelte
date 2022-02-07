@@ -1,12 +1,12 @@
 <script lang="ts">
-  import { goto } from "$app/navigation";
   import Visualizer from "$lib/components/Visualizer.svelte";
+  import EditorView from "$lib/components/EditorView.svelte";
   import { onMount } from "svelte";
   import "./style.css";
 
-  import ace from "ace-builds/src-noconflict/ace?client";
-  import Editor from "$lib/components/Editor.svelte";
   import type { Ace } from "ace-builds";
+  import ace from "ace-builds/src-noconflict/ace?client";
+  import * as AcePythonMode from "ace-builds/src-noconflict/mode-python?client";
 
   let matches = [];
 
@@ -15,12 +15,11 @@
 
   let editSession: Ace.EditSession;
 
-  onMount(async () => {
-    await init_editor();
+  onMount(() => {
+    init_editor();
   });
 
-  async function init_editor() {
-    const AcePythonMode = await import("ace-builds/src-noconflict/mode-python");
+  function init_editor() {
     editSession = new ace.EditSession("");
     editSession.setMode(new AcePythonMode.Mode());
   }
@@ -85,7 +84,11 @@
       </div>
       <ul class="match-list">
         {#each matches as match}
-          <li class="match-card sidebar-item" on:click={() => selectMatch(match.matchId)}>
+          <li
+            class="match-card sidebar-item"
+            on:click={() => selectMatch(match.matchId)}
+            class:selected={match.matchId === selectedMatchId}
+          >
             <div class="match-name">{match.matchId}</div>
           </li>
         {/each}
@@ -95,7 +98,7 @@
       {#if selectedMatchLog !== undefined}
         <Visualizer matchLog={selectedMatchLog} />
       {:else}
-        <Editor {editSession} />
+        <EditorView {editSession} />
       {/if}
     </div>
     <div class="sidebar-right">
@@ -166,11 +169,6 @@
 
   .sidebar-item.selected {
     background-color: #333;
-  }
-
-  .toolbar-editor {
-    padding: 15px;
-    color: #eee;
   }
 
   .match-list {
