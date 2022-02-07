@@ -4,38 +4,35 @@
   import { onMount } from "svelte";
   import "./style.css";
 
-  let editor;
+  import ace from "ace-builds/src-noconflict/ace?client";
+  import Editor from "$lib/components/Editor.svelte";
+  import type { Ace } from "ace-builds";
+
   let matches = [];
 
   let selectedMatchId: string | undefined = undefined;
   let selectedMatchLog: string | undefined = undefined;
 
+  let editSession: Ace.EditSession;
+
   onMount(async () => {
-    await load_editor();
+    await init_editor();
   });
 
-  async function load_editor() {
-    const ace = await import("ace-builds");
-    const python_mode = await import("ace-builds/src-noconflict/mode-python");
-    const gh_theme = await import("ace-builds/src-noconflict/theme-github");
-
-    editor = ace.edit("editor");
-    editor.getSession().setMode(new python_mode.Mode());
-    editor.setTheme(gh_theme);
+  async function init_editor() {
+    const AcePythonMode = await import("ace-builds/src-noconflict/mode-python");
+    editSession = new ace.EditSession("");
+    editSession.setMode(new AcePythonMode.Mode());
   }
 
   async function submitCode() {
-    if (editor === undefined) {
-      return;
-    }
-
     let response = await fetch("/api/submit_bot", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        code: editor.getValue(),
+        code: editSession.getDocument().getValue(),
       }),
     });
 
@@ -46,7 +43,7 @@
     let responseData = await response.json();
 
     let matchId = responseData["match_id"];
-    // goto(`/submission_matches/${matchId}`);
+
     matches.push({ matchId: matchId });
     matches = matches;
   }
@@ -72,7 +69,6 @@
   function selectEditor() {
     selectedMatchId = undefined;
     selectedMatchLog = undefined;
-    load_editor();
   }
 </script>
 
@@ -99,7 +95,7 @@
       {#if selectedMatchLog !== undefined}
         <Visualizer matchLog={selectedMatchLog} />
       {:else}
-        <div id="editor" />
+        <Editor {editSession} />
       {/if}
     </div>
     <div class="sidebar-right">
@@ -142,11 +138,6 @@
   .editor-container {
     flex-grow: 1;
     overflow: hidden;
-  }
-
-  #editor {
-    width: 100%;
-    height: 100%;
   }
 
   .editor-container {

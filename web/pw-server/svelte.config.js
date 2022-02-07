@@ -2,6 +2,7 @@ import adapter from "@sveltejs/adapter-auto";
 import preprocess from "svelte-preprocess";
 import { viteCommonjs } from "@originjs/vite-plugin-commonjs";
 import wasmPack from "vite-plugin-wasm-pack";
+import { isoImport } from "vite-plugin-iso-import";
 
 /** @type {import('@sveltejs/kit').Config} */
 const config = {
@@ -17,6 +18,7 @@ const config = {
     ssr: false,
     vite: {
       plugins: [
+        isoImport(),
         wasmPack([], ["planetwars-rs"]),
         viteCommonjs({
           transformMixedEsModules: true,
