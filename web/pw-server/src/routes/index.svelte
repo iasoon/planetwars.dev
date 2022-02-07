@@ -121,11 +121,13 @@
     height: 40px;
     background-color: $bg-color;
     border-bottom: 1px solid;
+    flex-shrink: 0;
   }
 
   .container {
     display: flex;
     flex-grow: 1;
+    min-height: 0;
   }
 
   .sidebar-left {
@@ -140,6 +142,7 @@
   }
   .editor-container {
     flex-grow: 1;
+    flex-shrink: 1;
     overflow: hidden;
   }
 
