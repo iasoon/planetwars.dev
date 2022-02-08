@@ -2,7 +2,7 @@ use crate::schema::users;
 use argon2;
 use diesel::{prelude::*, PgConnection};
 use rand::Rng;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
 pub struct Credentials<'a> {

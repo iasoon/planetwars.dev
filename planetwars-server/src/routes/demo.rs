@@ -1,12 +1,14 @@
-use std::path::PathBuf;
-
-use axum::{extract::Path, Json};
+use crate::db::matches::{self, MatchState};
+use crate::{ConnectionPool, BOTS_DIR, MAPS_DIR, MATCHES_DIR};
+use axum::extract::Extension;
+use axum::Json;
 use hyper::StatusCode;
 use planetwars_matchrunner::{docker_runner::DockerBotSpec, run_match, MatchConfig, MatchPlayer};
 use rand::{distributions::Alphanumeric, Rng};
 use serde::{Deserialize, Serialize};
+use std::path::PathBuf;
 
-use crate::{DatabaseConnection, BOTS_DIR, MAPS_DIR, MATCHES_DIR};
+use super::matches::ApiMatch;
 
 const PYTHON_IMAGE: &'static str = "python:3.10-slim-buster";
 const SIMPLEBOT_PATH: &'static str = "../simplebot";
@@ -16,38 +18,36 @@ pub struct SubmitBotParams {
     pub code: String,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize)]
 pub struct SubmitBotResponse {
-    pub match_id: String,
-}
-
-pub fn gen_alphanumeric(length: usize) -> String {
-    rand::thread_rng()
-        .sample_iter(&Alphanumeric)
-        .take(length)
-        .map(char::from)
-        .collect()
+    #[serde(rename = "match")]
+    pub match_data: ApiMatch,
 }
 
 /// submit python code for a bot, which will face off
 /// with a demo bot. Return a played match.
 pub async fn submit_bot(
     Json(params): Json<SubmitBotParams>,
+    Extension(pool): Extension<ConnectionPool>,
 ) -> Result<Json<SubmitBotResponse>, StatusCode> {
-    let uploaded_bot_id: String = gen_alphanumeric(16);
-    let match_id = gen_alphanumeric(16);
+    let conn = pool.get().await.expect("could not get database connection");
 
-    let uploaded_bot_dir = PathBuf::from(BOTS_DIR).join(&uploaded_bot_id);
+    let uploaded_bot_uuid: String = gen_alphanumeric(16);
+    let log_file_name = format!("{}.log", gen_alphanumeric(16));
+
+    // store uploaded bot
+    let uploaded_bot_dir = PathBuf::from(BOTS_DIR).join(&uploaded_bot_uuid);
     std::fs::create_dir(&uploaded_bot_dir).unwrap();
     std::fs::write(uploaded_bot_dir.join("bot.py"), params.code.as_bytes()).unwrap();
 
+    // play the match
     run_match(MatchConfig {
         map_path: PathBuf::from(MAPS_DIR).join("hex.json"),
         map_name: "hex".to_string(),
-        log_path: PathBuf::from(MATCHES_DIR).join(format!("{}.log", match_id)),
+        log_path: PathBuf::from(MATCHES_DIR).join(&log_file_name),
         players: vec![
             MatchPlayer {
-                name: "bot".to_string(),
+                name: "player".to_string(),
                 bot_spec: Box::new(DockerBotSpec {
                     code_path: uploaded_bot_dir,
                     image: PYTHON_IMAGE.to_string(),
@@ -66,12 +66,25 @@ pub async fn submit_bot(
     })
     .await;
 
-    Ok(Json(SubmitBotResponse { match_id }))
+    // store match in database
+    let new_match_data = matches::NewMatch {
+        state: MatchState::Finished,
+        log_path: &log_file_name,
+    };
+    // TODO: set match players
+    let match_data =
+        matches::create_match(&new_match_data, &[], &conn).expect("failed to create match");
+
+    let api_match = super::matches::match_data_to_api(match_data);
+    Ok(Json(SubmitBotResponse {
+        match_data: api_match,
+    }))
 }
 
-// TODO: unify this with existing match API
-pub async fn get_submission_match_log(Path(match_id): Path<String>) -> Result<String, StatusCode> {
-    let log_path = PathBuf::from(MATCHES_DIR).join(format!("{}.log", match_id));
-
-    std::fs::read_to_string(&log_path).map_err(|_| StatusCode::NOT_FOUND)
+pub fn gen_alphanumeric(length: usize) -> String {
+    rand::thread_rng()
+        .sample_iter(&Alphanumeric)
+        .take(length)
+        .map(char::from)
+        .collect()
 }

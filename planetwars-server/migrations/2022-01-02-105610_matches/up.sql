@@ -1,4 +1,4 @@
-CREATE TYPE match_state AS ENUM ('playing', 'ended');
+CREATE TYPE match_state AS ENUM ('playing', 'finished');
 
 CREATE TABLE matches (
     id SERIAL PRIMARY KEY NOT NULL,

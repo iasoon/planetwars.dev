@@ -115,7 +115,7 @@ pub async fn list_matches(conn: DatabaseConnection) -> Result<Json<Vec<ApiMatch>
         .map(|matches| Json(matches.into_iter().map(match_data_to_api).collect()))
 }
 
-fn match_data_to_api(data: matches::MatchData) -> ApiMatch {
+pub fn match_data_to_api(data: matches::MatchData) -> ApiMatch {
     ApiMatch {
         id: data.base.id,
         timestamp: data.base.created_at,

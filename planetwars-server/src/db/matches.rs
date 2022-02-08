@@ -46,16 +46,16 @@ pub struct MatchPlayerData {
 }
 
 pub fn create_match(
-    match_data: &NewMatch,
-    match_players: &[MatchPlayerData],
+    new_match_base: &NewMatch,
+    new_match_players: &[MatchPlayerData],
     conn: &PgConnection,
-) -> QueryResult<i32> {
+) -> QueryResult<MatchData> {
     conn.transaction(|| {
         let match_base = diesel::insert_into(matches::table)
-            .values(match_data)
+            .values(new_match_base)
             .get_result::<MatchBase>(conn)?;
 
-        let match_players = match_players
+        let new_match_players = new_match_players
             .iter()
             .enumerate()
             .map(|(num, player_data)| NewMatchPlayer {
@@ -65,11 +65,14 @@ pub fn create_match(
             })
             .collect::<Vec<_>>();
 
-        diesel::insert_into(match_players::table)
-            .values(&match_players)
-            .execute(conn)?;
+        let match_players = diesel::insert_into(match_players::table)
+            .values(&new_match_players)
+            .get_results::<MatchPlayer>(conn)?;
 
-        Ok(match_base.id)
+        Ok(MatchData {
+            base: match_base,
+            match_players,
+        })
     })
 }
 
