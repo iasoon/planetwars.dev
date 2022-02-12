@@ -136,6 +136,16 @@ pub struct BotConfig {
     pub build_command: Option<String>,
 }
 
+pub async fn get_match_data(
+    Path(match_id): Path<i32>,
+    conn: DatabaseConnection,
+) -> Result<Json<ApiMatch>, StatusCode> {
+    let match_data = matches::find_match(match_id, &conn)
+        .map_err(|_| StatusCode::NOT_FOUND)
+        .map(|data| match_data_to_api(data))?;
+    Ok(Json(match_data))
+}
+
 pub async fn get_match_log(
     Path(match_id): Path<i32>,
     conn: DatabaseConnection,

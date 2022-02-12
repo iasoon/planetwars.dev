@@ -53,7 +53,11 @@ pub async fn api() -> Router {
             "/matches",
             get(routes::matches::list_matches).post(routes::matches::play_match),
         )
-        .route("/matches/:match_id", get(routes::matches::get_match_log))
+        .route("/matches/:match_id", get(routes::matches::get_match_data))
+        .route(
+            "/matches/:match_id/log",
+            get(routes::matches::get_match_log),
+        )
         .route("/submit_bot", post(routes::demo::submit_bot))
         .layer(AddExtensionLayer::new(pool));
     api
