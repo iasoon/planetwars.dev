@@ -41,7 +41,7 @@ pub async fn submit_bot(
     std::fs::write(uploaded_bot_dir.join("bot.py"), params.code.as_bytes()).unwrap();
 
     // play the match
-    run_match(MatchConfig {
+    let match_config = MatchConfig {
         map_path: PathBuf::from(MAPS_DIR).join("hex.json"),
         map_name: "hex".to_string(),
         log_path: PathBuf::from(MATCHES_DIR).join(&log_file_name),
@@ -63,22 +63,37 @@ pub async fn submit_bot(
                 }),
             },
         ],
-    })
-    .await;
+    };
 
     // store match in database
     let new_match_data = matches::NewMatch {
-        state: MatchState::Finished,
+        state: MatchState::Playing,
         log_path: &log_file_name,
     };
     // TODO: set match players
     let match_data =
         matches::create_match(&new_match_data, &[], &conn).expect("failed to create match");
 
+    tokio::spawn(run_match_task(
+        match_data.base.id,
+        match_config,
+        pool.clone(),
+    ));
+
     let api_match = super::matches::match_data_to_api(match_data);
     Ok(Json(SubmitBotResponse {
         match_data: api_match,
     }))
+}
+
+async fn run_match_task(match_id: i32, match_config: MatchConfig, connection_pool: ConnectionPool) {
+    run_match(match_config).await;
+    let conn = connection_pool
+        .get()
+        .await
+        .expect("could not get database connection");
+    matches::set_match_state(match_id, MatchState::Finished, &conn)
+        .expect("failed to update match state");
 }
 
 pub fn gen_alphanumeric(length: usize) -> String {

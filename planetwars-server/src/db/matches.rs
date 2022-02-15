@@ -1,6 +1,6 @@
 pub use crate::db_types::MatchState;
 use chrono::NaiveDateTime;
-use diesel::{BelongingToDsl, QueryDsl, RunQueryDsl};
+use diesel::{BelongingToDsl, ExpressionMethods, QueryDsl, RunQueryDsl};
 use diesel::{Connection, GroupedBy, PgConnection, QueryResult};
 
 use crate::schema::{match_players, matches};
@@ -119,4 +119,11 @@ pub fn find_match(id: i32, conn: &PgConnection) -> QueryResult<MatchData> {
 
 pub fn find_mach_base(id: i32, conn: &PgConnection) -> QueryResult<MatchBase> {
     matches::table.find(id).get_result::<MatchBase>(conn)
+}
+
+pub fn set_match_state(id: i32, match_state: MatchState, conn: &PgConnection) -> QueryResult<()> {
+    diesel::update(matches::table.find(id))
+        .set(matches::state.eq(match_state))
+        .execute(conn)?;
+    Ok(())
 }
