@@ -101,6 +101,7 @@ async fn run_match_task(
 pub struct ApiMatch {
     id: i32,
     timestamp: chrono::NaiveDateTime,
+    state: MatchState,
     players: Vec<ApiMatchPlayer>,
 }
 
@@ -119,6 +120,7 @@ pub fn match_data_to_api(data: matches::MatchData) -> ApiMatch {
     ApiMatch {
         id: data.base.id,
         timestamp: data.base.created_at,
+        state: data.base.state,
         players: data
             .match_players
             .iter()
