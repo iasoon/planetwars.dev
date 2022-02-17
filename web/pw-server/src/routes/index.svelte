@@ -51,13 +51,35 @@
 
   async function selectMatch(matchId: string) {
     console.log("showing match " + matchId);
-    let matchLog = await loadMatch(matchId);
+    let matchLog = await getMatchLog(matchId);
     selectedMatchId = matchId;
     selectedMatchLog = matchLog;
   }
 
-  async function loadMatch(matchId: string) {
-    const res = await fetch(`/api/matches/${matchId}`, {
+  async function getMatchData(matchId: string) {
+    let response = await fetch(`/api/matches/${matchId}`, {
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      throw Error(response.statusText);
+    }
+
+    let matchData = await response.json();
+    return matchData;
+  }
+
+  async function getMatchLog(matchId: string) {
+    const matchData = await getMatchData(matchId);
+    console.log(matchData);
+    if (matchData["state"] !== "Finished") {
+      // log is not available yet
+      return null;
+    }
+
+    const res = await fetch(`/api/matches/${matchId}/log`, {
       headers: {
         "Content-Type": "application/json",
       },
