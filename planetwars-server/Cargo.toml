@@ -24,6 +24,7 @@ base64 = "0.13.0"
 zip = "0.5"
 toml = "0.5"
 planetwars-matchrunner = { path = "../planetwars-matchrunner" }
+config = { version = "0.12", features = ["toml"] }
 
 # TODO: remove me
 shlex = "1.1"

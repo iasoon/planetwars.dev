@@ -14,6 +14,7 @@ use axum;
 use bb8::PooledConnection;
 use bb8_diesel::{self, DieselConnectionManager};
 use diesel::PgConnection;
+use serde::Deserialize;
 
 use axum::{
     async_trait,
@@ -30,9 +31,8 @@ const MAPS_DIR: &str = "./data/maps";
 
 type ConnectionPool = bb8::Pool<DieselConnectionManager<PgConnection>>;
 
-pub async fn api() -> Router {
-    let database_url = "postgresql://planetwars:planetwars@localhost/planetwars";
-    let manager = DieselConnectionManager::<PgConnection>::new(database_url);
+pub async fn api(configuration: Configuration) -> Router {
+    let manager = DieselConnectionManager::<PgConnection>::new(configuration.database_url);
     let pool = bb8::Pool::builder().build(manager).await.unwrap();
 
     let api = Router::new()
@@ -64,8 +64,20 @@ pub async fn api() -> Router {
 }
 
 pub async fn app() -> Router {
-    let api = api().await;
+    let configuration = config::Config::builder()
+        .add_source(config::File::with_name("configuration.toml"))
+        .add_source(config::Environment::with_prefix("PLANETWARS"))
+        .build()
+        .unwrap()
+        .try_deserialize()
+        .unwrap();
+    let api = api(configuration).await;
     Router::new().nest("/api", api)
+}
+
+#[derive(Deserialize)]
+pub struct Configuration {
+    pub database_url: String,
 }
 
 // we can also write a custom extractor that grabs a connection from the pool
