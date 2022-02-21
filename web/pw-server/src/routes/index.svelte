@@ -10,6 +10,8 @@
   import ace from "ace-builds/src-noconflict/ace?client";
   import * as AcePythonMode from "ace-builds/src-noconflict/mode-python?client";
 
+  import defaultBotCode from "../assets/bot_template.txt?raw";
+
   let matches = [];
 
   let selectedMatchId: string | undefined = undefined;
@@ -22,7 +24,7 @@
   });
 
   function init_editor() {
-    editSession = new ace.EditSession("");
+    editSession = new ace.EditSession(defaultBotCode);
     editSession.setMode(new AcePythonMode.Mode());
   }
 
