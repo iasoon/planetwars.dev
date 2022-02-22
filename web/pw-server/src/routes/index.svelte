@@ -55,15 +55,30 @@
 
     let matchData = responseData["match"];
 
-    matches.push(matchData);
+    matches.unshift(matchData);
     matches = matches;
+    selectMatch(matchData["id"]);
   }
 
   async function selectMatch(matchId: string) {
-    console.log("showing match " + matchId);
-    let matchLog = await getMatchLog(matchId);
     selectedMatchId = matchId;
-    selectedMatchLog = matchLog;
+    selectedMatchLog = null;
+    fetchSelectedMatchLog(matchId);
+  }
+
+  async function fetchSelectedMatchLog(matchId: string) {
+    if (matchId !== selectedMatchId) {
+      return;
+    }
+
+    let matchLog = await getMatchLog(matchId);
+
+    if (matchLog) {
+      selectedMatchLog = matchLog;
+    } else {
+      // try again in 1 second
+      setTimeout(fetchSelectedMatchLog, 1000, matchId);
+    }
   }
 
   async function getMatchData(matchId: string) {
