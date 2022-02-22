@@ -9,8 +9,8 @@
   import type { Ace } from "ace-builds";
   import ace from "ace-builds/src-noconflict/ace?client";
   import * as AcePythonMode from "ace-builds/src-noconflict/mode-python?client";
-
-  import defaultBotCode from "../assets/bot_template.txt?raw";
+  import { getBotCode, saveBotCode } from "$lib/bot_code";
+  import { debounce } from "$lib/utils";
 
   let matches = [];
 
@@ -24,8 +24,16 @@
   });
 
   function init_editor() {
-    editSession = new ace.EditSession(defaultBotCode);
+    editSession = new ace.EditSession(getBotCode());
     editSession.setMode(new AcePythonMode.Mode());
+
+    const saveCode = () => {
+      const code = editSession.getDocument().getValue();
+      saveBotCode(code);
+    };
+
+    // cast to any because the type annotations are wrong here
+    (editSession as any).on("change", debounce(saveCode, 2000));
   }
 
   async function submitCode() {
