@@ -1,7 +1,11 @@
 <script lang="ts">
   export let matchLog: string;
 
-  function getStdErr(log: string, botId: number): string {
+  function getStdErr(botId: number, log?: string): string {
+    if (!log) {
+      return "";
+    }
+
     let output = [];
     log
       .split("\n")
@@ -15,7 +19,7 @@
     return output.join("\n");
   }
 
-  $: botStdErr = getStdErr(matchLog, 1);
+  $: botStdErr = getStdErr(1, matchLog);
 </script>
 
 <div class="output">

@@ -59,7 +59,7 @@
 
     matches.unshift(matchData);
     matches = matches;
-    selectMatch(matchData["id"]);
+    await selectMatch(matchData["id"]);
   }
 
   async function selectMatch(matchId: string) {
@@ -158,14 +158,14 @@
       </ul>
     </div>
     <div class="editor-container">
-      {#if selectedMatchLog}
+      {#if selectedMatchId}
         <Visualizer matchLog={selectedMatchLog} />
       {:else}
         <EditorView {editSession} />
       {/if}
     </div>
     <div class="sidebar-right">
-      {#if selectedMatchLog}
+      {#if selectedMatchId}
         <OutputPane matchLog={selectedMatchLog} />
       {:else}
         <SubmitPane on:submit={submitCode} />

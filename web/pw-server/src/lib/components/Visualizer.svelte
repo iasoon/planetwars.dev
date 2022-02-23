@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from "svelte";
+  import { onDestroy, onMount } from "svelte";
   import * as visualizer from "pw-visualizer";
   import init_wasm_module from "planetwars-rs";
 
@@ -13,6 +13,11 @@
     visualizer.init();
     initialized = true;
     visualizer.set_loading(false);
+  });
+
+  onDestroy(() => {
+    // TODO: do a more thorough cleanup
+    visualizer.stop();
   });
 
   $: if (initialized) {
