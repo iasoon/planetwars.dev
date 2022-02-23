@@ -19,9 +19,20 @@
     if (matchLog === null) {
       visualizer.set_loading(true);
     } else {
-      visualizer.set_instance(matchLog);
+      console.log(matchLog);
+      let instanceLog = extractGameStates(matchLog);
+      visualizer.set_instance(instanceLog);
       visualizer.set_loading(false);
     }
+  }
+
+  function extractGameStates(matchLog: string): string {
+    // TODO: find a better way to do this
+    return matchLog
+      .split("\n")
+      .slice(0, -1)
+      .filter((line) => JSON.parse(line)["type"] == "gamestate")
+      .join("\n");
   }
 </script>
 

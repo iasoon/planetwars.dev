@@ -11,6 +11,8 @@
   import * as AcePythonMode from "ace-builds/src-noconflict/mode-python?client";
   import { getBotCode, saveBotCode } from "$lib/bot_code";
   import { debounce } from "$lib/utils";
+  import SubmitPane from "$lib/components/SubmitPane.svelte";
+  import OutputPane from "$lib/components/OutputPane.svelte";
 
   let matches = [];
 
@@ -156,14 +158,18 @@
       </ul>
     </div>
     <div class="editor-container">
-      {#if selectedMatchLog !== undefined}
+      {#if selectedMatchLog}
         <Visualizer matchLog={selectedMatchLog} />
       {:else}
         <EditorView {editSession} />
       {/if}
     </div>
     <div class="sidebar-right">
-      <button class="play-button" on:click={submitCode}>Submit</button>
+      {#if selectedMatchLog}
+        <OutputPane matchLog={selectedMatchLog} />
+      {:else}
+        <SubmitPane on:submit={submitCode} />
+      {/if}
     </div>
   </div>
 </div>
@@ -199,7 +205,8 @@
     width: 400px;
     background-color: white;
     border-left: 1px solid;
-    padding: 10px;
+    padding: 0;
+    display: flex;
   }
   .editor-container {
     flex-grow: 1;
@@ -209,17 +216,6 @@
 
   .editor-container {
     height: 100%;
-  }
-
-  .play-button {
-    padding: 8px 16px;
-    border-radius: 8px;
-    border: 0;
-    font-size: 18pt;
-    display: block;
-    margin: 20px auto;
-    background-color: lightgreen;
-    cursor: pointer;
   }
 
   .editor-button {
