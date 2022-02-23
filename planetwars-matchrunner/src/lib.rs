@@ -1,17 +1,18 @@
 pub mod bot_runner;
 pub mod docker_runner;
 pub mod match_context;
+pub mod match_log;
 pub mod pw_match;
 
 use std::{
-    io::Write,
     path::PathBuf,
     sync::{Arc, Mutex},
 };
 
 use async_trait::async_trait;
-use futures::{stream::FuturesOrdered, FutureExt, StreamExt};
+use futures::{stream::FuturesOrdered, StreamExt};
 use match_context::MatchCtx;
+use match_log::{create_log_sink, MatchLogger};
 use planetwars_rules::PwConfig;
 use serde::{Deserialize, Serialize};
 
@@ -47,6 +48,7 @@ pub trait BotSpec: Send + Sync {
         &self,
         player_id: u32,
         event_bus: Arc<Mutex<EventBus>>,
+        match_logger: MatchLogger,
     ) -> Box<dyn PlayerHandle>;
 }
 
@@ -57,6 +59,7 @@ pub async fn run_match(config: MatchConfig) {
     };
 
     let event_bus = Arc::new(Mutex::new(EventBus::new()));
+    let match_logger = create_log_sink(&config.log_path).await;
 
     // start bots
     // TODO: what happens when a bot fails?
@@ -66,34 +69,39 @@ pub async fn run_match(config: MatchConfig) {
         .enumerate()
         .map(|(player_id, player)| {
             let player_id = (player_id + 1) as u32;
-            start_bot(player_id, event_bus.clone(), &player.bot_spec)
+            start_bot(
+                player_id,
+                event_bus.clone(),
+                &player.bot_spec,
+                match_logger.clone(),
+            )
         })
         .collect::<FuturesOrdered<_>>()
         // await all results
         .collect()
         .await;
-    let mut log_file = std::fs::File::create(config.log_path).expect("could not create log file");
 
+    let match_ctx = MatchCtx::new(event_bus, players, match_logger);
+
+    // TODO: is this still needed?
     // assemble the math meta struct
-    let match_meta = MatchMeta {
-        map_name: config.map_name.clone(),
-        timestamp: chrono::Local::now(),
-        players: config
-            .players
-            .iter()
-            .map(|bot| PlayerInfo {
-                name: bot.name.clone(),
-            })
-            .collect(),
-    };
-    write!(
-        log_file,
-        "{}\n",
-        serde_json::to_string(&match_meta).unwrap()
-    )
-    .unwrap();
-
-    let match_ctx = MatchCtx::new(event_bus, players, log_file);
+    // let match_meta = MatchMeta {
+    //     map_name: config.map_name.clone(),
+    //     timestamp: chrono::Local::now(),
+    //     players: config
+    //         .players
+    //         .iter()
+    //         .map(|bot| PlayerInfo {
+    //             name: bot.name.clone(),
+    //         })
+    //         .collect(),
+    // };
+    // write!(
+    //     log_file,
+    //     "{}\n",
+    //     serde_json::to_string(&match_meta).unwrap()
+    // )
+    // .unwrap();
 
     let match_state = pw_match::PwMatch::create(match_ctx, pw_config);
     match_state.run().await;
@@ -104,7 +112,8 @@ async fn start_bot(
     player_id: u32,
     event_bus: Arc<Mutex<EventBus>>,
     bot_spec: &Box<dyn BotSpec>,
+    match_logger: MatchLogger,
 ) -> (u32, Box<dyn PlayerHandle>) {
-    let player_handle = bot_spec.run_bot(player_id, event_bus).await;
+    let player_handle = bot_spec.run_bot(player_id, event_bus, match_logger).await;
     (player_id, player_handle)
 }

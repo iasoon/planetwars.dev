@@ -1,14 +1,14 @@
 use futures::task::{Context, Poll};
 use futures::{future::Future, task::AtomicWaker};
 use serde::{Deserialize, Serialize};
-use std::fs::File;
-use std::io::Write;
 use std::pin::Pin;
 use std::time::Duration;
 use std::{
     collections::HashMap,
     sync::{Arc, Mutex},
 };
+
+use crate::match_log::{MatchLogMessage, MatchLogger};
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct RequestMessage {
@@ -20,16 +20,14 @@ pub struct RequestMessage {
 pub struct MatchCtx {
     event_bus: Arc<Mutex<EventBus>>,
     players: HashMap<u32, PlayerData>,
-    // output: MsgStreamHandle<String>,
-    log_sink: File,
+    match_logger: MatchLogger,
 }
 
 impl MatchCtx {
     pub fn new(
         event_bus: Arc<Mutex<EventBus>>,
         players: HashMap<u32, Box<dyn PlayerHandle>>,
-        log_file: File,
-        // log: MsgStreamHandle<String>,
+        match_logger: MatchLogger,
     ) -> Self {
         MatchCtx {
             event_bus,
@@ -43,7 +41,7 @@ impl MatchCtx {
                     (id, player_handle)
                 })
                 .collect(),
-            log_sink: log_file,
+            match_logger,
         }
     }
 
@@ -70,9 +68,8 @@ impl MatchCtx {
         self.players.keys().cloned().collect()
     }
 
-    // this method should be used to emit log states etc.
-    pub fn log_string(&mut self, message: String) {
-        write!(self.log_sink, "{}\n", message).expect("failed to write to log file");
+    pub fn log(&mut self, message: MatchLogMessage) {
+        self.match_logger.send(message).expect("write failed");
     }
 }
 

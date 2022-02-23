@@ -1,3 +1,5 @@
+use crate::match_log::MatchLogMessage;
+
 use super::match_context::{MatchCtx, RequestResult};
 use futures::stream::futures_unordered::FuturesUnordered;
 use futures::{FutureExt, StreamExt};
@@ -44,16 +46,16 @@ impl PwMatch {
             for (player_id, turn) in player_messages {
                 let res = self.execute_action(player_id, turn);
                 if let Some(err) = action_errors(res) {
-                    let info_str = serde_json::to_string(&err).unwrap();
-                    println!("player {}: {}", player_id, info_str);
+                    let _info_str = serde_json::to_string(&err).unwrap();
+                    // TODO
+                    // println!("player {}: {}", player_id, info_str);
                 }
             }
             self.match_state.step();
 
             // Log state
             let state = self.match_state.serialize_state();
-            self.match_ctx
-                .log_string(serde_json::to_string(&state).unwrap());
+            self.match_ctx.log(MatchLogMessage::GameState(state));
         }
     }
 
