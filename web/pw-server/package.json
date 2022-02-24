@@ -34,6 +34,7 @@
     "vite-plugin-wasm-pack": "^0.1.9"
   },
   "dependencies": {
+    "@sveltejs/adapter-node": "^1.0.0-next.69",
     "@types/luxon": "^2.0.9",
     "ace-builds": "^1.4.14",
     "dayjs": "^1.10.7",

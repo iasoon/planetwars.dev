@@ -1,4 +1,4 @@
-import adapter from "@sveltejs/adapter-auto";
+import adapter from "@sveltejs/adapter-node";
 import preprocess from "svelte-preprocess";
 import { viteCommonjs } from "@originjs/vite-plugin-commonjs";
 import wasmPack from "vite-plugin-wasm-pack";
