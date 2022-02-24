@@ -14,8 +14,7 @@ const config = {
     adapter: adapter(),
 
     // hydrate the <div id="svelte"> element in src/app.html
-    target: "#svelte",
-    ssr: false,
+    // target: "#svelte",
     vite: {
       plugins: [
         isoImport(),
@@ -31,7 +30,7 @@ const config = {
       },
       server: {
         proxy: {
-          "/api/": "http://localhost:9000",
+          "/api/": "http://127.0.0.1:9000",
           "/ws": "ws://localhost:9000/ws",
         },
         fs: {
