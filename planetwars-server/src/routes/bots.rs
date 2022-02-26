@@ -24,7 +24,7 @@ pub async fn create_bot(
     params: Json<BotParams>,
 ) -> (StatusCode, Json<Bot>) {
     let bot_params = bots::NewBot {
-        owner_id: user.id,
+        owner_id: Some(user.id),
         name: &params.name,
     };
     let bot = bots::create_bot(&bot_params, &conn).unwrap();
@@ -71,7 +71,7 @@ pub async fn upload_code_multipart(
 
     let bot = bots::find_bot(bot_id, &conn).map_err(|_| StatusCode::NOT_FOUND)?;
 
-    if user.id != bot.owner_id {
+    if Some(user.id) != bot.owner_id {
         return Err(StatusCode::FORBIDDEN);
     }
 

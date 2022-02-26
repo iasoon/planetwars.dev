@@ -7,14 +7,14 @@ use chrono;
 #[derive(Insertable)]
 #[table_name = "bots"]
 pub struct NewBot<'a> {
-    pub owner_id: i32,
+    pub owner_id: Option<i32>,
     pub name: &'a str,
 }
 
 #[derive(Queryable, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Bot {
     pub id: i32,
-    pub owner_id: i32,
+    pub owner_id: Option<i32>,
     pub name: String,
 }
 

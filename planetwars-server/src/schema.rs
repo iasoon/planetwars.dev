@@ -7,7 +7,7 @@ table! {
 
     bots (id) {
         id -> Int4,
-        owner_id -> Int4,
+        owner_id -> Nullable<Int4>,
         name -> Text,
     }
 }

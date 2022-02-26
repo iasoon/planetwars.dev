@@ -1,6 +1,6 @@
 CREATE TABLE bots (
     id serial PRIMARY KEY,
-    owner_id integer REFERENCES users(id) NOT NULL,
+    owner_id integer REFERENCES users(id),
     name text NOT NULL
 );
 
