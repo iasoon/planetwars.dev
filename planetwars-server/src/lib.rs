@@ -28,12 +28,38 @@ use axum::{
 const BOTS_DIR: &str = "./data/bots";
 const MATCHES_DIR: &str = "./data/matches";
 const MAPS_DIR: &str = "./data/maps";
+const SIMPLEBOT_PATH: &str = "../simplebot/simplebot.py";
 
 type ConnectionPool = bb8::Pool<DieselConnectionManager<PgConnection>>;
+
+pub async fn seed_simplebot(pool: &ConnectionPool) {
+    let conn = pool.get().await.expect("could not get database connection");
+    // This transaction is expected to fail when simplebot already exists.
+    let _res = conn.transaction::<(), diesel::result::Error, _>(|| {
+        use db::bots::NewBot;
+
+        let new_bot = NewBot {
+            name: "simplebot",
+            owner_id: None,
+        };
+
+        let simplebot = db::bots::create_bot(&new_bot, &conn)?;
+
+        let simplebot_code =
+            std::fs::read_to_string(SIMPLEBOT_PATH).expect("could not read simplebot code");
+
+        modules::bots::save_code_bundle(&simplebot_code, Some(simplebot.id), &conn)?;
+
+        println!("initialized simplebot");
+
+        Ok(())
+    });
+}
 
 pub async fn prepare_db(database_url: &str) -> Pool<DieselConnectionManager<PgConnection>> {
     let manager = DieselConnectionManager::<PgConnection>::new(database_url);
     let pool = bb8::Pool::builder().build(manager).await.unwrap();
+    seed_simplebot(&pool).await;
     return pool;
 }
 

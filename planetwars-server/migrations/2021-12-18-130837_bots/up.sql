@@ -1,10 +1,8 @@
 CREATE TABLE bots (
     id serial PRIMARY KEY,
     owner_id integer REFERENCES users(id),
-    name text NOT NULL
+    name text UNIQUE NOT NULL
 );
-
-CREATE UNIQUE INDEX bots_index ON bots(owner_id, name);
 
 CREATE TABLE code_bundles (
     id serial PRIMARY KEY,
