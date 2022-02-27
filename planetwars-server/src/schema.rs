@@ -18,7 +18,7 @@ table! {
 
     code_bundles (id) {
         id -> Int4,
-        bot_id -> Int4,
+        bot_id -> Nullable<Int4>,
         path -> Text,
         created_at -> Timestamp,
     }

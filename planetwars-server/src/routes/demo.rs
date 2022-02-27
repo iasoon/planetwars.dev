@@ -1,10 +1,11 @@
 use crate::db::matches::{self, MatchState};
+use crate::modules::bots::save_code_bundle;
+use crate::util::gen_alphanumeric;
 use crate::{ConnectionPool, BOTS_DIR, MAPS_DIR, MATCHES_DIR};
 use axum::extract::Extension;
 use axum::Json;
 use hyper::StatusCode;
 use planetwars_matchrunner::{docker_runner::DockerBotSpec, run_match, MatchConfig, MatchPlayer};
-use rand::{distributions::Alphanumeric, Rng};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
@@ -15,6 +16,7 @@ const SIMPLEBOT_PATH: &'static str = "../simplebot";
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct SubmitBotParams {
+    pub bot_name: Option<String>,
     pub code: String,
 }
 
@@ -32,14 +34,12 @@ pub async fn submit_bot(
 ) -> Result<Json<SubmitBotResponse>, StatusCode> {
     let conn = pool.get().await.expect("could not get database connection");
 
-    let uploaded_bot_uuid: String = gen_alphanumeric(16);
+    let code_bundle = save_code_bundle(&params.code, None, &conn)
+        // TODO: can we recover from this?
+        .expect("could not save bot code");
+
     let log_file_name = format!("{}.log", gen_alphanumeric(16));
-
-    // store uploaded bot
-    let uploaded_bot_dir = PathBuf::from(BOTS_DIR).join(&uploaded_bot_uuid);
-    std::fs::create_dir(&uploaded_bot_dir).unwrap();
-    std::fs::write(uploaded_bot_dir.join("bot.py"), params.code.as_bytes()).unwrap();
-
+    let uploaded_bot_dir = PathBuf::from(BOTS_DIR).join(&code_bundle.path);
     // play the match
     let match_config = MatchConfig {
         map_path: PathBuf::from(MAPS_DIR).join("hex.json"),
@@ -94,12 +94,4 @@ async fn run_match_task(match_id: i32, match_config: MatchConfig, connection_poo
         .expect("could not get database connection");
     matches::set_match_state(match_id, MatchState::Finished, &conn)
         .expect("failed to update match state");
-}
-
-pub fn gen_alphanumeric(length: usize) -> String {
-    rand::thread_rng()
-        .sample_iter(&Alphanumeric)
-        .take(length)
-        .map(char::from)
-        .collect()
 }

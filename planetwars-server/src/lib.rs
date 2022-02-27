@@ -3,15 +3,17 @@ extern crate diesel;
 
 pub mod db;
 pub mod db_types;
+pub mod modules;
 pub mod routes;
 pub mod schema;
+pub mod util;
 
 use std::ops::Deref;
 
 use axum;
-use bb8::PooledConnection;
+use bb8::{Pool, PooledConnection};
 use bb8_diesel::{self, DieselConnectionManager};
-use diesel::PgConnection;
+use diesel::{Connection, PgConnection};
 use serde::Deserialize;
 
 use axum::{
@@ -29,9 +31,14 @@ const MAPS_DIR: &str = "./data/maps";
 
 type ConnectionPool = bb8::Pool<DieselConnectionManager<PgConnection>>;
 
-pub async fn api(configuration: Configuration) -> Router {
-    let manager = DieselConnectionManager::<PgConnection>::new(configuration.database_url);
+pub async fn prepare_db(database_url: &str) -> Pool<DieselConnectionManager<PgConnection>> {
+    let manager = DieselConnectionManager::<PgConnection>::new(database_url);
     let pool = bb8::Pool::builder().build(manager).await.unwrap();
+    return pool;
+}
+
+pub async fn api(configuration: Configuration) -> Router {
+    let db_pool = prepare_db(&configuration.database_url).await;
 
     let api = Router::new()
         .route("/register", post(routes::users::register))
@@ -57,7 +64,7 @@ pub async fn api(configuration: Configuration) -> Router {
             get(routes::matches::get_match_log),
         )
         .route("/submit_bot", post(routes::demo::submit_bot))
-        .layer(AddExtensionLayer::new(pool));
+        .layer(AddExtensionLayer::new(db_pool));
     api
 }
 

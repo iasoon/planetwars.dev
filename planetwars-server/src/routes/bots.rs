@@ -97,7 +97,7 @@ pub async fn upload_code_multipart(
         .map_err(|_| StatusCode::BAD_REQUEST)?;
 
     let bundle = bots::NewCodeBundle {
-        bot_id: bot.id,
+        bot_id: Some(bot.id),
         path: &folder_name,
     };
     let code_bundle =

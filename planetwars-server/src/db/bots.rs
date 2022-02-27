@@ -42,14 +42,14 @@ pub fn find_all_bots(conn: &PgConnection) -> QueryResult<Vec<Bot>> {
 #[derive(Insertable)]
 #[table_name = "code_bundles"]
 pub struct NewCodeBundle<'a> {
-    pub bot_id: i32,
+    pub bot_id: Option<i32>,
     pub path: &'a str,
 }
 
 #[derive(Queryable, Serialize, Deserialize, Debug)]
 pub struct CodeBundle {
     pub id: i32,
-    pub bot_id: i32,
+    pub bot_id: Option<i32>,
     pub path: String,
     pub created_at: chrono::NaiveDateTime,
 }
