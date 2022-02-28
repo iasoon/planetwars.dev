@@ -1,6 +1,7 @@
 use axum::extract::{Multipart, Path};
 use axum::http::StatusCode;
 use axum::Json;
+use diesel::OptionalExtension;
 use rand::distributions::Alphanumeric;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
@@ -10,8 +11,38 @@ use std::path::PathBuf;
 
 use crate::db::bots::{self, CodeBundle};
 use crate::db::users::User;
+use crate::modules::bots::save_code_bundle;
 use crate::{DatabaseConnection, BOTS_DIR};
 use bots::Bot;
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct SaveBotParams {
+    pub bot_name: String,
+    pub code: String,
+}
+pub async fn save_bot(
+    Json(params): Json<SaveBotParams>,
+    conn: DatabaseConnection,
+) -> Result<(), StatusCode> {
+    // TODO: authorization
+    let res = bots::find_bot_by_name(&params.bot_name, &conn)
+        .optional()
+        .expect("could not run query");
+    let bot = match res {
+        Some(bot) => bot,
+        None => {
+            let new_bot = bots::NewBot {
+                owner_id: None,
+                name: &params.bot_name,
+            };
+            let bot = bots::create_bot(&new_bot, &conn).expect("could not create bot");
+            bot
+        }
+    };
+    let _code_bundle =
+        save_code_bundle(&params.code, Some(bot.id), &conn).expect("failed to save code bundle");
+    Ok(())
+}
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct BotParams {

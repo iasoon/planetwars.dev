@@ -90,6 +90,7 @@ pub async fn api(configuration: Configuration) -> Router {
             get(routes::matches::get_match_log),
         )
         .route("/submit_bot", post(routes::demo::submit_bot))
+        .route("/save_bot", post(routes::bots::save_bot))
         .layer(AddExtensionLayer::new(db_pool));
     api
 }
