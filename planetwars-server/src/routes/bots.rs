@@ -23,13 +23,13 @@ pub struct SaveBotParams {
 pub async fn save_bot(
     Json(params): Json<SaveBotParams>,
     conn: DatabaseConnection,
-) -> Result<(), StatusCode> {
+) -> Result<Json<Bot>, StatusCode> {
     // TODO: authorization
     let res = bots::find_bot_by_name(&params.bot_name, &conn)
         .optional()
         .expect("could not run query");
     let bot = match res {
-        Some(bot) => bot,
+        Some(_bot) => return Err(StatusCode::FORBIDDEN),
         None => {
             let new_bot = bots::NewBot {
                 owner_id: None,
@@ -41,7 +41,7 @@ pub async fn save_bot(
     };
     let _code_bundle =
         save_code_bundle(&params.code, Some(bot.id), &conn).expect("failed to save code bundle");
-    Ok(())
+    Ok(Json(bot))
 }
 
 #[derive(Serialize, Deserialize, Debug)]
