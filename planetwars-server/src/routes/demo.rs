@@ -18,8 +18,9 @@ const OPPONENT_NAME: &'static str = "simplebot";
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct SubmitBotParams {
-    pub bot_name: Option<String>,
     pub code: String,
+    // TODO: would it be better to pass an ID here?
+    pub opponent_name: Option<String>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -46,10 +47,14 @@ pub async fn submit_bot(
 ) -> Result<Json<SubmitBotResponse>, StatusCode> {
     let conn = pool.get().await.expect("could not get database connection");
 
+    let opponent_name = params
+        .opponent_name
+        .unwrap_or_else(|| OPPONENT_NAME.to_string());
+
     let opponent =
-        db::bots::find_bot_by_name(OPPONENT_NAME, &conn).expect("could not find opponent bot");
+        db::bots::find_bot_by_name(&opponent_name, &conn).map_err(|_| StatusCode::BAD_REQUEST)?;
     let opponent_code_bundle =
-        db::bots::active_code_bundle(opponent.id, &conn).expect("opponent bot has no code bundles");
+        db::bots::active_code_bundle(opponent.id, &conn).map_err(|_| StatusCode::BAD_REQUEST)?;
 
     let player_code_bundle = save_code_bundle(&params.code, None, &conn)
         // TODO: can we recover from this?
