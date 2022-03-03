@@ -207,6 +207,7 @@
     border-left: 1px solid;
     padding: 0;
     display: flex;
+    overflow: hidden;
   }
   .editor-container {
     flex-grow: 1;

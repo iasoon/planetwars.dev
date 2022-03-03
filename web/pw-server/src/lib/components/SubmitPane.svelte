@@ -1,5 +1,25 @@
 <script lang="ts">
-  import { createEventDispatcher } from "svelte";
+  import { createEventDispatcher, onMount } from "svelte";
+  import Select from "svelte-select";
+
+  let availableBots: object[] = [];
+  let selectedOpponent = "simplebot";
+
+  const optionIdentifier = "name";
+  const labelIdentifier = "name";
+
+  onMount(async () => {
+    const res = await fetch("/api/bots", {
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (res.ok) {
+      availableBots = await res.json();
+      console.log(availableBots);
+    }
+  });
 
   const dispatch = createEventDispatcher();
 
@@ -9,13 +29,28 @@
 </script>
 
 <div class="submit-pane">
-  Submit your bot to play a match
-  <button class="play-button" on:click={submit}>Submit</button>
+  <div class="match-form">
+    <div class="play-text">Select an opponent to test your bot</div>
+    <div class="opponentSelect">
+      <Select
+        optionIdentifier="name"
+        labelIdentifier="name"
+        items={availableBots}
+        bind:value={selectedOpponent}
+      />
+    </div>
+    <button class="play-button" on:click={submit}>Play</button>
+  </div>
 </div>
 
 <style lang="scss">
   .submit-pane {
-    margin: 20px auto;
+    margin: 20px;
+    flex: 1;
+  }
+
+  .opponentSelect {
+    margin: 20px 0;
   }
 
   .play-button {
@@ -24,7 +59,7 @@
     border: 0;
     font-size: 18pt;
     display: block;
-    margin: 20px auto;
+    margin: 10px auto;
     background-color: lightgreen;
     cursor: pointer;
   }
