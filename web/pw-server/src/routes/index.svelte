@@ -38,7 +38,7 @@
     (editSession as any).on("change", debounce(saveCode, 2000));
   }
 
-  async function submitCode() {
+  async function submitBot() {
     let response = await fetch("/api/submit_bot", {
       method: "POST",
       headers: {
@@ -60,6 +60,19 @@
     matches.unshift(matchData);
     matches = matches;
     await selectMatch(matchData["id"]);
+  }
+
+  async function saveBot(e: CustomEvent) {
+    let response = await fetch("/api/save_bot", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        bot_name: e.detail["botName"],
+        code: editSession.getDocument().getValue(),
+      }),
+    });
   }
 
   async function selectMatch(matchId: string) {
@@ -168,7 +181,7 @@
       {#if selectedMatchId}
         <OutputPane matchLog={selectedMatchLog} />
       {:else}
-        <SubmitPane on:submit={submitCode} />
+        <SubmitPane on:submitBot={submitBot} on:saveBot={saveBot} />
       {/if}
     </div>
   </div>

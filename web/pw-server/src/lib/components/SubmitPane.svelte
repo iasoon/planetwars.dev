@@ -4,6 +4,7 @@
 
   let availableBots: object[] = [];
   let selectedOpponent = "simplebot";
+  let botName: string | undefined = undefined;
 
   const optionIdentifier = "name";
   const labelIdentifier = "name";
@@ -23,8 +24,14 @@
 
   const dispatch = createEventDispatcher();
 
-  function submit() {
-    dispatch("submit");
+  function submitBot() {
+    dispatch("submitBot");
+  }
+
+  function saveBot() {
+    dispatch("saveBot", {
+      botName: botName,
+    });
   }
 </script>
 
@@ -39,7 +46,12 @@
         bind:value={selectedOpponent}
       />
     </div>
-    <button class="play-button" on:click={submit}>Play</button>
+    <button class="submit-button play-button" on:click={submitBot}>Play</button>
+  </div>
+  <div class="save-form">
+    <h4>Save your bot</h4>
+    <input type="text" class="bot-name-input" placeholder="bot name" bind:value={botName} />
+    <button class="submit-button save-button" on:click={saveBot}>Save</button>
   </div>
 </div>
 
@@ -47,10 +59,27 @@
   .submit-pane {
     margin: 20px;
     flex: 1;
+    display: flex;
+    flex-direction: column;
   }
 
   .opponentSelect {
     margin: 20px 0;
+  }
+
+  .save-form {
+    margin-top: 8em;
+  }
+
+  .submit-button {
+    padding: 8px 16px;
+    border-radius: 8px;
+    border: 0;
+    font-size: 18pt;
+    display: block;
+    margin: 10px auto;
+    background-color: lightgreen;
+    cursor: pointer;
   }
 
   .play-button {
@@ -62,5 +91,16 @@
     margin: 10px auto;
     background-color: lightgreen;
     cursor: pointer;
+  }
+
+  .bot-name-input {
+    width: 100%;
+  }
+
+  .save-button {
+    background-color: lightgreen;
+    cursor: pointer;
+    padding: 8px 16px;
+    border: 0;
   }
 </style>
