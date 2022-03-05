@@ -3,11 +3,8 @@
   import Select from "svelte-select";
 
   let availableBots: object[] = [];
-  let selectedOpponent = "simplebot";
+  let selectedOpponent = undefined;
   let botName: string | undefined = undefined;
-
-  const optionIdentifier = "name";
-  const labelIdentifier = "name";
 
   onMount(async () => {
     const res = await fetch("/api/bots", {
@@ -18,14 +15,16 @@
 
     if (res.ok) {
       availableBots = await res.json();
-      console.log(availableBots);
+      selectedOpponent = availableBots.find((b) => b["name"] === "simplebot");
     }
   });
 
   const dispatch = createEventDispatcher();
 
   function submitBot() {
-    dispatch("submitBot");
+    dispatch("submitBot", {
+      opponentName: selectedOpponent["name"],
+    });
   }
 
   function saveBot() {

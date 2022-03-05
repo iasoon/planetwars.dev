@@ -38,7 +38,8 @@
     (editSession as any).on("change", debounce(saveCode, 2000));
   }
 
-  async function submitBot() {
+  async function submitBot(e: CustomEvent) {
+    console.log(e.detail);
     let response = await fetch("/api/submit_bot", {
       method: "POST",
       headers: {
@@ -46,6 +47,7 @@
       },
       body: JSON.stringify({
         code: editSession.getDocument().getValue(),
+        opponent_name: e.detail["opponentName"],
       }),
     });
 
