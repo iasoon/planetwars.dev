@@ -1,11 +1,13 @@
+use axum::body;
 use axum::extract::{Multipart, Path};
 use axum::http::StatusCode;
+use axum::response::{IntoResponse, Response};
 use axum::Json;
 use diesel::OptionalExtension;
 use rand::distributions::Alphanumeric;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
-use serde_json::{json, value::Value as JsonValue};
+use serde_json::{self, json, value::Value as JsonValue};
 use std::io::Cursor;
 use std::path::PathBuf;
 
@@ -20,16 +22,38 @@ pub struct SaveBotParams {
     pub bot_name: String,
     pub code: String,
 }
+
+pub enum SaveBotError {
+    BotNameTaken,
+}
+
+impl IntoResponse for SaveBotError {
+    fn into_response(self) -> Response {
+        let (status, value) = match self {
+            SaveBotError::BotNameTaken => {
+                (StatusCode::FORBIDDEN, json!({ "error": "BotNameTaken" }))
+            }
+        };
+
+        let encoded = serde_json::to_vec(&value).expect("could not encode response value");
+
+        Response::builder()
+            .status(status)
+            .body(body::boxed(body::Full::from(encoded)))
+            .expect("could not build response")
+    }
+}
+
 pub async fn save_bot(
     Json(params): Json<SaveBotParams>,
     conn: DatabaseConnection,
-) -> Result<Json<Bot>, StatusCode> {
+) -> Result<Json<Bot>, SaveBotError> {
     // TODO: authorization
     let res = bots::find_bot_by_name(&params.bot_name, &conn)
         .optional()
         .expect("could not run query");
     let bot = match res {
-        Some(_bot) => return Err(StatusCode::FORBIDDEN),
+        Some(_bot) => return Err(SaveBotError::BotNameTaken),
         None => {
             let new_bot = bots::NewBot {
                 owner_id: None,
