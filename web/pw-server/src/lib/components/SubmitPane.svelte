@@ -2,6 +2,8 @@
   import { createEventDispatcher, onMount } from "svelte";
   import Select from "svelte-select";
 
+  export let editSession;
+
   let availableBots: object[] = [];
   let selectedOpponent = undefined;
   let botName: string | undefined = undefined;
@@ -21,16 +23,48 @@
 
   const dispatch = createEventDispatcher();
 
-  function submitBot() {
-    dispatch("submitBot", {
-      opponentName: selectedOpponent["name"],
+  async function submitBot() {
+    const opponentName = selectedOpponent["name"];
+
+    let response = await fetch("/api/submit_bot", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        code: editSession.getDocument().getValue(),
+        opponent_name: opponentName,
+      }),
     });
+
+    let responseData = await response.json();
+
+    if (response.ok) {
+      // object has a "match" key containing the match data
+      dispatch("matchCreated", responseData);
+    } else {
+      throw responseData;
+    }
   }
 
-  function saveBot() {
-    dispatch("saveBot", {
-      botName: botName,
+  async function saveBot() {
+    let response = await fetch("/api/save_bot", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        bot_name: botName,
+        code: editSession.getDocument().getValue(),
+      }),
     });
+
+    let responseData = await response.json();
+    if (response.ok) {
+      dispatch("botSaved", responseData);
+    } else {
+      throw responseData;
+    }
   }
 </script>
 
