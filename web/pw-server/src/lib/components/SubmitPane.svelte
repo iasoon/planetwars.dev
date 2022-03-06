@@ -8,6 +8,8 @@
   let selectedOpponent = undefined;
   let botName: string | undefined = undefined;
 
+  let saveErrorText = undefined;
+
   onMount(async () => {
     const res = await fetch("/api/bots", {
       headers: {
@@ -62,8 +64,15 @@
     let responseData = await response.json();
     if (response.ok) {
       dispatch("botSaved", responseData);
+      // clear errors
+      saveErrorText = undefined;
     } else {
-      throw responseData;
+      if (responseData["error"] === "BotNameTaken") {
+        saveErrorText = "Bot name is already taken";
+      } else {
+        // unexpected error
+        throw responseData;
+      }
     }
   }
 </script>
@@ -84,6 +93,9 @@
   <div class="save-form">
     <h4>Save your bot</h4>
     <input type="text" class="bot-name-input" placeholder="bot name" bind:value={botName} />
+    {#if saveErrorText}
+      <div class="error-text">{saveErrorText}</div>
+    {/if}
     <button class="submit-button save-button" on:click={saveBot}>Save</button>
   </div>
 </div>
@@ -102,6 +114,10 @@
 
   .save-form {
     margin-top: 8em;
+  }
+
+  .error-text {
+    color: red;
   }
 
   .submit-button {
