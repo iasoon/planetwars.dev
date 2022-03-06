@@ -79,6 +79,7 @@
 
 <div class="submit-pane">
   <div class="match-form">
+    <h4>Play a match</h4>
     <div class="play-text">Select an opponent to test your bot</div>
     <div class="opponentSelect">
       <Select
@@ -86,12 +87,14 @@
         labelIdentifier="name"
         items={availableBots}
         bind:value={selectedOpponent}
+        isClearable={false}
       />
     </div>
     <button class="submit-button play-button" on:click={submitBot}>Play</button>
   </div>
   <div class="save-form">
     <h4>Save your bot</h4>
+    <div>Add your bot to the opponents list</div>
     <input type="text" class="bot-name-input" placeholder="bot name" bind:value={botName} />
     {#if saveErrorText}
       <div class="error-text">{saveErrorText}</div>
@@ -106,6 +109,10 @@
     flex: 1;
     display: flex;
     flex-direction: column;
+  }
+
+  .submit-pane h4 {
+    margin-bottom: 0.3em;
   }
 
   .opponentSelect {
@@ -131,25 +138,13 @@
     cursor: pointer;
   }
 
-  .play-button {
-    padding: 8px 16px;
-    border-radius: 8px;
-    border: 0;
-    font-size: 18pt;
-    display: block;
-    margin: 10px auto;
-    background-color: lightgreen;
-    cursor: pointer;
-  }
-
   .bot-name-input {
     width: 100%;
-  }
-
-  .save-button {
-    background-color: lightgreen;
-    cursor: pointer;
+    font-size: 16px;
     padding: 8px 16px;
-    border: 0;
+    box-sizing: border-box;
+    margin: 10px 0;
+    border: 1px solid rgb(216, 219, 223);
+    border-radius: 3px;
   }
 </style>
