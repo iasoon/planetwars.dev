@@ -134,8 +134,10 @@
             class:selected={match.id === selectedMatchId}
           >
             <span class="match-timestamp">{formatMatchTimestamp(match.timestamp)}</span>
-            <!-- hardcode hex for now, maps are not yet implemented -->
-            <span class="match-mapname">hex</span>
+            <!-- hex is hardcoded for now, don't show map name -->
+            <!-- <span class="match-mapname">hex</span> -->
+            <!-- ugly temporary hardcode -->
+            <span class="match-opponent">{match["players"][1]["bot_name"]}</span>
           </li>
         {/each}
       </ul>
@@ -234,6 +236,10 @@
   }
 
   .match-mapname {
+    padding: 0 0.5em;
+  }
+
+  .match-opponent {
     padding: 0 0.5em;
   }
 
