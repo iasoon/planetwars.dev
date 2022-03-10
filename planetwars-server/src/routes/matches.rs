@@ -62,7 +62,9 @@ pub async fn play_match(
             }),
         });
 
-        bot_ids.push(matches::MatchPlayerData { bot_id: bot.id });
+        bot_ids.push(matches::MatchPlayerData {
+            code_bundle_id: code_bundle.id,
+        });
     }
 
     let match_config = MatchConfig {
@@ -107,7 +109,9 @@ pub struct ApiMatch {
 
 #[derive(Serialize, Deserialize)]
 pub struct ApiMatchPlayer {
-    bot_id: i32,
+    // TODO!
+// bot_id: i32,
+// code_bundle_id: i32
 }
 
 pub async fn list_matches(conn: DatabaseConnection) -> Result<Json<Vec<ApiMatch>>, StatusCode> {
@@ -124,7 +128,7 @@ pub fn match_data_to_api(data: matches::MatchData) -> ApiMatch {
         players: data
             .match_players
             .iter()
-            .map(|p| ApiMatchPlayer { bot_id: p.bot_id })
+            .map(|_p| ApiMatchPlayer {})
             .collect(),
     }
 }

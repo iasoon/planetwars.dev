@@ -1,5 +1,5 @@
 use crate::db;
-use crate::db::matches::MatchState;
+use crate::db::matches::{MatchPlayerData, MatchState};
 use crate::modules::bots::save_code_bundle;
 use crate::util::gen_alphanumeric;
 use crate::{ConnectionPool, BOTS_DIR, MAPS_DIR, MATCHES_DIR};
@@ -83,9 +83,18 @@ pub async fn submit_bot(
         state: MatchState::Playing,
         log_path: &log_file_name,
     };
+
+    let new_match_players = [
+        MatchPlayerData {
+            code_bundle_id: player_code_bundle.id,
+        },
+        MatchPlayerData {
+            code_bundle_id: opponent_code_bundle.id,
+        },
+    ];
     // TODO: set match players
-    let match_data =
-        db::matches::create_match(&new_match_data, &[], &conn).expect("failed to create match");
+    let match_data = db::matches::create_match(&new_match_data, &new_match_players, &conn)
+        .expect("failed to create match");
 
     tokio::spawn(run_match_task(
         match_data.base.id,

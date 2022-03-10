@@ -17,10 +17,10 @@ pub struct NewMatch<'a> {
 pub struct NewMatchPlayer {
     /// id of the match this player is in
     pub match_id: i32,
-    /// id of the bot behind this player
-    pub bot_id: i32,
     /// player id within the match
     pub player_id: i32,
+    /// id of the bot behind this player
+    pub code_bundle_id: i32,
 }
 
 #[derive(Queryable, Identifiable)]
@@ -37,12 +37,12 @@ pub struct MatchBase {
 #[belongs_to(MatchBase, foreign_key = "match_id")]
 pub struct MatchPlayer {
     pub match_id: i32,
-    pub bot_id: i32,
     pub player_id: i32,
+    pub code_bundle_id: i32,
 }
 
 pub struct MatchPlayerData {
-    pub bot_id: i32,
+    pub code_bundle_id: i32,
 }
 
 pub fn create_match(
@@ -60,8 +60,8 @@ pub fn create_match(
             .enumerate()
             .map(|(num, player_data)| NewMatchPlayer {
                 match_id: match_base.id,
-                bot_id: player_data.bot_id,
                 player_id: num as i32,
+                code_bundle_id: player_data.code_bundle_id,
             })
             .collect::<Vec<_>>();
 
