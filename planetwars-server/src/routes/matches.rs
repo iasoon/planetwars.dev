@@ -109,9 +109,9 @@ pub struct ApiMatch {
 
 #[derive(Serialize, Deserialize)]
 pub struct ApiMatchPlayer {
-    // TODO!
-// bot_id: i32,
-// code_bundle_id: i32
+    code_bundle_id: i32,
+    bot_id: Option<i32>,
+    bot_name: Option<String>,
 }
 
 pub async fn list_matches(conn: DatabaseConnection) -> Result<Json<Vec<ApiMatch>>, StatusCode> {
@@ -120,7 +120,7 @@ pub async fn list_matches(conn: DatabaseConnection) -> Result<Json<Vec<ApiMatch>
         .map(|matches| Json(matches.into_iter().map(match_data_to_api).collect()))
 }
 
-pub fn match_data_to_api(data: matches::MatchData) -> ApiMatch {
+pub fn match_data_to_api(data: matches::FullMatchData) -> ApiMatch {
     ApiMatch {
         id: data.base.id,
         timestamp: data.base.created_at,
@@ -128,7 +128,11 @@ pub fn match_data_to_api(data: matches::MatchData) -> ApiMatch {
         players: data
             .match_players
             .iter()
-            .map(|_p| ApiMatchPlayer {})
+            .map(|_p| ApiMatchPlayer {
+                code_bundle_id: _p.code_bundle.id,
+                bot_id: _p.bot.as_ref().map(|b| b.id),
+                bot_name: _p.bot.as_ref().map(|b| b.name.clone()),
+            })
             .collect(),
     }
 }

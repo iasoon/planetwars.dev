@@ -1,9 +1,14 @@
 pub use crate::db_types::MatchState;
 use chrono::NaiveDateTime;
-use diesel::{BelongingToDsl, ExpressionMethods, QueryDsl, RunQueryDsl};
+use diesel::associations::BelongsTo;
+use diesel::{
+    BelongingToDsl, ExpressionMethods, JoinOnDsl, NullableExpressionMethods, QueryDsl, RunQueryDsl,
+};
 use diesel::{Connection, GroupedBy, PgConnection, QueryResult};
 
-use crate::schema::{match_players, matches};
+use crate::schema::{bots, code_bundles, match_players, matches};
+
+use super::bots::{Bot, CodeBundle};
 
 #[derive(Insertable)]
 #[table_name = "matches"]
@@ -32,7 +37,7 @@ pub struct MatchBase {
     pub created_at: NaiveDateTime,
 }
 
-#[derive(Queryable, Identifiable, Associations)]
+#[derive(Queryable, Identifiable, Associations, Clone)]
 #[primary_key(match_id, player_id)]
 #[belongs_to(MatchBase, foreign_key = "match_id")]
 pub struct MatchPlayer {
@@ -81,18 +86,20 @@ pub struct MatchData {
     pub match_players: Vec<MatchPlayer>,
 }
 
-pub fn list_matches(conn: &PgConnection) -> QueryResult<Vec<MatchData>> {
+pub fn list_matches(conn: &PgConnection) -> QueryResult<Vec<FullMatchData>> {
     conn.transaction(|| {
         let matches = matches::table.get_results::<MatchBase>(conn)?;
 
         let match_players = MatchPlayer::belonging_to(&matches)
-            .load::<MatchPlayer>(conn)?
+            .inner_join(code_bundles::table)
+            .left_join(bots::table.on(code_bundles::bot_id.eq(bots::id.nullable())))
+            .load::<FullMatchPlayerData>(conn)?
             .grouped_by(&matches);
 
         let res = matches
             .into_iter()
             .zip(match_players.into_iter())
-            .map(|(base, players)| MatchData {
+            .map(|(base, players)| FullMatchData {
                 base,
                 match_players: players.into_iter().collect(),
             })
@@ -102,13 +109,43 @@ pub fn list_matches(conn: &PgConnection) -> QueryResult<Vec<MatchData>> {
     })
 }
 
-pub fn find_match(id: i32, conn: &PgConnection) -> QueryResult<MatchData> {
+// TODO: maybe unify this with matchdata?
+pub struct FullMatchData {
+    pub base: MatchBase,
+    pub match_players: Vec<FullMatchPlayerData>,
+}
+
+#[derive(Queryable)]
+// #[primary_key(base.match_id, base::player_id)]
+pub struct FullMatchPlayerData {
+    pub base: MatchPlayer,
+    pub code_bundle: CodeBundle,
+    pub bot: Option<Bot>,
+}
+
+impl BelongsTo<MatchBase> for FullMatchPlayerData {
+    type ForeignKey = i32;
+    type ForeignKeyColumn = match_players::match_id;
+
+    fn foreign_key(&self) -> Option<&Self::ForeignKey> {
+        Some(&self.base.match_id)
+    }
+
+    fn foreign_key_column() -> Self::ForeignKeyColumn {
+        match_players::match_id
+    }
+}
+
+pub fn find_match(id: i32, conn: &PgConnection) -> QueryResult<FullMatchData> {
     conn.transaction(|| {
         let match_base = matches::table.find(id).get_result::<MatchBase>(conn)?;
 
-        let match_players = MatchPlayer::belonging_to(&match_base).load::<MatchPlayer>(conn)?;
+        let match_players = MatchPlayer::belonging_to(&match_base)
+            .inner_join(code_bundles::table)
+            .left_join(bots::table.on(code_bundles::bot_id.eq(bots::id.nullable())))
+            .load::<FullMatchPlayerData>(conn)?;
 
-        let res = MatchData {
+        let res = FullMatchData {
             base: match_base,
             match_players,
         };

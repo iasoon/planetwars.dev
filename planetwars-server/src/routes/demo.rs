@@ -1,5 +1,5 @@
 use crate::db;
-use crate::db::matches::{MatchPlayerData, MatchState};
+use crate::db::matches::{FullMatchData, FullMatchPlayerData, MatchPlayerData, MatchState};
 use crate::modules::bots::save_code_bundle;
 use crate::util::gen_alphanumeric;
 use crate::{ConnectionPool, BOTS_DIR, MAPS_DIR, MATCHES_DIR};
@@ -92,7 +92,6 @@ pub async fn submit_bot(
             code_bundle_id: opponent_code_bundle.id,
         },
     ];
-    // TODO: set match players
     let match_data = db::matches::create_match(&new_match_data, &new_match_players, &conn)
         .expect("failed to create match");
 
@@ -102,7 +101,24 @@ pub async fn submit_bot(
         pool.clone(),
     ));
 
-    let api_match = super::matches::match_data_to_api(match_data);
+    // TODO: avoid clones
+    let full_match_data = FullMatchData {
+        base: match_data.base,
+        match_players: vec![
+            FullMatchPlayerData {
+                base: match_data.match_players[0].clone(),
+                code_bundle: player_code_bundle,
+                bot: None,
+            },
+            FullMatchPlayerData {
+                base: match_data.match_players[1].clone(),
+                code_bundle: opponent_code_bundle,
+                bot: Some(opponent),
+            },
+        ],
+    };
+
+    let api_match = super::matches::match_data_to_api(full_match_data);
     Ok(Json(SubmitBotResponse {
         match_data: api_match,
     }))
