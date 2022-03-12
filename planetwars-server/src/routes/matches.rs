@@ -160,7 +160,8 @@ pub async fn get_match_log(
     Path(match_id): Path<i32>,
     conn: DatabaseConnection,
 ) -> Result<Vec<u8>, StatusCode> {
-    let match_base = matches::find_mach_base(match_id, &conn).map_err(|_| StatusCode::NOT_FOUND)?;
+    let match_base =
+        matches::find_match_base(match_id, &conn).map_err(|_| StatusCode::NOT_FOUND)?;
     let log_path = PathBuf::from(MATCHES_DIR).join(&match_base.log_path);
     let log_contents = std::fs::read(log_path).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     Ok(log_contents)

@@ -154,7 +154,7 @@ pub fn find_match(id: i32, conn: &PgConnection) -> QueryResult<FullMatchData> {
     })
 }
 
-pub fn find_mach_base(id: i32, conn: &PgConnection) -> QueryResult<MatchBase> {
+pub fn find_match_base(id: i32, conn: &PgConnection) -> QueryResult<MatchBase> {
     matches::table.find(id).get_result::<MatchBase>(conn)
 }
 
