@@ -24,12 +24,11 @@ pub fn create_session(user: &User, conn: &PgConnection) -> Session {
         token: gen_session_token(),
         user_id: user.id,
     };
-    let session = insert_into(sessions::table)
+
+    insert_into(sessions::table)
         .values(&new_session)
         .get_result::<Session>(conn)
-        .unwrap();
-
-    return session;
+        .unwrap()
 }
 
 pub fn find_user_by_session(token: &str, conn: &PgConnection) -> QueryResult<(Session, User)> {
@@ -42,5 +41,5 @@ pub fn find_user_by_session(token: &str, conn: &PgConnection) -> QueryResult<(Se
 pub fn gen_session_token() -> String {
     let mut rng = rand::thread_rng();
     let token: [u8; 32] = rng.gen();
-    return base64::encode(&token);
+    base64::encode(&token)
 }

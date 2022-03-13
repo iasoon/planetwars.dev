@@ -72,7 +72,7 @@ pub async fn run_match(config: MatchConfig) {
             start_bot(
                 player_id,
                 event_bus.clone(),
-                &player.bot_spec,
+                player.bot_spec.as_ref(),
                 match_logger.clone(),
             )
         })
@@ -111,7 +111,7 @@ pub async fn run_match(config: MatchConfig) {
 async fn start_bot(
     player_id: u32,
     event_bus: Arc<Mutex<EventBus>>,
-    bot_spec: &Box<dyn BotSpec>,
+    bot_spec: &dyn BotSpec,
     match_logger: MatchLogger,
 ) -> (u32, Box<dyn PlayerHandle>) {
     let player_handle = bot_spec.run_bot(player_id, event_bus, match_logger).await;

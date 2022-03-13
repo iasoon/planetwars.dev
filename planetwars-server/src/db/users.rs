@@ -48,7 +48,7 @@ pub fn create_user(credentials: &Credentials, conn: &PgConnection) -> QueryResul
     let salt: [u8; 32] = rand::thread_rng().gen();
     let hash = argon2::hash_raw(credentials.password.as_bytes(), &salt, &argon_config).unwrap();
     let new_user = NewUser {
-        username: &credentials.username,
+        username: credentials.username,
         password_salt: &salt,
         password_hash: &hash,
     };
@@ -73,9 +73,9 @@ pub fn authenticate_user(credentials: &Credentials, db_conn: &PgConnection) -> O
             .unwrap();
 
             if password_matches {
-                return Some(user);
+                Some(user)
             } else {
-                return None;
+                None
             }
         })
 }
@@ -91,15 +91,15 @@ fn test_argon() {
     let salt: [u8; 32] = rand::thread_rng().gen();
     let hash = argon2::hash_raw(credentials.password.as_bytes(), &salt, &argon_config).unwrap();
     let new_user = NewUser {
-        username: &credentials.username,
+        username: credentials.username,
         password_hash: &hash,
         password_salt: &salt,
     };
 
     let password_matches = argon2::verify_raw(
         credentials.password.as_bytes(),
-        &new_user.password_salt,
-        &new_user.password_hash,
+        new_user.password_salt,
+        new_user.password_hash,
         &argon2_config(),
     )
     .unwrap();

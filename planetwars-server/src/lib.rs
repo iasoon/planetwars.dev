@@ -10,7 +10,6 @@ pub mod util;
 
 use std::ops::Deref;
 
-use axum;
 use bb8::{Pool, PooledConnection};
 use bb8_diesel::{self, DieselConnectionManager};
 use diesel::{Connection, PgConnection};
@@ -60,13 +59,13 @@ pub async fn prepare_db(database_url: &str) -> Pool<DieselConnectionManager<PgCo
     let manager = DieselConnectionManager::<PgConnection>::new(database_url);
     let pool = bb8::Pool::builder().build(manager).await.unwrap();
     seed_simplebot(&pool).await;
-    return pool;
+    pool
 }
 
 pub async fn api(configuration: Configuration) -> Router {
     let db_pool = prepare_db(&configuration.database_url).await;
 
-    let api = Router::new()
+    Router::new()
         .route("/register", post(routes::users::register))
         .route("/login", post(routes::users::login))
         .route("/users/me", get(routes::users::current_user))
@@ -91,8 +90,7 @@ pub async fn api(configuration: Configuration) -> Router {
         )
         .route("/submit_bot", post(routes::demo::submit_bot))
         .route("/save_bot", post(routes::bots::save_bot))
-        .layer(AddExtensionLayer::new(db_pool));
-    api
+        .layer(AddExtensionLayer::new(db_pool))
 }
 
 pub async fn app() -> Router {

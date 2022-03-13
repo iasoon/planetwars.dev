@@ -57,8 +57,7 @@ pub async fn play_match(
                 code_path: PathBuf::from(BOTS_DIR).join(code_bundle.path),
                 image: "python:3.10-slim-buster".to_string(),
                 argv: shlex::split(&bot_config.run_command)
-                    // TODO: this is an user error, should ideally be handled before we get here
-                    .ok_or_else(|| StatusCode::INTERNAL_SERVER_ERROR)?,
+                    .ok_or(StatusCode::INTERNAL_SERVER_ERROR)?,
             }),
         });
 
@@ -152,7 +151,7 @@ pub async fn get_match_data(
 ) -> Result<Json<ApiMatch>, StatusCode> {
     let match_data = matches::find_match(match_id, &conn)
         .map_err(|_| StatusCode::NOT_FOUND)
-        .map(|data| match_data_to_api(data))?;
+        .map(match_data_to_api)?;
     Ok(Json(match_data))
 }
 

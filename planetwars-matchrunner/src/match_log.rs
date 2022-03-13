@@ -29,7 +29,7 @@ pub async fn create_log_sink(log_file_path: &Path) -> MatchLogger {
         .await
         .expect("Could not create log file");
     tokio::spawn(run_log_sink(rx, log_file));
-    return tx;
+    tx
 }
 
 async fn run_log_sink(mut rx: mpsc::UnboundedReceiver<MatchLogMessage>, mut file: File) {

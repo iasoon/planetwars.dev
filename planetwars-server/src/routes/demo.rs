@@ -13,8 +13,8 @@ use std::path::PathBuf;
 
 use super::matches::ApiMatch;
 
-const PYTHON_IMAGE: &'static str = "python:3.10-slim-buster";
-const OPPONENT_NAME: &'static str = "simplebot";
+const PYTHON_IMAGE: &str = "python:3.10-slim-buster";
+const OPPONENT_NAME: &str = "simplebot";
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct SubmitBotParams {

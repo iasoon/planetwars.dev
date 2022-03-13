@@ -35,7 +35,7 @@ pub fn run_local_bot(player_id: u32, event_bus: Arc<Mutex<EventBus>>, bot: Bot) 
     };
     tokio::spawn(runner.run());
 
-    return LocalBotHandle { tx };
+    LocalBotHandle { tx }
 }
 
 pub struct LocalBotRunner {
@@ -90,11 +90,11 @@ impl Bot {
         let stdout = child.stdout.take().unwrap();
         let reader = BufReader::new(stdout).lines();
 
-        return BotProcess {
+        BotProcess {
             stdin: child.stdin.take().unwrap(),
             stdout: reader,
             child,
-        };
+        }
     }
 }
 

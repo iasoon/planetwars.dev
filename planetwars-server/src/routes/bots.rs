@@ -59,8 +59,8 @@ pub async fn save_bot(
                 owner_id: None,
                 name: &params.bot_name,
             };
-            let bot = bots::create_bot(&new_bot, &conn).expect("could not create bot");
-            bot
+
+            bots::create_bot(&new_bot, &conn).expect("could not create bot")
         }
     };
     let _code_bundle =

@@ -128,7 +128,7 @@ impl PwState {
 
     pub fn is_finished(&self) -> bool {
         let remaining = self.players.iter().filter(|p| p.alive).count();
-        return remaining < 2 || self.turn_num >= self.max_turns;
+        remaining < 2 || self.turn_num >= self.max_turns
     }
 
     pub fn living_players(&self) -> Vec<usize> {
@@ -187,6 +187,6 @@ impl Planet {
     fn distance(&self, other: &Planet) -> u64 {
         let dx = self.x - other.x;
         let dy = self.y - other.y;
-        return (dx.powi(2) + dy.powi(2)).sqrt().ceil() as u64;
+        (dx.powi(2) + dy.powi(2)).sqrt().ceil() as u64
     }
 }

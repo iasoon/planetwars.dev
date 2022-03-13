@@ -25,8 +25,8 @@ impl Config {
             .collect();
 
         PwState {
-            players: players,
-            planets: planets,
+            players,
+            planets,
             expeditions: Vec::new(),
             expedition_num: 0,
             turn_num: 0,
@@ -37,8 +37,7 @@ impl Config {
     fn load_map(&self, num_players: usize) -> Vec<Planet> {
         let map = self.read_map().expect("[PLANET_WARS] reading map failed");
 
-        return map
-            .planets
+        map.planets
             .into_iter()
             .enumerate()
             .map(|(num, planet)| {
@@ -55,27 +54,26 @@ impl Config {
                 });
                 if planet.ship_count > 0 {
                     fleets.push(Fleet {
-                        owner: owner,
+                        owner,
                         ship_count: planet.ship_count,
                     });
                 }
-                return Planet {
+                Planet {
                     id: num,
                     name: planet.name,
                     x: planet.x,
                     y: planet.y,
-                    fleets: fleets,
-                };
+                    fleets,
+                }
             })
-            .collect();
+            .collect()
     }
 
     fn read_map(&self) -> io::Result<Map> {
         let mut file = File::open(&self.map_file)?;
         let mut buf = String::new();
         file.read_to_string(&mut buf)?;
-        let map = serde_json::from_str(&buf)?;
-        return Ok(map);
+        Ok(serde_json::from_str(&buf)?)
     }
 }
 

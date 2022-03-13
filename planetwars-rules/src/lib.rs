@@ -50,7 +50,7 @@ impl PlanetWars {
         serializer::serialize_rotated(&self.state, player_id - 1)
     }
 
-    pub fn state<'a>(&'a self) -> &'a PwState {
+    pub fn state(&self) -> &PwState {
         &self.state
     }
 
@@ -62,7 +62,7 @@ impl PlanetWars {
     ) -> Result<(), CommandError> {
         let dispatch = self.parse_command(player_num, cmd)?;
         self.state.dispatch(&dispatch);
-        return Ok(());
+        Ok(())
     }
 
     /// Check the given command for validity.

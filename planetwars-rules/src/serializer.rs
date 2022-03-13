@@ -20,7 +20,7 @@ struct Serializer<'a> {
 impl<'a> Serializer<'a> {
     fn new(state: &'a PwState, offset: usize) -> Self {
         Serializer {
-            state: state,
+            state,
             player_num_offset: offset,
         }
     }
@@ -49,7 +49,7 @@ impl<'a> Serializer<'a> {
         let num_players = self.state.players.len();
         let rotated_id = (player_id + num_players - self.player_num_offset) % num_players;
         // protocol player ids start at 1
-        return rotated_id + 1;
+        rotated_id + 1
     }
 
     fn serialize_planet(&self, planet: &Planet) -> proto::Planet {

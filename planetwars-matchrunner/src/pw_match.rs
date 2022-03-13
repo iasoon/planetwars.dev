@@ -74,7 +74,7 @@ impl PwMatch {
             .iter()
             .filter(|p| p.alive)
             .map(move |player| {
-                let state_for_player = pw_serializer::serialize_rotated(&state, player.id - 1);
+                let state_for_player = pw_serializer::serialize_rotated(state, player.id - 1);
                 match_ctx
                     .request(
                         player.id.try_into().unwrap(),
@@ -115,7 +115,7 @@ impl PwMatch {
             })
             .collect();
 
-        return proto::PlayerAction::Commands(commands);
+        proto::PlayerAction::Commands(commands)
     }
 }
 

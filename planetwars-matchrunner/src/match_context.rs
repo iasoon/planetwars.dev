@@ -57,11 +57,11 @@ impl MatchCtx {
             timeout,
         });
 
-        return Request {
+        Request {
             player_id,
             request_id,
             event_bus: self.event_bus.clone(),
-        };
+        }
     }
 
     pub fn players(&self) -> Vec<u32> {
@@ -94,6 +94,12 @@ impl EventBus {
             request_responses: HashMap::new(),
             wakers: HashMap::new(),
         }
+    }
+}
+
+impl Default for EventBus {
+    fn default() -> Self {
+        EventBus::new()
     }
 }
 
@@ -138,9 +144,9 @@ impl Future for Request {
         event_bus
             .wakers
             .entry(request_id)
-            .or_insert_with(|| AtomicWaker::new())
+            .or_insert_with(AtomicWaker::new)
             .register(cx.waker());
-        return Poll::Pending;
+        Poll::Pending
     }
 }
 
