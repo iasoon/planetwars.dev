@@ -105,7 +105,7 @@
   }
 
   function formatMatchTimestamp(timestampString: string): string {
-    let timestamp = DateTime.fromISO(timestampString);
+    let timestamp = DateTime.fromISO(timestampString, { zone: 'utc' }).toLocal();
     if (timestamp.startOf("day").equals(DateTime.now().startOf("day"))) {
       return timestamp.toFormat("HH:mm");
     } else {
