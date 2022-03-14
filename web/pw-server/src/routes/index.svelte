@@ -14,8 +14,14 @@
   import SubmitPane from "$lib/components/SubmitPane.svelte";
   import OutputPane from "$lib/components/OutputPane.svelte";
 
+  enum ViewMode {
+    Editor,
+    MatchVisualizer,
+  }
+
   let matches = [];
 
+  let viewMode = ViewMode.Editor;
   let selectedMatchId: string | undefined = undefined;
   let selectedMatchLog: string | undefined = undefined;
 
@@ -49,6 +55,8 @@
     selectedMatchId = matchId;
     selectedMatchLog = null;
     fetchSelectedMatchLog(matchId);
+
+    viewMode = ViewMode.MatchVisualizer;
   }
 
   async function fetchSelectedMatchLog(matchId: string) {
@@ -102,10 +110,11 @@
   function selectEditor() {
     selectedMatchId = undefined;
     selectedMatchLog = undefined;
+    viewMode = ViewMode.Editor;
   }
 
   function formatMatchTimestamp(timestampString: string): string {
-    let timestamp = DateTime.fromISO(timestampString, { zone: 'utc' }).toLocal();
+    let timestamp = DateTime.fromISO(timestampString, { zone: "utc" }).toLocal();
     if (timestamp.startOf("day").equals(DateTime.now().startOf("day"))) {
       return timestamp.toFormat("HH:mm");
     } else {
@@ -120,7 +129,7 @@
     <div class="sidebar-left">
       <div
         class="editor-button sidebar-item"
-        class:selected={selectedMatchId === undefined}
+        class:selected={viewMode === ViewMode.Editor}
         on:click={selectEditor}
       >
         Editor
@@ -143,16 +152,16 @@
       </ul>
     </div>
     <div class="editor-container">
-      {#if selectedMatchId}
+      {#if viewMode === ViewMode.MatchVisualizer}
         <Visualizer matchLog={selectedMatchLog} />
-      {:else}
+      {:else if viewMode === ViewMode.Editor}
         <EditorView {editSession} />
       {/if}
     </div>
     <div class="sidebar-right">
-      {#if selectedMatchId}
+      {#if viewMode === ViewMode.MatchVisualizer}
         <OutputPane matchLog={selectedMatchLog} />
-      {:else}
+      {:else if viewMode === ViewMode.Editor}
         <SubmitPane {editSession} on:matchCreated={onMatchCreated} />
       {/if}
     </div>
