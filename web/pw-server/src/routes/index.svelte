@@ -13,10 +13,12 @@
   import { debounce } from "$lib/utils";
   import SubmitPane from "$lib/components/SubmitPane.svelte";
   import OutputPane from "$lib/components/OutputPane.svelte";
+  import RulesView from "$lib/components/RulesView.svelte";
 
   enum ViewMode {
     Editor,
     MatchVisualizer,
+    Rules,
   }
 
   let matches = [];
@@ -113,6 +115,12 @@
     viewMode = ViewMode.Editor;
   }
 
+  function selectRules() {
+    selectedMatchId = undefined;
+    selectedMatchLog = undefined;
+    viewMode = ViewMode.Rules;
+  }
+
   function formatMatchTimestamp(timestampString: string): string {
     let timestamp = DateTime.fromISO(timestampString, { zone: "utc" }).toLocal();
     if (timestamp.startOf("day").equals(DateTime.now().startOf("day"))) {
@@ -133,6 +141,13 @@
         on:click={selectEditor}
       >
         Editor
+      </div>
+      <div
+        class="rules-button sidebar-item"
+        class:selected={viewMode === ViewMode.Rules}
+        on:click={selectRules}
+      >
+        Rules
       </div>
       <div class="sidebar-header">match history</div>
       <ul class="match-list">
@@ -156,6 +171,8 @@
         <Visualizer matchLog={selectedMatchLog} />
       {:else if viewMode === ViewMode.Editor}
         <EditorView {editSession} />
+      {:else if viewMode === ViewMode.Rules}
+        <RulesView />
       {/if}
     </div>
     <div class="sidebar-right">
@@ -207,6 +224,7 @@
     flex-grow: 1;
     flex-shrink: 1;
     overflow: hidden;
+    background-color: white;
   }
 
   .editor-container {
@@ -214,6 +232,10 @@
   }
 
   .editor-button {
+    padding: 15px;
+  }
+
+  .rules-button {
     padding: 15px;
   }
 
