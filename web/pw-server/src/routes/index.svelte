@@ -2,7 +2,6 @@
   import Visualizer from "$lib/components/Visualizer.svelte";
   import EditorView from "$lib/components/EditorView.svelte";
   import { onMount } from "svelte";
-  import "./style.css";
 
   import { DateTime } from "luxon";
 
@@ -131,76 +130,59 @@
   }
 </script>
 
-<div class="outer-container">
-  <div class="top-bar" />
-  <div class="container">
-    <div class="sidebar-left">
-      <div
-        class="editor-button sidebar-item"
-        class:selected={viewMode === ViewMode.Editor}
-        on:click={selectEditor}
-      >
-        Editor
-      </div>
-      <div
-        class="rules-button sidebar-item"
-        class:selected={viewMode === ViewMode.Rules}
-        on:click={selectRules}
-      >
-        Rules
-      </div>
-      <div class="sidebar-header">match history</div>
-      <ul class="match-list">
-        {#each matches as match}
-          <li
-            class="match-card sidebar-item"
-            on:click={() => selectMatch(match.id)}
-            class:selected={match.id === selectedMatchId}
-          >
-            <span class="match-timestamp">{formatMatchTimestamp(match.timestamp)}</span>
-            <!-- hex is hardcoded for now, don't show map name -->
-            <!-- <span class="match-mapname">hex</span> -->
-            <!-- ugly temporary hardcode -->
-            <span class="match-opponent">{match["players"][1]["bot_name"]}</span>
-          </li>
-        {/each}
-      </ul>
+<div class="container">
+  <div class="sidebar-left">
+    <div
+      class="editor-button sidebar-item"
+      class:selected={viewMode === ViewMode.Editor}
+      on:click={selectEditor}
+    >
+      Editor
     </div>
-    <div class="editor-container">
-      {#if viewMode === ViewMode.MatchVisualizer}
-        <Visualizer matchLog={selectedMatchLog} />
-      {:else if viewMode === ViewMode.Editor}
-        <EditorView {editSession} />
-      {:else if viewMode === ViewMode.Rules}
-        <RulesView />
-      {/if}
+    <div
+      class="rules-button sidebar-item"
+      class:selected={viewMode === ViewMode.Rules}
+      on:click={selectRules}
+    >
+      Rules
     </div>
-    <div class="sidebar-right">
-      {#if viewMode === ViewMode.MatchVisualizer}
-        <OutputPane matchLog={selectedMatchLog} />
-      {:else if viewMode === ViewMode.Editor}
-        <SubmitPane {editSession} on:matchCreated={onMatchCreated} />
-      {/if}
-    </div>
+    <div class="sidebar-header">match history</div>
+    <ul class="match-list">
+      {#each matches as match}
+        <li
+          class="match-card sidebar-item"
+          on:click={() => selectMatch(match.id)}
+          class:selected={match.id === selectedMatchId}
+        >
+          <span class="match-timestamp">{formatMatchTimestamp(match.timestamp)}</span>
+          <!-- hex is hardcoded for now, don't show map name -->
+          <!-- <span class="match-mapname">hex</span> -->
+          <!-- ugly temporary hardcode -->
+          <span class="match-opponent">{match["players"][1]["bot_name"]}</span>
+        </li>
+      {/each}
+    </ul>
+  </div>
+  <div class="editor-container">
+    {#if viewMode === ViewMode.MatchVisualizer}
+      <Visualizer matchLog={selectedMatchLog} />
+    {:else if viewMode === ViewMode.Editor}
+      <EditorView {editSession} />
+    {:else if viewMode === ViewMode.Rules}
+      <RulesView />
+    {/if}
+  </div>
+  <div class="sidebar-right">
+    {#if viewMode === ViewMode.MatchVisualizer}
+      <OutputPane matchLog={selectedMatchLog} />
+    {:else if viewMode === ViewMode.Editor}
+      <SubmitPane {editSession} on:matchCreated={onMatchCreated} />
+    {/if}
   </div>
 </div>
 
 <style lang="scss">
-  $bg-color: rgb(41, 41, 41);
-
-  .outer-container {
-    width: 100vw;
-    height: 100vh;
-    display: flex;
-    flex-direction: column;
-  }
-
-  .top-bar {
-    height: 40px;
-    background-color: $bg-color;
-    border-bottom: 1px solid;
-    flex-shrink: 0;
-  }
+  @import "../lib/variables.scss";
 
   .container {
     display: flex;
@@ -264,10 +246,6 @@
 
   .match-timestamp {
     color: #ccc;
-  }
-
-  .match-mapname {
-    padding: 0 0.5em;
   }
 
   .match-opponent {
