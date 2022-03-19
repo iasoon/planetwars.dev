@@ -182,7 +182,7 @@
 </div>
 
 <style lang="scss">
-  @import "../lib/variables.scss";
+  @import "src/styles/variables.scss";
 
   .container {
     display: flex;

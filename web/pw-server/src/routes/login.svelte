@@ -35,14 +35,21 @@
   }
 </script>
 
-{#if loggedIn()}
-  you are logged in
-{/if}
 
-<form on:submit|preventDefault={login}>
-  <label for="username">Username</label>
-  <input name="username" bind:value={username} />
-  <label for="password">Password</label>
-  <input type="password" name="password" bind:value={password} />
-  <button type="submit">Log in</button>
-</form>
+<div class="page-card">
+  <div class="page-card-content">
+    <h1 class="page-card-header">Sign in</h1>
+    <form class="account-form" on:submit|preventDefault={login}>
+      <label for="username">Username</label>
+      <input name="username" bind:value={username} />
+      <label for="password">Password</label>
+      <input type="password" name="password" bind:value={password} />
+      <button type="submit">Submit</button>
+    </form>
+  </div>
+</div>
+
+
+<style lang="scss">
+  @import "src/styles/account_forms.scss";
+</style>

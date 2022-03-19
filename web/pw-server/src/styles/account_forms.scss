@@ -1,0 +1,52 @@
+.page-card {
+  margin: 50px auto;
+  width: 40%;
+  max-width: 600px;
+  border: 1px solid #b5b5b5;
+  box-sizing: border-box;
+  border-radius: 0px;
+}
+
+.page-card-content {
+  margin: 20px 50px;
+}
+
+.page-card-header {
+  padding-top: 0.5em;
+  padding-bottom: 1em;
+  text-align: center;
+}
+
+.account-form {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  font-size: 18px;
+}
+
+.account-form label {
+  margin: 10px 5px;
+  font-weight: 500;
+}
+
+.account-form input {
+  margin: 10px 5px;
+  font-size: 1rem;
+  // height: 2.5em;
+  display: block;
+  border-radius: 4px;
+  border: 1px solid #b5b5b5;
+  padding: 0.75rem 1rem;
+}
+
+.account-form button {
+  background-color: lightgreen;
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: 0;
+  font-size: 18pt;
+  display: block;
+  margin: 10px auto;
+  margin-top: 16px;
+  cursor: pointer;
+}
