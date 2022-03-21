@@ -1,5 +1,5 @@
 <script lang="ts">
-  import NavbarUserSection from "$lib/components/navbar/NavbarUserSection.svelte";
+  import UserControls from "$lib/components/navbar/UserControls.svelte";
 
   import "./style.css";
 </script>
@@ -9,7 +9,7 @@
     <div class="navbar-main">
       <a href="/">PlanetWars</a>
     </div>
-    <NavbarUserSection />
+    <UserControls />
   </div>
   <slot />
 </div>
