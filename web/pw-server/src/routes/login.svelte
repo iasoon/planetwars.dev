@@ -1,6 +1,7 @@
 <script lang="ts">
   import { get_session_token, set_session_token } from "$lib/auth";
   import { goto } from "$app/navigation";
+  import { currentUser } from "$lib/stores/current_user";
 
   let username: string | undefined;
   let password: string | undefined;
@@ -24,7 +25,8 @@
     let token = response.headers.get("Token");
     set_session_token(token);
 
-    let user = await response.json();
+    const user = await response.json();
+    currentUser.set(user);
 
     goto("/");
   }
@@ -34,7 +36,6 @@
     return session !== null && session !== undefined;
   }
 </script>
-
 
 <div class="page-card">
   <div class="page-card-content">
@@ -48,7 +49,6 @@
     </form>
   </div>
 </div>
-
 
 <style lang="scss">
   @import "src/styles/account_forms.scss";

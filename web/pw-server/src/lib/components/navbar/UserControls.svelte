@@ -1,11 +1,11 @@
 <script lang="ts">
   import { get_session_token } from "$lib/auth";
+  import { currentUser } from "$lib/stores/current_user";
 
   import { onMount } from "svelte";
 
-  let user = null;
-
   onMount(async () => {
+    // TODO: currentUser won't be set if the navbar component is not created.
     const session_token = get_session_token();
     if (!session_token) {
       return;
@@ -23,19 +23,20 @@
       throw response.statusText;
     }
 
-    user = await response.json();
+    const user = await response.json();
+    currentUser.set(user);
   });
 
   function signOut() {
     // TODO: destroy session on server
-    user = null;
+    currentUser.set(null);
   }
 </script>
 
 <div class="user-controls">
-  {#if user}
+  {#if $currentUser}
     <div class="current-user-name">
-      {user["username"]}
+      {$currentUser["username"]}
     </div>
     <div class="sign-out" on:click={signOut}>Sign out</div>
   {:else}
