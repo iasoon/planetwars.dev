@@ -1,5 +1,8 @@
 <script lang="ts">
-  import { createEventDispatcher, onMount } from "svelte";
+import { get_session_token } from "$lib/auth";
+
+  import { currentUser } from "$lib/stores/current_user";
+import { createEventDispatcher, onMount } from "svelte";
   import Select from "svelte-select";
 
   export let editSession;
@@ -54,6 +57,7 @@
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        "Authorization": `Bearer ${get_session_token()}`,
       },
       body: JSON.stringify({
         bot_name: botName,
@@ -94,12 +98,16 @@
   </div>
   <div class="save-form">
     <h4>Save your bot</h4>
-    <div>Add your bot to the opponents list</div>
-    <input type="text" class="bot-name-input" placeholder="bot name" bind:value={botName} />
-    {#if saveErrorText}
-      <div class="error-text">{saveErrorText}</div>
+    {#if $currentUser}
+      <div>Add your bot to the opponents list</div>
+      <input type="text" class="bot-name-input" placeholder="bot name" bind:value={botName} />
+      {#if saveErrorText}
+        <div class="error-text">{saveErrorText}</div>
+      {/if}
+      <button class="submit-button save-button" on:click={saveBot}>Save</button>
+    {:else}
+      Sign in to add your bot to the opponents list.
     {/if}
-    <button class="submit-button save-button" on:click={saveBot}>Save</button>
   </div>
 </div>
 
