@@ -1,8 +1,7 @@
-use axum::body;
 use axum::extract::{Multipart, Path};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
-use axum::Json;
+use axum::{body, Json};
 use diesel::OptionalExtension;
 use rand::distributions::Alphanumeric;
 use rand::Rng;
@@ -46,6 +45,7 @@ impl IntoResponse for SaveBotError {
 
 pub async fn save_bot(
     Json(params): Json<SaveBotParams>,
+    user: User,
     conn: DatabaseConnection,
 ) -> Result<Json<Bot>, SaveBotError> {
     // TODO: authorization
@@ -53,10 +53,16 @@ pub async fn save_bot(
         .optional()
         .expect("could not run query");
     let bot = match res {
-        Some(_bot) => return Err(SaveBotError::BotNameTaken),
+        Some(existing_bot) => {
+            if existing_bot.owner_id == Some(user.id) {
+                existing_bot
+            } else {
+                return Err(SaveBotError::BotNameTaken);
+            }
+        }
         None => {
             let new_bot = bots::NewBot {
-                owner_id: None,
+                owner_id: Some(user.id),
                 name: &params.bot_name,
             };
 
