@@ -1,7 +1,8 @@
 .page-card {
   margin: 50px auto;
-  width: 40%;
-  max-width: 600px;
+  max-width: 520px;
+  min-width: 400px;
+  width: 80%;
   border: 1px solid #b5b5b5;
   box-sizing: border-box;
   border-radius: 0px;
@@ -49,4 +50,15 @@
   margin: 10px auto;
   margin-top: 16px;
   cursor: pointer;
+}
+
+@media screen and (max-width: 480px) {
+  .page-card {
+    width: 90%;
+    min-width: 0;
+  }
+
+  .page-card-content {
+    margin: 20px 5px;
+  }
 }
