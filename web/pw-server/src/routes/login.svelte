@@ -1,38 +1,24 @@
 <script lang="ts">
-  import { get_session_token, set_session_token } from "$lib/auth";
+  import * as auth from "$lib/auth";
   import { goto } from "$app/navigation";
-  import { currentUser } from "$lib/stores/current_user";
 
   let username: string | undefined;
   let password: string | undefined;
 
-  async function login() {
-    let response = await fetch("/api/login", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        username,
-        password,
-      }),
-    });
+  let error: string | undefined;
 
-    if (!response.ok) {
-      throw Error(response.statusText);
+  async function submitLogin() {
+    try {
+      error = undefined;
+      await auth.login({ username, password });
+      goto("/");
+    } catch (e) {
+      error = e.message;
     }
-
-    let token = response.headers.get("Token");
-    set_session_token(token);
-
-    const user = await response.json();
-    currentUser.set(user);
-
-    goto("/");
   }
 
   function loggedIn(): boolean {
-    let session = get_session_token();
+    let session = auth.get_session_token();
     return session !== null && session !== undefined;
   }
 </script>
@@ -40,7 +26,10 @@
 <div class="page-card">
   <div class="page-card-content">
     <h1 class="page-card-header">Sign in</h1>
-    <form class="account-form" on:submit|preventDefault={login}>
+    {#if error}
+      <div class="error-message">{error}</div>
+    {/if}
+    <form class="account-form" on:submit|preventDefault={submitLogin}>
       <label for="username">Username</label>
       <input name="username" bind:value={username} />
       <label for="password">Password</label>
@@ -52,4 +41,7 @@
 
 <style lang="scss">
   @import "src/styles/account_forms.scss";
+  .error-message {
+    color: red;
+  }
 </style>
