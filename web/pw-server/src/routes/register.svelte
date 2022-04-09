@@ -1,4 +1,7 @@
 <script lang="ts">
+  import * as auth from "$lib/auth";
+  import { goto } from "$app/navigation";
+
   let username: string | undefined;
   let password: string | undefined;
 
@@ -26,7 +29,10 @@
       }),
     });
 
-    if (!response.ok) {
+    if (response.ok) {
+      await auth.login({ username, password });
+      goto("/");
+    } else {
       const resp = await response.json();
       const error = resp["error"];
       if (response.status == 422 && error["type"] === "validation_failed") {
