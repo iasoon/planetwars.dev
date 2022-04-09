@@ -8,6 +8,8 @@ use axum::http::StatusCode;
 use axum::response::{Headers, IntoResponse, Response};
 use axum::{async_trait, Json};
 use serde::{Deserialize, Serialize};
+use serde_json::json;
+use thiserror::Error;
 
 type AuthorizationHeader = TypedHeader<Authorization<Bearer>>;
 
@@ -53,16 +55,93 @@ pub struct RegistrationParams {
     pub password: String,
 }
 
+#[derive(Debug, Error)]
+pub enum RegistrationError {
+    #[error("database error")]
+    DatabaseError(#[from] diesel::result::Error),
+    #[error("validation failed")]
+    ValidationFailed(Vec<String>),
+}
+
+impl RegistrationParams {
+    fn validate(&self, conn: &DatabaseConnection) -> Result<(), RegistrationError> {
+        let mut errors = Vec::new();
+
+        // TODO: do we want to support cased usernames?
+        // this could be done by allowing casing in names, but requiring case-insensitive uniqueness
+        if !self
+            .username
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() && !c.is_uppercase())
+        {
+            errors.push("username must be alphanumeric and lowercase".to_string());
+        }
+
+        if self.username.len() < 3 {
+            errors.push("username must be at least 3 characters".to_string());
+        }
+
+        if self.username.len() > 32 {
+            errors.push("username must be at most 32 characters".to_string());
+        }
+
+        if self.password.len() < 8 {
+            errors.push("password must be at least 8 characters".to_string());
+        }
+
+        if users::find_user(&self.username, &conn).is_ok() {
+            errors.push("username is already taken".to_string());
+        }
+
+        if errors.is_empty() {
+            Ok(())
+        } else {
+            Err(RegistrationError::ValidationFailed(errors))
+        }
+    }
+}
+
+impl IntoResponse for RegistrationError {
+    fn into_response(self) -> Response {
+        let (status, json_body) = match self {
+            RegistrationError::DatabaseError(_e) => {
+                // TODO: create an error response struct
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    json!({
+                        "error": {
+                            "type": "internal_server_error",
+                        }
+                    }),
+                )
+            }
+            RegistrationError::ValidationFailed(errors) => (
+                StatusCode::UNPROCESSABLE_ENTITY,
+                json!({
+                    "error": {
+                        "type": "validation_failed",
+                        "validation_errors": errors,
+                    }
+                }),
+            ),
+        };
+
+        (status, Json(json_body)).into_response()
+    }
+}
+
 pub async fn register(
     conn: DatabaseConnection,
     params: Json<RegistrationParams>,
-) -> Json<UserData> {
+) -> Result<Json<UserData>, RegistrationError> {
+    params.validate(&conn)?;
+
     let credentials = Credentials {
         username: &params.username,
         password: &params.password,
     };
-    let user = users::create_user(&credentials, &conn).unwrap();
-    Json(user.into())
+    let user = users::create_user(&credentials, &conn)?;
+    Ok(Json(user.into()))
 }
 
 #[derive(Deserialize)]
