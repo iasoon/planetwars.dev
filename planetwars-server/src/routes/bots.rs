@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{self, json, value::Value as JsonValue};
 use std::io::Cursor;
 use std::path::PathBuf;
+use thiserror;
 
 use crate::db::bots::{self, CodeBundle};
 use crate::db::users::User;
@@ -22,16 +23,38 @@ pub struct SaveBotParams {
     pub code: String,
 }
 
+#[derive(Debug, thiserror::Error)]
 pub enum SaveBotError {
+    #[error("database error")]
+    DatabaseError(#[from] diesel::result::Error),
+    #[error("validation failed")]
+    ValidationFailed(Vec<&'static str>),
+    #[error("bot name already exists")]
     BotNameTaken,
 }
 
 impl IntoResponse for SaveBotError {
     fn into_response(self) -> Response {
         let (status, value) = match self {
-            SaveBotError::BotNameTaken => {
-                (StatusCode::FORBIDDEN, json!({ "error": "BotNameTaken" }))
-            }
+            SaveBotError::BotNameTaken => (
+                StatusCode::FORBIDDEN,
+                json!({ "error": {
+                    "type": "bot_name_taken",
+                } }),
+            ),
+            SaveBotError::DatabaseError(_e) => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                json!({ "error": {
+                    "type": "internal_server_error",
+                } }),
+            ),
+            SaveBotError::ValidationFailed(errors) => (
+                StatusCode::UNPROCESSABLE_ENTITY,
+                json!({ "error": {
+                    "type": "validation_failed",
+                    "validation_errors": errors,
+                } }),
+            ),
         };
 
         let encoded = serde_json::to_vec(&value).expect("could not encode response value");
@@ -43,15 +66,40 @@ impl IntoResponse for SaveBotError {
     }
 }
 
+pub fn validate_bot_name(bot_name: &str) -> Result<(), SaveBotError> {
+    let mut errors = Vec::new();
+
+    if bot_name.len() < 3 {
+        errors.push("bot name must be at least 3 characters long");
+    }
+
+    if bot_name.len() > 32 {
+        errors.push("bot name must be at most 32 characters long");
+    }
+
+    if !bot_name
+        .chars()
+        .all(|c| !c.is_uppercase() && (c.is_ascii_alphanumeric() || c == '_' || c == '-'))
+    {
+        errors.push("only lowercase alphanumeric characters, underscores, and dashes are allowed in bot names");
+    }
+
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(SaveBotError::ValidationFailed(errors))
+    }
+}
+
 pub async fn save_bot(
     Json(params): Json<SaveBotParams>,
     user: User,
     conn: DatabaseConnection,
 ) -> Result<Json<Bot>, SaveBotError> {
-    // TODO: authorization
     let res = bots::find_bot_by_name(&params.bot_name, &conn)
         .optional()
         .expect("could not run query");
+
     let bot = match res {
         Some(existing_bot) => {
             if existing_bot.owner_id == Some(user.id) {
@@ -61,6 +109,7 @@ pub async fn save_bot(
             }
         }
         None => {
+            validate_bot_name(&params.bot_name)?;
             let new_bot = bots::NewBot {
                 owner_id: Some(user.id),
                 name: &params.bot_name,
