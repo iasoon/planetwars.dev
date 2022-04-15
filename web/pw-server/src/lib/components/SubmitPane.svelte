@@ -1,8 +1,8 @@
 <script lang="ts">
-import { get_session_token } from "$lib/auth";
+  import { get_session_token } from "$lib/auth";
 
   import { currentUser } from "$lib/stores/current_user";
-import { createEventDispatcher, onMount } from "svelte";
+  import { createEventDispatcher, onMount } from "svelte";
   import Select from "svelte-select";
 
   export let editSession;
@@ -11,7 +11,7 @@ import { createEventDispatcher, onMount } from "svelte";
   let selectedOpponent = undefined;
   let botName: string | undefined = undefined;
 
-  let saveErrorText = undefined;
+  let saveErrors: string[] = [];
 
   onMount(async () => {
     const res = await fetch("/api/bots", {
@@ -57,7 +57,7 @@ import { createEventDispatcher, onMount } from "svelte";
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${get_session_token()}`,
+        Authorization: `Bearer ${get_session_token()}`,
       },
       body: JSON.stringify({
         bot_name: botName,
@@ -69,10 +69,13 @@ import { createEventDispatcher, onMount } from "svelte";
     if (response.ok) {
       dispatch("botSaved", responseData);
       // clear errors
-      saveErrorText = undefined;
+      saveErrors = [];
     } else {
-      if (responseData["error"] === "BotNameTaken") {
-        saveErrorText = "Bot name is already taken";
+      const error = responseData["error"];
+      if (error["type"] === "validation_failed") {
+        saveErrors = error["validation_errors"];
+      } else if (error["type"] === "bot_name_taken") {
+        saveErrors = ["Bot name is already taken"];
       } else {
         // unexpected error
         throw responseData;
@@ -101,8 +104,12 @@ import { createEventDispatcher, onMount } from "svelte";
     {#if $currentUser}
       <div>Add your bot to the opponents list</div>
       <input type="text" class="bot-name-input" placeholder="bot name" bind:value={botName} />
-      {#if saveErrorText}
-        <div class="error-text">{saveErrorText}</div>
+      {#if saveErrors.length > 0}
+        <ul>
+          {#each saveErrors as errorText}
+            <li class="error-text">{errorText}</li>
+          {/each}
+        </ul>
       {/if}
       <button class="submit-button save-button" on:click={saveBot}>Save</button>
     {:else}
