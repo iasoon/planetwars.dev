@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { get_session_token } from "$lib/auth";
+  import { get_session_token, clear_session_token } from "$lib/auth";
   import { currentUser } from "$lib/stores/current_user";
 
   import { onMount } from "svelte";
@@ -30,6 +30,7 @@
   function signOut() {
     // TODO: destroy session on server
     currentUser.set(null);
+    clear_session_token();
   }
 </script>
 

@@ -64,7 +64,6 @@
     padding: 15px;
     overflow-y: scroll;
     height: 100%;
-    margin-bottom: 200px;
     box-sizing: border-box;
   }
 </style>
