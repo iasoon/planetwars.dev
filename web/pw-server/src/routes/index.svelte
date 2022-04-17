@@ -128,6 +128,8 @@
       return timestamp.toFormat("dd/MM");
     }
   }
+
+  $: selectedMatch = matches.find((m) => m["id"] === selectedMatchId);
 </script>
 
 <div class="container">
@@ -165,7 +167,7 @@
   </div>
   <div class="editor-container">
     {#if viewMode === ViewMode.MatchVisualizer}
-      <Visualizer matchLog={selectedMatchLog} />
+      <Visualizer matchData={selectedMatch} matchLog={selectedMatchLog} />
     {:else if viewMode === ViewMode.Editor}
       <EditorView {editSession} />
     {:else if viewMode === ViewMode.Rules}

@@ -4,8 +4,21 @@
   import init_wasm_module from "planetwars-rs";
 
   export let matchLog = null;
+  export let matchData: object; // match object as returned by api
 
   let initialized = false;
+
+  const PLAYER_COLORS = [
+    "#ff8000",
+    "#0080ff",
+    "#ff6693",
+    "#3fcb55",
+    "#cbc33f",
+    "#cf40e9",
+    "#ff3f0d",
+    "#1beef0",
+    "#0dc5ff",
+  ];
 
   onMount(async () => {
     await init_wasm_module();
@@ -44,7 +57,11 @@
 <div id="main" class="loading">
   <canvas id="canvas" />
   <div id="name" />
-  <div id="addbutton" class="button" />
+  <ul class="player-labels">
+    {#each matchData["players"] as player, i}
+      <li style="color:{PLAYER_COLORS[i]}">{player["bot_name"] || "player"}</li>
+    {/each}
+  </ul>
 
   <div id="meta">
     <div id="turnCounter">0 / 0</div>
@@ -70,4 +87,16 @@
 
 <style scoped>
   @import "pw-visualizer/src/style.css";
+
+  .player-labels {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    color: white;
+    list-style: none;
+  }
+
+  .player-labels li {
+    margin-bottom: 0.5em;
+  }
 </style>
