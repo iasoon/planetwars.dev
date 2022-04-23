@@ -8,7 +8,7 @@
   import type { Ace } from "ace-builds";
   import ace from "ace-builds/src-noconflict/ace?client";
   import * as AcePythonMode from "ace-builds/src-noconflict/mode-python?client";
-  import { getBotCode, saveBotCode } from "$lib/bot_code";
+  import { getBotCode, saveBotCode, hasBotCode } from "$lib/bot_code";
   import { debounce } from "$lib/utils";
   import SubmitPane from "$lib/components/SubmitPane.svelte";
   import OutputPane from "$lib/components/OutputPane.svelte";
@@ -29,6 +29,9 @@
   let editSession: Ace.EditSession;
 
   onMount(() => {
+    if (!hasBotCode()) {
+      viewMode = ViewMode.Rules;
+    }
     init_editor();
   });
 
