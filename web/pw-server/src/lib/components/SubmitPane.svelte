@@ -1,5 +1,6 @@
 <script lang="ts">
   import { get_session_token } from "$lib/auth";
+  import { getBotName, saveBotName } from "$lib/bot_code";
 
   import { currentUser } from "$lib/stores/current_user";
   import { createEventDispatcher, onMount } from "svelte";
@@ -14,6 +15,8 @@
   let saveErrors: string[] = [];
 
   onMount(async () => {
+    botName = getBotName();
+
     const res = await fetch("/api/bots", {
       headers: {
         "Content-Type": "application/json",
@@ -68,6 +71,7 @@
     let responseData = await response.json();
     if (response.ok) {
       dispatch("botSaved", responseData);
+      saveBotName(botName);
       // clear errors
       saveErrors = [];
     } else {
