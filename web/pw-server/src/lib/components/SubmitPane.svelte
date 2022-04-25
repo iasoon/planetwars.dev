@@ -72,6 +72,11 @@
     if (response.ok) {
       dispatch("botSaved", responseData);
       saveBotName(botName);
+
+      // make bot available in available bot list
+      if (!availableBots.find((bot) => bot["id"] == responseData["id"])) {
+        availableBots = [...availableBots, responseData];
+      }
       // clear errors
       saveErrors = [];
     } else {
