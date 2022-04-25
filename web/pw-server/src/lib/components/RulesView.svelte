@@ -1,6 +1,6 @@
 <div class="container">
   <div class="game-rules">
-    <h3>Welcome to planetwars!</h3>
+    <h2 class="title">Welcome to planetwars!</h2>
 
     <p>
       Planetwars is a game of galactic conquest for busy people. Your goal is to program a bot that
@@ -91,6 +91,17 @@
     </p>
 
     <p>
+      The game will end when no enemy player ships remain (neutral ships may survive), or when the
+      turn limit is reached. The default limit is 100 turns.
+    </p>
+
+    <p>
+      You can code your bot in python 3.10. You have the entire stdlib at your disposal. <br />
+      If you'd like additional libraries or a different programming language, feel free to nag the administrator.
+    </p>
+
+    <h3 class="tldr">TL;DR</h3>
+    <p>
       Head over to the editor view to get started - a working example is provided. <br />
       Feel free to just hit the play button to see how it works!
     </p>
@@ -110,5 +121,9 @@
 
   .game-rules p {
     padding-top: 1.5em;
+  }
+
+  .game-rules .tldr {
+    padding-top: 3em;
   }
 </style>
