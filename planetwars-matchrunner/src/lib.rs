@@ -52,7 +52,11 @@ pub trait BotSpec: Send + Sync {
     ) -> Box<dyn PlayerHandle>;
 }
 
-pub async fn run_match(config: MatchConfig) {
+pub struct MatchOutcome {
+    pub winner: Option<usize>,
+}
+
+pub async fn run_match(config: MatchConfig) -> MatchOutcome {
     let pw_config = PwConfig {
         map_file: config.map_path,
         max_turns: 100,
@@ -103,8 +107,18 @@ pub async fn run_match(config: MatchConfig) {
     // )
     // .unwrap();
 
-    let match_state = pw_match::PwMatch::create(match_ctx, pw_config);
+    let mut match_state = pw_match::PwMatch::create(match_ctx, pw_config);
     match_state.run().await;
+
+    let final_state = match_state.match_state.state();
+    let survivors = final_state.living_players();
+    let winner = if survivors.len() == 1 {
+        Some(survivors[0])
+    } else {
+        None
+    };
+
+    MatchOutcome { winner }
 }
 
 // writing this as a closure causes lifetime inference errors
