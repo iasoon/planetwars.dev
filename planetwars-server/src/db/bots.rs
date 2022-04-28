@@ -11,7 +11,7 @@ pub struct NewBot<'a> {
     pub name: &'a str,
 }
 
-#[derive(Queryable, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Queryable, Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Bot {
     pub id: i32,
     pub owner_id: Option<i32>,

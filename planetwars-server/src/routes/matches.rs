@@ -52,7 +52,6 @@ pub async fn play_match(
             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
         players.push(MatchPlayer {
-            name: bot.name.clone(),
             bot_spec: Box::new(DockerBotSpec {
                 code_path: PathBuf::from(BOTS_DIR).join(code_bundle.path),
                 image: "python:3.10-slim-buster".to_string(),

@@ -38,7 +38,6 @@ pub struct PlayerInfo {
 }
 
 pub struct MatchPlayer {
-    pub name: String,
     pub bot_spec: Box<dyn BotSpec>,
 }
 
