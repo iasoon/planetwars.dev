@@ -1,4 +1,5 @@
 pub mod bots;
 pub mod matches;
+pub mod ratings;
 pub mod sessions;
 pub mod users;

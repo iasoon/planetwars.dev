@@ -51,6 +51,16 @@ table! {
     use diesel::sql_types::*;
     use crate::db_types::*;
 
+    ratings (bot_id) {
+        bot_id -> Int4,
+        rating -> Float8,
+    }
+}
+
+table! {
+    use diesel::sql_types::*;
+    use crate::db_types::*;
+
     sessions (id) {
         id -> Int4,
         user_id -> Int4,
@@ -74,6 +84,15 @@ joinable!(bots -> users (owner_id));
 joinable!(code_bundles -> bots (bot_id));
 joinable!(match_players -> code_bundles (code_bundle_id));
 joinable!(match_players -> matches (match_id));
+joinable!(ratings -> bots (bot_id));
 joinable!(sessions -> users (user_id));
 
-allow_tables_to_appear_in_same_query!(bots, code_bundles, match_players, matches, sessions, users,);
+allow_tables_to_appear_in_same_query!(
+    bots,
+    code_bundles,
+    match_players,
+    matches,
+    ratings,
+    sessions,
+    users,
+);
