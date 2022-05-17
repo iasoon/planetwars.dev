@@ -1,15 +1,20 @@
 use crate::{db::bots::Bot, DbPool};
 
 use crate::db;
-use diesel::PgConnection;
+use crate::modules::matches::RunMatch;
 use rand::seq::SliceRandom;
 use std::time::Duration;
 use tokio;
 
+const RANKER_INTERVAL: u64 = 60;
+const START_RATING: f64 = 0.0;
+const SCALE: f64 = 100.0;
+const MAX_UPDATE: f64 = 5.0;
+
 pub async fn run_ranker(db_pool: DbPool) {
     // TODO: make this configurable
     // play at most one match every n seconds
-    let mut interval = tokio::time::interval(Duration::from_secs(10));
+    let mut interval = tokio::time::interval(Duration::from_secs(RANKER_INTERVAL));
     let db_conn = db_pool
         .get()
         .await
@@ -25,8 +30,58 @@ pub async fn run_ranker(db_pool: DbPool) {
             let mut rng = &mut rand::thread_rng();
             bots.choose_multiple(&mut rng, 2).cloned().collect()
         };
-        play_match(selected_bots, db_pool.clone()).await;
+        play_ranking_match(selected_bots, db_pool.clone()).await;
     }
 }
 
-async fn play_match(selected_bots: Vec<Bot>, db_pool: DbPool) {}
+async fn play_ranking_match(selected_bots: Vec<Bot>, db_pool: DbPool) {
+    let db_conn = db_pool.get().await.expect("could not get db pool");
+    let mut code_bundles = Vec::new();
+    for bot in &selected_bots {
+        let code_bundle = db::bots::active_code_bundle(bot.id, &db_conn)
+            .expect("could not get active code bundle");
+        code_bundles.push(code_bundle);
+    }
+
+    let code_bundle_refs = code_bundles.iter().map(|b| b).collect::<Vec<_>>();
+
+    let mut run_match = RunMatch::from_players(code_bundle_refs);
+    run_match
+        .store_in_database(&db_conn)
+        .expect("could not store match in db");
+    let outcome = run_match
+        .spawn(db_pool.clone())
+        .await
+        .expect("running match failed");
+
+    let mut ratings = Vec::new();
+    for bot in &selected_bots {
+        let rating = db::ratings::get_rating(bot.id, &db_conn)
+            .expect("could not get bot rating")
+            .unwrap_or(START_RATING);
+        ratings.push(rating);
+    }
+
+    // simple elo rating
+
+    let scores = match outcome.winner {
+        None => vec![0.5; 2],
+        Some(player_num) => {
+            // TODO: please get rid of this offset
+            let player_ix = player_num - 1;
+            let mut scores = vec![0.0; 2];
+            scores[player_ix] = 1.0;
+            scores
+        }
+    };
+
+    for i in 0..2 {
+        let j = 1 - i;
+
+        let scaled_difference = (ratings[i] - ratings[j]) / SCALE;
+        let expected = 1.0 / (1.0 + 10f64.powf(scaled_difference));
+        let new_rating = ratings[i] + MAX_UPDATE * (scores[i] - expected);
+        db::ratings::set_rating(selected_bots[i].id, new_rating, &db_conn)
+            .expect("could not update bot rating");
+    }
+}
