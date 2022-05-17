@@ -91,6 +91,7 @@ pub fn api() -> Router {
             "/matches/:match_id/log",
             get(routes::matches::get_match_log),
         )
+        .route("/leaderboard", get(routes::bots::get_ranking))
         .route("/submit_bot", post(routes::demo::submit_bot))
         .route("/save_bot", post(routes::bots::save_bot))
 }

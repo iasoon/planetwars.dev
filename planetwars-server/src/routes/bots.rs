@@ -12,6 +12,7 @@ use std::path::PathBuf;
 use thiserror;
 
 use crate::db::bots::{self, CodeBundle};
+use crate::db::ratings::{RankedBot, self};
 use crate::db::users::User;
 use crate::modules::bots::save_code_bundle;
 use crate::{DatabaseConnection, BOTS_DIR};
@@ -166,6 +167,12 @@ pub async fn get_my_bots(
 
 pub async fn list_bots(conn: DatabaseConnection) -> Result<Json<Vec<Bot>>, StatusCode> {
     bots::find_all_bots(&conn)
+        .map(Json)
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
+}
+
+pub async fn get_ranking(conn: DatabaseConnection) -> Result<Json<Vec<RankedBot>>, StatusCode> {
+    ratings::get_bot_ranking(&conn)
         .map(Json)
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
 }
