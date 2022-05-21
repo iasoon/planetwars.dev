@@ -85,14 +85,33 @@ async fn spawn_docker_process(
         .await?;
 
     Ok(ContainerProcess {
+        docker,
+        container_id,
         stdin: input,
         output,
     })
 }
 
 struct ContainerProcess {
+    docker: Docker,
+    container_id: String,
     stdin: Pin<Box<dyn AsyncWrite + Send>>,
     output: Pin<Box<dyn Stream<Item = Result<LogOutput, bollard::errors::Error>> + Send>>,
+}
+
+impl ContainerProcess {
+    // &mut is required here to make terminate().await Sync
+    async fn terminate(&mut self) -> Result<(), bollard::errors::Error> {
+        self.docker
+            .remove_container(
+                &self.container_id,
+                Some(bollard::container::RemoveContainerOptions {
+                    force: true,
+                    ..Default::default()
+                }),
+            )
+            .await
+    }
 }
 
 fn create_docker_bot(
@@ -151,6 +170,11 @@ impl DockerBotRunner {
                 .unwrap()
                 .resolve_request(request_id, request_response);
         }
+
+        self.process
+            .terminate()
+            .await
+            .expect("could not terminate process");
     }
 
     pub async fn communicate(&mut self, input: &[u8]) -> io::Result<Bytes> {
