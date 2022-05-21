@@ -45,10 +45,19 @@ async fn spawn_docker_process(
     let bot_code_dir = std::fs::canonicalize(&params.code_path).unwrap();
     let code_dir_str = bot_code_dir.as_os_str().to_str().unwrap();
 
+    let memory_limit = 512 * 1024 * 1024; // 512MB
     let config = container::Config {
         image: Some(params.image.clone()),
         host_config: Some(bollard::models::HostConfig {
             binds: Some(vec![format!("{}:{}", code_dir_str, "/workdir")]),
+            network_mode: Some("none".to_string()),
+            memory: Some(memory_limit),
+            memory_swap: Some(memory_limit),
+            // TODO: this applies a limit to how much cpu one bot can use.
+            // when running multiple bots concurrently though, the server
+            // could still become resource-starved.
+            cpu_period: Some(100_000),
+            cpu_quota: Some(10_000),
             ..Default::default()
         }),
         working_dir: Some("/workdir".to_string()),
@@ -57,6 +66,7 @@ async fn spawn_docker_process(
         attach_stdout: Some(true),
         attach_stderr: Some(true),
         open_stdin: Some(true),
+        network_disabled: Some(true),
         ..Default::default()
     };
 
