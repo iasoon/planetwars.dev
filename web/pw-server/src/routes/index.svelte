@@ -198,6 +198,8 @@
   .sidebar-left {
     width: 240px;
     background-color: $bg-color;
+    display: flex;
+    flex-direction: column;
   }
   .sidebar-right {
     width: 400px;
@@ -242,6 +244,7 @@
     list-style: none;
     color: #eee;
     padding-top: 15px;
+    overflow-y: scroll;
   }
 
   .match-card {
