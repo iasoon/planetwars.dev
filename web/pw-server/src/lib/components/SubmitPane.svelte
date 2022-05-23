@@ -11,6 +11,8 @@
   let availableBots: object[] = [];
   let selectedOpponent = undefined;
   let botName: string | undefined = undefined;
+  // whether to show the "save succesful" message
+  let saveSuccesful = false;
 
   let saveErrors: string[] = [];
 
@@ -56,6 +58,9 @@
   }
 
   async function saveBot() {
+    saveSuccesful = false;
+    saveErrors = [];
+
     let response = await fetch("/api/save_bot", {
       method: "POST",
       headers: {
@@ -77,8 +82,7 @@
       if (!availableBots.find((bot) => bot["id"] == responseData["id"])) {
         availableBots = [...availableBots, responseData];
       }
-      // clear errors
-      saveErrors = [];
+      saveSuccesful = true;
     } else {
       const error = responseData["error"];
       if (error["type"] === "validation_failed") {
@@ -113,7 +117,9 @@
     {#if $currentUser}
       <div>Add your bot to the opponents list</div>
       <input type="text" class="bot-name-input" placeholder="bot name" bind:value={botName} />
-      {#if saveErrors.length > 0}
+      {#if saveSuccesful}
+        <div class="success-text">Bot saved succesfully</div>
+      {:else if saveErrors.length > 0}
         <ul>
           {#each saveErrors as errorText}
             <li class="error-text">{errorText}</li>
@@ -149,6 +155,11 @@
 
   .error-text {
     color: red;
+  }
+
+  .success-text {
+    color: green;
+    margin: 0 8px;
   }
 
   .submit-button {
