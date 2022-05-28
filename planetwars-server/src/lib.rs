@@ -8,11 +8,14 @@ pub mod routes;
 pub mod schema;
 pub mod util;
 
+use std::net::SocketAddr;
 use std::ops::Deref;
 
 use bb8::{Pool, PooledConnection};
 use bb8_diesel::{self, DieselConnectionManager};
+use config::ConfigError;
 use diesel::{Connection, PgConnection};
+use modules::ranking::run_ranker;
 use serde::Deserialize;
 
 use axum::{
@@ -55,16 +58,16 @@ pub async fn seed_simplebot(pool: &ConnectionPool) {
     });
 }
 
-pub async fn prepare_db(database_url: &str) -> Pool<DieselConnectionManager<PgConnection>> {
+pub type DbPool = Pool<DieselConnectionManager<PgConnection>>;
+
+pub async fn prepare_db(database_url: &str) -> DbPool {
     let manager = DieselConnectionManager::<PgConnection>::new(database_url);
     let pool = bb8::Pool::builder().build(manager).await.unwrap();
     seed_simplebot(&pool).await;
     pool
 }
 
-pub async fn api(configuration: Configuration) -> Router {
-    let db_pool = prepare_db(&configuration.database_url).await;
-
+pub fn api() -> Router {
     Router::new()
         .route("/register", post(routes::users::register))
         .route("/login", post(routes::users::login))
@@ -88,21 +91,34 @@ pub async fn api(configuration: Configuration) -> Router {
             "/matches/:match_id/log",
             get(routes::matches::get_match_log),
         )
+        .route("/leaderboard", get(routes::bots::get_ranking))
         .route("/submit_bot", post(routes::demo::submit_bot))
         .route("/save_bot", post(routes::bots::save_bot))
-        .layer(AddExtensionLayer::new(db_pool))
 }
 
-pub async fn app() -> Router {
-    let configuration = config::Config::builder()
+pub fn get_config() -> Result<Configuration, ConfigError> {
+    config::Config::builder()
         .add_source(config::File::with_name("configuration.toml"))
         .add_source(config::Environment::with_prefix("PLANETWARS"))
-        .build()
-        .unwrap()
+        .build()?
         .try_deserialize()
-        .unwrap();
-    let api = api(configuration).await;
-    Router::new().nest("/api", api)
+}
+
+pub async fn run_app() {
+    let configuration = get_config().unwrap();
+    let db_pool = prepare_db(&configuration.database_url).await;
+
+    tokio::spawn(run_ranker(db_pool.clone()));
+
+    let api_service = Router::new()
+        .nest("/api", api())
+        .layer(AddExtensionLayer::new(db_pool))
+        .into_make_service();
+
+    // TODO: put in config
+    let addr = SocketAddr::from(([127, 0, 0, 1], 9000));
+
+    axum::Server::bind(&addr).serve(api_service).await.unwrap();
 }
 
 #[derive(Deserialize)]

@@ -13,11 +13,13 @@
   import SubmitPane from "$lib/components/SubmitPane.svelte";
   import OutputPane from "$lib/components/OutputPane.svelte";
   import RulesView from "$lib/components/RulesView.svelte";
+  import Leaderboard from "$lib/components/Leaderboard.svelte";
 
   enum ViewMode {
     Editor,
     MatchVisualizer,
     Rules,
+    Leaderboard,
   }
 
   let matches = [];
@@ -111,10 +113,10 @@
     return log;
   }
 
-  function selectEditor() {
+  function setViewMode(viewMode_: ViewMode) {
     selectedMatchId = undefined;
     selectedMatchLog = undefined;
-    viewMode = ViewMode.Editor;
+    viewMode = viewMode_;
   }
 
   function selectRules() {
@@ -140,16 +142,23 @@
     <div
       class="editor-button sidebar-item"
       class:selected={viewMode === ViewMode.Editor}
-      on:click={selectEditor}
+      on:click={() => setViewMode(ViewMode.Editor)}
     >
       Editor
     </div>
     <div
       class="rules-button sidebar-item"
       class:selected={viewMode === ViewMode.Rules}
-      on:click={selectRules}
+      on:click={() => setViewMode(ViewMode.Rules)}
     >
       Rules
+    </div>
+    <div
+      class="sidebar-item"
+      class:selected={viewMode === ViewMode.Leaderboard}
+      on:click={() => setViewMode(ViewMode.Leaderboard)}
+    >
+      Leaderboard
     </div>
     <div class="sidebar-header">match history</div>
     <ul class="match-list">
@@ -175,6 +184,8 @@
       <EditorView {editSession} />
     {:else if viewMode === ViewMode.Rules}
       <RulesView />
+    {:else if viewMode === ViewMode.Leaderboard}
+      <Leaderboard />
     {/if}
   </div>
   <div class="sidebar-right">
@@ -220,16 +231,9 @@
     height: 100%;
   }
 
-  .editor-button {
-    padding: 15px;
-  }
-
-  .rules-button {
-    padding: 15px;
-  }
-
   .sidebar-item {
     color: #eee;
+    padding: 15px;
   }
 
   .sidebar-item:hover {

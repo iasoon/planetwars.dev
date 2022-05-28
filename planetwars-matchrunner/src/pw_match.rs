@@ -24,8 +24,8 @@ pub struct MatchConfig {
 }
 
 pub struct PwMatch {
-    match_ctx: MatchCtx,
-    match_state: PlanetWars,
+    pub match_ctx: MatchCtx,
+    pub match_state: PlanetWars,
 }
 
 impl PwMatch {
@@ -39,7 +39,7 @@ impl PwMatch {
         }
     }
 
-    pub async fn run(mut self) {
+    pub async fn run(&mut self) {
         while !self.match_state.is_finished() {
             let player_messages = self.prompt_players().await;
 
