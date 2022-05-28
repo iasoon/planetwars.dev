@@ -9,7 +9,7 @@ use tokio;
 const RANKER_INTERVAL: u64 = 60;
 const START_RATING: f64 = 0.0;
 const SCALE: f64 = 100.0;
-const MAX_UPDATE: f64 = 5.0;
+const MAX_UPDATE: f64 = 10.0;
 
 pub async fn run_ranker(db_pool: DbPool) {
     // TODO: make this configurable
@@ -78,7 +78,7 @@ async fn play_ranking_match(selected_bots: Vec<Bot>, db_pool: DbPool) {
     for i in 0..2 {
         let j = 1 - i;
 
-        let scaled_difference = (ratings[i] - ratings[j]) / SCALE;
+        let scaled_difference = (ratings[j] - ratings[i]) / SCALE;
         let expected = 1.0 / (1.0 + 10f64.powf(scaled_difference));
         let new_rating = ratings[i] + MAX_UPDATE * (scores[i] - expected);
         db::ratings::set_rating(selected_bots[i].id, new_rating, &db_conn)
