@@ -35,6 +35,7 @@ pub struct MatchBase {
     pub state: MatchState,
     pub log_path: String,
     pub created_at: NaiveDateTime,
+    pub winner: Option<i32>,
 }
 
 #[derive(Queryable, Identifiable, Associations, Clone)]
@@ -158,9 +159,15 @@ pub fn find_match_base(id: i32, conn: &PgConnection) -> QueryResult<MatchBase> {
     matches::table.find(id).get_result::<MatchBase>(conn)
 }
 
-pub fn set_match_state(id: i32, match_state: MatchState, conn: &PgConnection) -> QueryResult<()> {
+pub enum MatchResult {
+    Finished { winner: Option<i32> }
+}
+
+pub fn save_match_result(id: i32, result: MatchResult, conn: &PgConnection) -> QueryResult<()> {
+    let MatchResult::Finished { winner } = result;
+
     diesel::update(matches::table.find(id))
-        .set(matches::state.eq(match_state))
+        .set((matches::winner.eq(winner), matches::state.eq(MatchState::Finished)))
         .execute(conn)?;
     Ok(())
 }

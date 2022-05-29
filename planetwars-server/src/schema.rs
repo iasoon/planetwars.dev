@@ -44,6 +44,7 @@ table! {
         state -> Match_state,
         log_path -> Text,
         created_at -> Timestamp,
+        winner -> Nullable<Int4>,
     }
 }
 

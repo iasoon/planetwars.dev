@@ -6,7 +6,10 @@ use runner::MatchOutcome;
 use tokio::task::JoinHandle;
 
 use crate::{
-    db::{self, matches::MatchData},
+    db::{
+        self,
+        matches::{MatchData, MatchResult},
+    },
     util::gen_alphanumeric,
     ConnectionPool, BOTS_DIR, MAPS_DIR, MATCHES_DIR,
 };
@@ -95,8 +98,11 @@ async fn run_match_task(
         .await
         .expect("could not get database connection");
 
-    db::matches::set_match_state(match_id, db::matches::MatchState::Finished, &conn)
-        .expect("could not update match state");
+    let result = MatchResult::Finished {
+        winner: outcome.winner.map(|w| (w - 1) as i32), // player numbers in matchrunner start at 1
+    };
+
+    db::matches::save_match_result(match_id, result, &conn).expect("could not save match result");
 
     return outcome;
 }
