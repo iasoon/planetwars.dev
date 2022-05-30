@@ -9,7 +9,7 @@ use tokio;
 const RANKER_INTERVAL: u64 = 60;
 const START_RATING: f64 = 0.0;
 const SCALE: f64 = 100.0;
-const MAX_UPDATE: f64 = 10.0;
+const MAX_UPDATE: f64 = 0.1;
 
 pub async fn run_ranker(db_pool: DbPool) {
     // TODO: make this configurable
