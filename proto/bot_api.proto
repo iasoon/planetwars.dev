@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package grpc.planetwars.bot_api;
+
+message Hello {
+  string hello_message = 1;
+}
+
+message HelloResponse {
+  string response = 1;
+}
+
+service TestService {
+  rpc greet(Hello) returns (HelloResponse);
+}
