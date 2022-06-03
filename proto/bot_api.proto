@@ -10,6 +10,17 @@ message HelloResponse {
   string response = 1;
 }
 
-service TestService {
-  rpc greet(Hello) returns (HelloResponse);
+message PlayerRequest {
+  int32 request_id = 1;
+  bytes content = 2;
+}
+
+message PlayerRequestResponse {
+  int32 request_id = 1;
+  bytes content = 2;
+}
+
+service BotApiService {
+  // server sends requests to the player, player responds
+  rpc ConnectBot(stream PlayerRequestResponse) returns (stream PlayerRequest);
 }
