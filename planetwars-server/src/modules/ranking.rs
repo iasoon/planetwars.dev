@@ -65,6 +65,7 @@ fn recalculate_ratings(db_conn: &PgConnection) -> QueryResult<()> {
         db::ratings::set_rating(bot_id, rating, db_conn).expect("could not update bot rating");
     }
     let elapsed = Instant::now() - start;
+    // TODO: set up proper logging infrastructure
     println!("computed ratings in {} ms", elapsed.subsec_millis());
     Ok(())
 }
@@ -157,11 +158,14 @@ fn estimate_ratings_from_stats(match_stats: HashMap<(i32, i32), MatchStats>) -> 
             p1_ix: player_tokenizer.tokenize(a_id),
             p2_ix: player_tokenizer.tokenize(b_id),
             score: stats.total_score / stats.num_matches as f64,
+            weight: stats.num_matches as f64,
         })
     }
 
     let mut ratings = vec![0f64; player_tokenizer.player_count()];
-    optimize_ratings(&mut ratings, &input_records);
+    // TODO: fetch these from config
+    let params = OptimizeRatingsParams::default();
+    optimize_ratings(&mut ratings, &input_records, &params);
 
     ratings
         .into_iter()
@@ -182,21 +186,43 @@ struct RatingInputRecord {
     p2_ix: usize,
     /// score of player 1 (= 1 - score of player 2)
     score: f64,
+    /// weight of this record
+    weight: f64,
 }
 
-fn optimize_ratings(ratings: &mut [f64], input_records: &[RatingInputRecord]) {
-    // TODO: group this in a params struct
-    let tolerance = 10f64.powi(-6);
-    let learning_rate = 0.1;
-    let max_iterations = 10000;
+struct OptimizeRatingsParams {
+    tolerance: f64,
+    learning_rate: f64,
+    max_iterations: usize,
+    regularization_weight: f64,
+}
 
-    for _iteration in 0..max_iterations {
+impl Default for OptimizeRatingsParams {
+    fn default() -> Self {
+        OptimizeRatingsParams {
+            tolerance: 10f64.powi(-8),
+            learning_rate: 0.1,
+            max_iterations: 10_000,
+            regularization_weight: 10.0,
+        }
+    }
+}
+
+fn optimize_ratings(
+    ratings: &mut [f64],
+    input_records: &[RatingInputRecord],
+    params: &OptimizeRatingsParams,
+) {
+    let total_weight =
+        params.regularization_weight + input_records.iter().map(|r| r.weight).sum::<f64>();
+
+    for _iteration in 0..params.max_iterations {
         let mut gradients = vec![0f64; ratings.len()];
 
         // calculate gradients
         for record in input_records.iter() {
             let predicted = sigmoid(ratings[record.p1_ix] - ratings[record.p2_ix]);
-            let gradient = predicted - record.score;
+            let gradient = record.weight * (predicted - record.score);
             gradients[record.p1_ix] += gradient;
             gradients[record.p2_ix] -= gradient;
         }
@@ -204,8 +230,9 @@ fn optimize_ratings(ratings: &mut [f64], input_records: &[RatingInputRecord]) {
         // apply update step
         let mut converged = true;
         for (rating, gradient) in ratings.iter_mut().zip(&gradients) {
-            let update = learning_rate * gradient / input_records.len() as f64;
-            if update > tolerance {
+            let update = params.learning_rate * (gradient + params.regularization_weight * *rating)
+                / total_weight;
+            if update > params.tolerance {
                 converged = false;
             }
             *rating -= update;
@@ -221,16 +248,79 @@ fn optimize_ratings(ratings: &mut [f64], input_records: &[RatingInputRecord]) {
 mod tests {
     use super::*;
 
+    fn is_close(a: f64, b: f64) -> bool {
+        (a - b).abs() < 10f64.powi(-6)
+    }
+
     #[test]
     fn test_optimize_ratings() {
         let input_records = vec![RatingInputRecord {
             p1_ix: 0,
             p2_ix: 1,
             score: 0.8,
+            weight: 1.0,
         }];
 
         let mut ratings = vec![0.0; 2];
-        optimize_ratings(&mut ratings, &input_records);
-        assert!(sigmoid(ratings[0] - ratings[1]) - 0.8 < 10f64.powi(-6));
+        optimize_ratings(
+            &mut ratings,
+            &input_records,
+            &OptimizeRatingsParams {
+                regularization_weight: 0.0,
+                ..Default::default()
+            },
+        );
+        assert!(is_close(sigmoid(ratings[0] - ratings[1]), 0.8));
+    }
+
+    #[test]
+    fn test_optimize_ratings_weight() {
+        let input_records = vec![
+            RatingInputRecord {
+                p1_ix: 0,
+                p2_ix: 1,
+                score: 1.0,
+                weight: 1.0,
+            },
+            RatingInputRecord {
+                p1_ix: 1,
+                p2_ix: 0,
+                score: 1.0,
+                weight: 3.0,
+            },
+        ];
+
+        let mut ratings = vec![0.0; 2];
+        optimize_ratings(
+            &mut ratings,
+            &input_records,
+            &OptimizeRatingsParams {
+                regularization_weight: 0.0,
+                ..Default::default()
+            },
+        );
+        assert!(is_close(sigmoid(ratings[0] - ratings[1]), 0.25));
+    }
+
+    #[test]
+    fn test_optimize_ratings_regularization() {
+        let input_records = vec![RatingInputRecord {
+            p1_ix: 0,
+            p2_ix: 1,
+            score: 0.8,
+            weight: 100.0,
+        }];
+
+        let mut ratings = vec![0.0; 2];
+        optimize_ratings(
+            &mut ratings,
+            &input_records,
+            &OptimizeRatingsParams {
+                regularization_weight: 1.0,
+                ..Default::default()
+            },
+        );
+        let predicted = sigmoid(ratings[0] - ratings[1]);
+        assert!(0.5 < predicted && predicted < 0.8);
     }
 }
