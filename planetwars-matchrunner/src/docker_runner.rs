@@ -53,11 +53,10 @@ async fn spawn_docker_process(
             network_mode: Some("none".to_string()),
             memory: Some(memory_limit),
             memory_swap: Some(memory_limit),
-            // TODO: this applies a limit to how much cpu one bot can use.
-            // when running multiple bots concurrently though, the server
-            // could still become resource-starved.
-            cpu_period: Some(100_000),
-            cpu_quota: Some(10_000),
+            // TODO: this seems to have caused weird delays when executing bots
+            // on the production server. A solution should still be found, though.
+            // cpu_period: Some(100_000),
+            // cpu_quota: Some(10_000),
             ..Default::default()
         }),
         working_dir: Some("/workdir".to_string()),
