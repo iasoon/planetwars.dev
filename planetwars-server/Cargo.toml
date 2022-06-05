@@ -7,6 +7,7 @@ edition = "2021"
 
 [dependencies]
 tokio = { version = "1.15", features = ["full"] }
+tokio-stream = "0.1.9"
 hyper = "0.14"
 axum = { version = "0.4", features = ["json", "headers", "multipart"] }
 diesel = { version = "1.4.4", features = ["postgres", "chrono"] }
