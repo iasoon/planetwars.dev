@@ -62,10 +62,23 @@ impl pb::bot_api_service_server::BotApiService for BotApiServer {
         &self,
         req: Request<Streaming<pb::PlayerRequestResponse>>,
     ) -> Result<Response<Self::ConnectBotStream>, Status> {
-        println!("bot connected");
+        // TODO: clean up errors
+        let player_id = req
+            .metadata()
+            .get("player_id")
+            .ok_or_else(|| Status::unauthenticated("no player_id provided"))?;
+
+        let player_id_str = player_id
+            .to_str()
+            .map_err(|_| Status::invalid_argument("unreadable string"))?;
+
+        let sync_data = self
+            .router
+            .get(player_id_str)
+            .ok_or_else(|| Status::not_found("player_id not found"))?;
+
         let stream = req.into_inner();
-        // TODO: return error when player does not exist
-        let sync_data = self.router.get("test_player").unwrap();
+
         sync_data.tx.send(stream).unwrap();
         Ok(Response::new(UnboundedReceiverStream::new(
             sync_data.server_messages,

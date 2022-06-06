@@ -6,12 +6,20 @@ use pb::bot_api_service_client::BotApiServiceClient;
 use tokio_stream::wrappers::UnboundedReceiverStream;
 
 use tokio::sync::mpsc;
+use tonic::{metadata::MetadataValue, transport::Channel, Request};
 
 #[tokio::main]
 async fn main() {
-    let mut client = BotApiServiceClient::connect("http://localhost:50051")
+    let channel = Channel::from_static("http://localhost:50051")
+        .connect()
         .await
         .unwrap();
+
+    let mut client = BotApiServiceClient::with_interceptor(channel, |mut req: Request<()>| {
+        let player_id: MetadataValue<_> = "test_player".parse().unwrap();
+        req.metadata_mut().insert("player_id", player_id);
+        Ok(req)
+    });
 
     let (tx, rx) = mpsc::unbounded_channel();
     let mut stream = client
