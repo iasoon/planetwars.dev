@@ -48,7 +48,7 @@ impl PlayerRouter {
         routing_table.insert(player_id, entry);
     }
 
-    fn get(&self, player_id: &str) -> Option<SyncThingData> {
+    fn take(&self, player_id: &str) -> Option<SyncThingData> {
         // TODO: this design does not allow for reconnects. Is this desired?
         let mut routing_table = self.routing_table.lock().unwrap();
         routing_table.remove(player_id)
@@ -75,7 +75,7 @@ impl pb::bot_api_service_server::BotApiService for BotApiServer {
 
         let sync_data = self
             .router
-            .get(player_id_str)
+            .take(player_id_str)
             .ok_or_else(|| Status::not_found("player_id not found"))?;
 
         let stream = req.into_inner();
@@ -106,21 +106,35 @@ impl runner::BotSpec for RemoteBotSpec {
     ) -> Box<dyn PlayerHandle> {
         let (tx, rx) = oneshot::channel();
         let (server_msg_snd, server_msg_recv) = mpsc::unbounded_channel();
+        let player_key = "test_player".to_string();
         self.router.put(
-            "test_player".to_string(),
+            player_key.clone(),
             SyncThingData {
                 tx,
                 server_messages: server_msg_recv,
             },
         );
 
-        let client_messages = rx.await.unwrap();
-        tokio::spawn(handle_bot_messages(
-            player_id,
-            event_bus.clone(),
-            client_messages,
-        ));
+        let fut = tokio::time::timeout(Duration::from_secs(10), rx);
+        match fut.await {
+            Ok(Ok(client_messages)) => {
+                // let client_messages = rx.await.unwrap();
+                tokio::spawn(handle_bot_messages(
+                    player_id,
+                    event_bus.clone(),
+                    client_messages,
+                ));
+            }
+            _ => {
+                // ensure router cleanup
+                self.router.take(&player_key);
+            }
+        };
 
+        // If the player did not connect, the receiving half of `sender`
+        // will be dropped here, resulting in a time-out for every turn.
+        // This is fine for now, but
+        // TODO: provide a formal mechanism for player startup failure
         Box::new(RemoteBotHandle {
             sender: server_msg_snd,
             player_id,
