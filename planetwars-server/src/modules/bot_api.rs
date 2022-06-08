@@ -19,11 +19,13 @@ use tonic::{Request, Response, Status, Streaming};
 use planetwars_matchrunner as runner;
 
 use crate::db;
+use crate::util::gen_alphanumeric;
 use crate::{ConnectionPool, MAPS_DIR, MATCHES_DIR};
 
 use super::matches::code_bundle_to_botspec;
 
 pub struct BotApiServer {
+    conn_pool: ConnectionPool,
     router: PlayerRouter,
 }
 
@@ -85,6 +87,50 @@ impl pb::bot_api_service_server::BotApiService for BotApiServer {
             sync_data.server_messages,
         )))
     }
+
+    async fn create_match(
+        &self,
+        req: Request<pb::MatchRequest>,
+    ) -> Result<Response<pb::CreatedMatch>, Status> {
+        // TODO: unify with matchrunner module
+        let conn = self.conn_pool.get().await.unwrap();
+
+        let match_request = req.get_ref();
+
+        let opponent = db::bots::find_bot_by_name(&match_request.opponent_name, &conn)
+            .map_err(|_| Status::not_found("opponent not found"))?;
+        let opponent_code_bundle = db::bots::active_code_bundle(opponent.id, &conn)
+            .map_err(|_| Status::not_found("opponent has no code"))?;
+
+        let log_file_name = "remote_match.log";
+        let player_key = gen_alphanumeric(32);
+
+        let remote_bot_spec = RemoteBotSpec {
+            player_key: player_key.clone(),
+            router: self.router.clone(),
+        };
+
+        let match_config = runner::MatchConfig {
+            map_path: PathBuf::from(MAPS_DIR).join("hex.json"),
+            map_name: "hex".to_string(),
+            log_path: PathBuf::from(MATCHES_DIR).join(&log_file_name),
+            players: vec![
+                runner::MatchPlayer {
+                    bot_spec: Box::new(remote_bot_spec),
+                },
+                runner::MatchPlayer {
+                    bot_spec: code_bundle_to_botspec(&opponent_code_bundle),
+                },
+            ],
+        };
+
+        tokio::spawn(runner::run_match(match_config));
+        Ok(Response::new(pb::CreatedMatch {
+            // TODO
+            match_id: 0,
+            player_key,
+        }))
+    }
 }
 
 struct SyncThingData {
@@ -93,6 +139,7 @@ struct SyncThingData {
 }
 
 struct RemoteBotSpec {
+    player_key: String,
     router: PlayerRouter,
 }
 
@@ -106,9 +153,8 @@ impl runner::BotSpec for RemoteBotSpec {
     ) -> Box<dyn PlayerHandle> {
         let (tx, rx) = oneshot::channel();
         let (server_msg_snd, server_msg_recv) = mpsc::unbounded_channel();
-        let player_key = "test_player".to_string();
         self.router.put(
-            player_key.clone(),
+            self.player_key.clone(),
             SyncThingData {
                 tx,
                 server_messages: server_msg_recv,
@@ -127,7 +173,7 @@ impl runner::BotSpec for RemoteBotSpec {
             }
             _ => {
                 // ensure router cleanup
-                self.router.take(&player_key);
+                self.router.take(&self.player_key);
             }
         };
 
@@ -183,6 +229,7 @@ impl PlayerHandle for RemoteBotHandle {
                 // directly mark all requests as timed out.
                 // TODO: create a dedicated error type for this.
                 // should it be logged?
+                println!("send error: {:?}", _send_error);
                 self.event_bus
                     .lock()
                     .unwrap()
@@ -212,37 +259,12 @@ async fn schedule_timeout(
         .resolve_request(request_id, Err(RequestError::Timeout));
 }
 
-async fn run_match(router: PlayerRouter, pool: ConnectionPool) {
-    let conn = pool.get().await.unwrap();
-
-    let opponent = db::bots::find_bot_by_name("simplebot", &conn).unwrap();
-    let opponent_code_bundle = db::bots::active_code_bundle(opponent.id, &conn).unwrap();
-
-    let log_file_name = "remote_match.log";
-
-    let remote_bot_spec = RemoteBotSpec { router };
-
-    let match_config = runner::MatchConfig {
-        map_path: PathBuf::from(MAPS_DIR).join("hex.json"),
-        map_name: "hex".to_string(),
-        log_path: PathBuf::from(MATCHES_DIR).join(&log_file_name),
-        players: vec![
-            runner::MatchPlayer {
-                bot_spec: Box::new(remote_bot_spec),
-            },
-            runner::MatchPlayer {
-                bot_spec: code_bundle_to_botspec(&opponent_code_bundle),
-            },
-        ],
-    };
-
-    runner::run_match(match_config).await;
-}
-
 pub async fn run_bot_api(pool: ConnectionPool) {
     let router = PlayerRouter::new();
-    tokio::spawn(run_match(router.clone(), pool));
-    let server = BotApiServer { router };
+    let server = BotApiServer {
+        router,
+        conn_pool: pool.clone(),
+    };
 
     let addr = SocketAddr::from(([127, 0, 0, 1], 50051));
     Server::builder()
