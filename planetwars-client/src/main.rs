@@ -5,10 +5,10 @@ pub mod pb {
 use pb::bot_api_service_client::BotApiServiceClient;
 use planetwars_matchrunner::bot_runner::Bot;
 use serde::Deserialize;
-use std::path::PathBuf;
+use std::{path::PathBuf, time::Duration};
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::UnboundedReceiverStream;
-use tonic::{metadata::MetadataValue, transport::Channel, Request};
+use tonic::{metadata::MetadataValue, transport::Channel, Request, Status};
 
 #[derive(Deserialize)]
 struct BotConfig {
@@ -27,8 +27,24 @@ async fn main() {
         .await
         .unwrap();
 
+    let created_match = create_match(channel.clone()).await.unwrap();
+    run_player(bot_config, created_match.player_key, channel).await;
+    tokio::time::sleep(Duration::from_secs(1)).await;
+}
+
+async fn create_match(channel: Channel) -> Result<pb::CreatedMatch, Status> {
+    let mut client = BotApiServiceClient::new(channel);
+    let res = client
+        .create_match(Request::new(pb::MatchRequest {
+            opponent_name: "simplebot".to_string(),
+        }))
+        .await;
+    res.map(|response| response.into_inner())
+}
+
+async fn run_player(bot_config: BotConfig, player_key: String, channel: Channel) {
     let mut client = BotApiServiceClient::with_interceptor(channel, |mut req: Request<()>| {
-        let player_id: MetadataValue<_> = "test_player".parse().unwrap();
+        let player_id: MetadataValue<_> = player_key.parse().unwrap();
         req.metadata_mut().insert("player_id", player_id);
         Ok(req)
     });
@@ -46,7 +62,6 @@ async fn main() {
         .unwrap()
         .into_inner();
     while let Some(message) = stream.message().await.unwrap() {
-        let state = std::str::from_utf8(&message.content).unwrap();
         let moves = bot_process.communicate(&message.content).await.unwrap();
         tx.send(pb::PlayerRequestResponse {
             request_id: message.request_id,
@@ -54,7 +69,4 @@ async fn main() {
         })
         .unwrap();
     }
-    std::mem::drop(tx);
-    // for clean exit
-    std::mem::drop(client);
 }
