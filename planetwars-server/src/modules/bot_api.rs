@@ -45,15 +45,15 @@ impl PlayerRouter {
 
 // TODO: implement a way to expire entries
 impl PlayerRouter {
-    fn put(&self, player_id: String, entry: SyncThingData) {
+    fn put(&self, player_key: String, entry: SyncThingData) {
         let mut routing_table = self.routing_table.lock().unwrap();
-        routing_table.insert(player_id, entry);
+        routing_table.insert(player_key, entry);
     }
 
-    fn take(&self, player_id: &str) -> Option<SyncThingData> {
+    fn take(&self, player_key: &str) -> Option<SyncThingData> {
         // TODO: this design does not allow for reconnects. Is this desired?
         let mut routing_table = self.routing_table.lock().unwrap();
-        routing_table.remove(player_id)
+        routing_table.remove(player_key)
     }
 }
 
@@ -66,19 +66,19 @@ impl pb::bot_api_service_server::BotApiService for BotApiServer {
         req: Request<Streaming<pb::PlayerRequestResponse>>,
     ) -> Result<Response<Self::ConnectBotStream>, Status> {
         // TODO: clean up errors
-        let player_id = req
+        let player_key = req
             .metadata()
-            .get("player_id")
-            .ok_or_else(|| Status::unauthenticated("no player_id provided"))?;
+            .get("player_key")
+            .ok_or_else(|| Status::unauthenticated("no player_key provided"))?;
 
-        let player_id_str = player_id
+        let player_key_str = player_key
             .to_str()
             .map_err(|_| Status::invalid_argument("unreadable string"))?;
 
         let sync_data = self
             .router
-            .take(player_id_str)
-            .ok_or_else(|| Status::not_found("player_id not found"))?;
+            .take(player_key_str)
+            .ok_or_else(|| Status::not_found("player_key not found"))?;
 
         let stream = req.into_inner();
 

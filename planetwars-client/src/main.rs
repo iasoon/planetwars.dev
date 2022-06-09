@@ -44,8 +44,8 @@ async fn create_match(channel: Channel) -> Result<pb::CreatedMatch, Status> {
 
 async fn run_player(bot_config: BotConfig, player_key: String, channel: Channel) {
     let mut client = BotApiServiceClient::with_interceptor(channel, |mut req: Request<()>| {
-        let player_id: MetadataValue<_> = player_key.parse().unwrap();
-        req.metadata_mut().insert("player_id", player_id);
+        let player_key: MetadataValue<_> = player_key.parse().unwrap();
+        req.metadata_mut().insert("player_key", player_key);
         Ok(req)
     });
 
