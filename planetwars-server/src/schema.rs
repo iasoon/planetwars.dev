@@ -31,7 +31,7 @@ table! {
     match_players (match_id, player_id) {
         match_id -> Int4,
         player_id -> Int4,
-        code_bundle_id -> Int4,
+        code_bundle_id -> Nullable<Int4>,
     }
 }
 

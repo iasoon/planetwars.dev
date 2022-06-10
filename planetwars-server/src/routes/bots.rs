@@ -12,7 +12,7 @@ use std::path::PathBuf;
 use thiserror;
 
 use crate::db::bots::{self, CodeBundle};
-use crate::db::ratings::{RankedBot, self};
+use crate::db::ratings::{self, RankedBot};
 use crate::db::users::User;
 use crate::modules::bots::save_code_bundle;
 use crate::{DatabaseConnection, BOTS_DIR};

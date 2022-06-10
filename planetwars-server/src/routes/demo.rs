@@ -58,12 +58,12 @@ pub async fn submit_bot(
         match_players: vec![
             FullMatchPlayerData {
                 base: match_data.match_players[0].clone(),
-                code_bundle: player_code_bundle,
+                code_bundle: Some(player_code_bundle),
                 bot: None,
             },
             FullMatchPlayerData {
                 base: match_data.match_players[1].clone(),
-                code_bundle: opponent_code_bundle,
+                code_bundle: Some(opponent_code_bundle),
                 bot: Some(opponent),
             },
         ],
