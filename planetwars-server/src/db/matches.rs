@@ -25,7 +25,7 @@ pub struct NewMatchPlayer {
     /// player id within the match
     pub player_id: i32,
     /// id of the bot behind this player
-    pub code_bundle_id: i32,
+    pub code_bundle_id: Option<i32>,
 }
 
 #[derive(Queryable, Identifiable)]
@@ -48,7 +48,7 @@ pub struct MatchPlayer {
 }
 
 pub struct MatchPlayerData {
-    pub code_bundle_id: i32,
+    pub code_bundle_id: Option<i32>,
 }
 
 pub fn create_match(

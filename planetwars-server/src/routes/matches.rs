@@ -61,7 +61,7 @@ pub async fn play_match(
         });
 
         bot_ids.push(matches::MatchPlayerData {
-            code_bundle_id: code_bundle.id,
+            code_bundle_id: Some(code_bundle.id),
         });
     }
 
