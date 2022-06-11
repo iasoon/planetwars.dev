@@ -68,7 +68,7 @@
     "moves": [
       {
         "origin": "your planet",
-        "target": "enemy planet",
+        "destination": "enemy planet",
         "ship_count": 2
       }
     ]
@@ -82,7 +82,7 @@
 
     <p>
       The amount of turns an expedition will travel is equal to the ceiled euclidean distance
-      between its origin and target planet.
+      between its origin and destination planet.
     </p>
 
     <p>
