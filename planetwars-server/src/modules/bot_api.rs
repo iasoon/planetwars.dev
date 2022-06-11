@@ -4,7 +4,6 @@ pub mod pb {
 
 use std::collections::HashMap;
 use std::net::SocketAddr;
-use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -20,9 +19,9 @@ use planetwars_matchrunner as runner;
 
 use crate::db;
 use crate::util::gen_alphanumeric;
-use crate::{ConnectionPool, MAPS_DIR, MATCHES_DIR};
+use crate::ConnectionPool;
 
-use super::matches::code_bundle_to_botspec;
+use super::matches::{MatchPlayer, RunMatch};
 
 pub struct BotApiServer {
     conn_pool: ConnectionPool,
@@ -40,6 +39,12 @@ impl PlayerRouter {
         PlayerRouter {
             routing_table: Arc::new(Mutex::new(HashMap::new())),
         }
+    }
+}
+
+impl Default for PlayerRouter {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -102,37 +107,29 @@ impl pb::bot_api_service_server::BotApiService for BotApiServer {
         let opponent_code_bundle = db::bots::active_code_bundle(opponent.id, &conn)
             .map_err(|_| Status::not_found("opponent has no code"))?;
 
-        let log_file_name = "remote_match.log";
         let player_key = gen_alphanumeric(32);
 
-        let remote_bot_spec = RemoteBotSpec {
+        let remote_bot_spec = Box::new(RemoteBotSpec {
             player_key: player_key.clone(),
             router: self.router.clone(),
-        };
+        });
+        let mut run_match = RunMatch::from_players(vec![
+            MatchPlayer::from_bot_spec(remote_bot_spec),
+            MatchPlayer::from_code_bundle(&opponent_code_bundle),
+        ]);
+        let created_match = run_match
+            .store_in_database(&conn)
+            .expect("failed to save match");
+        run_match.spawn(self.conn_pool.clone());
 
-        let match_config = runner::MatchConfig {
-            map_path: PathBuf::from(MAPS_DIR).join("hex.json"),
-            map_name: "hex".to_string(),
-            log_path: PathBuf::from(MATCHES_DIR).join(&log_file_name),
-            players: vec![
-                runner::MatchPlayer {
-                    bot_spec: Box::new(remote_bot_spec),
-                },
-                runner::MatchPlayer {
-                    bot_spec: code_bundle_to_botspec(&opponent_code_bundle),
-                },
-            ],
-        };
-
-        tokio::spawn(runner::run_match(match_config));
         Ok(Response::new(pb::CreatedMatch {
-            // TODO
-            match_id: 0,
+            match_id: created_match.base.id,
             player_key,
         }))
     }
 }
 
+// TODO: please rename me
 struct SyncThingData {
     tx: oneshot::Sender<Streaming<pb::PlayerRequestResponse>>,
     server_messages: mpsc::UnboundedReceiver<Result<pb::PlayerRequest, Status>>,
