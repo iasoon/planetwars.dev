@@ -3,3 +3,4 @@
 pub mod bots;
 pub mod matches;
 pub mod ranking;
+pub mod registry;

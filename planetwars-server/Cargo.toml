@@ -6,6 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+futures = "0.3"
 tokio = { version = "1.15", features = ["full"] }
 hyper = "0.14"
 axum = { version = "0.4", features = ["json", "headers", "multipart"] }
@@ -26,6 +27,7 @@ toml = "0.5"
 planetwars-matchrunner = { path = "../planetwars-matchrunner" }
 config = { version = "0.12", features = ["toml"] }
 thiserror = "1.0.31"
+sha2 = "0.10"
 
 # TODO: remove me
 shlex = "1.1"

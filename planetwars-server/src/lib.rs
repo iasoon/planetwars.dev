@@ -16,6 +16,7 @@ use bb8_diesel::{self, DieselConnectionManager};
 use config::ConfigError;
 use diesel::{Connection, PgConnection};
 use modules::ranking::run_ranker;
+use modules::registry::registry_service;
 use serde::Deserialize;
 
 use axum::{
@@ -104,11 +105,22 @@ pub fn get_config() -> Result<Configuration, ConfigError> {
         .try_deserialize()
 }
 
+async fn run_registry(_db_pool: DbPool) {
+    // TODO: put in config
+    let addr = SocketAddr::from(([127, 0, 0, 1], 9001));
+
+    axum::Server::bind(&addr)
+        .serve(registry_service().into_make_service())
+        .await
+        .unwrap();
+}
+
 pub async fn run_app() {
     let configuration = get_config().unwrap();
     let db_pool = prepare_db(&configuration.database_url).await;
 
     tokio::spawn(run_ranker(db_pool.clone()));
+    tokio::spawn(run_registry(db_pool.clone()));
 
     let api_service = Router::new()
         .nest("/api", api())
