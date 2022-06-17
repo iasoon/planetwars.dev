@@ -62,7 +62,7 @@ async fn blob_check(
     Path((_repository_name, raw_digest)): Path<(String, String)>,
 ) -> impl IntoResponse {
     let digest = raw_digest.strip_prefix("sha256:").unwrap();
-    let blob_path = PathBuf::from(REGISTRY_PATH).join(&digest);
+    let blob_path = PathBuf::from(REGISTRY_PATH).join("sha256").join(&digest);
     if blob_path.exists() {
         StatusCode::OK
     } else {
@@ -162,9 +162,9 @@ async fn put_handler(
     }
     let digest = params.digest.strip_prefix("sha256:").unwrap();
     // TODO: check the digest
-    let target_path = PathBuf::from(REGISTRY_PATH).join(&digest);
+    let target_path = PathBuf::from(REGISTRY_PATH).join("sha256").join(&digest);
     tokio::fs::rename(&upload_path, &target_path).await.unwrap();
-    println!("DIGEST {}", digest);
+
     Response::builder()
         .status(StatusCode::CREATED)
         .header(
@@ -182,7 +182,9 @@ async fn put_manifest(
     Path((repository_name, reference)): Path<(String, String)>,
     mut stream: BodyStream,
 ) -> impl IntoResponse {
-    let repository_dir = PathBuf::from(REGISTRY_PATH).join(&repository_name);
+    let repository_dir = PathBuf::from(REGISTRY_PATH)
+        .join("manifests")
+        .join(&repository_name);
 
     tokio::fs::create_dir_all(&repository_dir).await.unwrap();
 
