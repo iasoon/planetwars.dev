@@ -1,4 +1,4 @@
-use axum::body::Body;
+use axum::body::{Body, StreamBody};
 use axum::extract::{BodyStream, Path, Query};
 use axum::handler::Handler;
 use axum::response::{IntoResponse, Response};
@@ -9,6 +9,7 @@ use serde::Serialize;
 use sha2::{Digest, Sha256};
 use std::path::PathBuf;
 use tokio::io::AsyncWriteExt;
+use tokio_util::io::ReaderStream;
 
 use crate::util::gen_alphanumeric;
 
@@ -22,13 +23,16 @@ pub fn registry_service() -> Router {
 fn registry_api_v2() -> Router {
     Router::new()
         .route("/", get(root_handler))
-        .route("/:name/blobs/:digest", head(blob_check).get(blob_check))
+        .route("/:name/blobs/:digest", head(blob_check).get(get_blob))
         .route("/:name/blobs/uploads/", post(blob_upload))
         .route(
             "/:name/blobs/uploads/:uuid",
             put(put_handler).patch(handle_upload),
         )
-        .route("/:name/manifests/:reference", put(put_manifest))
+        .route(
+            "/:name/manifests/:reference",
+            get(get_manifest).put(put_manifest),
+        )
 }
 
 async fn fallback(request: axum::http::Request<Body>) -> impl IntoResponse {
@@ -68,6 +72,20 @@ async fn blob_check(
     } else {
         StatusCode::NOT_FOUND
     }
+}
+
+async fn get_blob(
+    Path((_repository_name, raw_digest)): Path<(String, String)>,
+) -> impl IntoResponse {
+    let digest = raw_digest.strip_prefix("sha256:").unwrap();
+    let blob_path = PathBuf::from(REGISTRY_PATH).join("sha256").join(&digest);
+    if !blob_path.exists() {
+        return Err(StatusCode::NOT_FOUND);
+    }
+    let file = tokio::fs::File::open(&blob_path).await.unwrap();
+    let reader_stream = ReaderStream::new(file);
+    let stream_body = StreamBody::new(reader_stream);
+    Ok(stream_body)
 }
 
 async fn blob_upload(Path(repository_name): Path<String>) -> impl IntoResponse {
@@ -178,6 +196,26 @@ async fn put_handler(
         .unwrap()
 }
 
+async fn get_manifest(
+    Path((repository_name, reference)): Path<(String, String)>,
+) -> impl IntoResponse {
+    let manifest_path = PathBuf::from(REGISTRY_PATH)
+        .join("manifests")
+        .join(&repository_name)
+        .join(&reference)
+        .with_extension("json");
+    let data = tokio::fs::read(&manifest_path).await.unwrap();
+
+    let manifest: serde_json::Map<String, serde_json::Value> =
+        serde_json::from_slice(&data).unwrap();
+    let media_type = manifest.get("mediaType").unwrap().as_str().unwrap();
+    Response::builder()
+        .status(StatusCode::OK)
+        .header("Content-Type", media_type)
+        .body(axum::body::Full::from(data))
+        .unwrap()
+}
+
 async fn put_manifest(
     Path((repository_name, reference)): Path<(String, String)>,
     mut stream: BodyStream,
@@ -189,8 +227,8 @@ async fn put_manifest(
     tokio::fs::create_dir_all(&repository_dir).await.unwrap();
 
     let mut hasher = Sha256::new();
+    let manifest_path = repository_dir.join(&reference).with_extension("json");
     {
-        let manifest_path = repository_dir.join(&reference).with_extension("json");
         let mut file = tokio::fs::OpenOptions::new()
             .write(true)
             .create(true)
@@ -204,6 +242,10 @@ async fn put_manifest(
         }
     }
     let digest = hasher.finalize();
+    // TODO: store content-adressable manifests separately
+    let content_digest = format!("sha256:{:x}", digest);
+    let digest_path = repository_dir.join(&content_digest).with_extension("json");
+    tokio::fs::copy(manifest_path, digest_path).await.unwrap();
 
     Response::builder()
         .status(StatusCode::CREATED)
@@ -211,7 +253,7 @@ async fn put_manifest(
             "Location",
             format!("/v2/{}/manifests/{}", repository_name, reference),
         )
-        .header("Docker-Content-Digest", format!("sha256:{:x}", digest))
+        .header("Docker-Content-Digest", content_digest)
         .body(Body::empty())
         .unwrap()
 }
