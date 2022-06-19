@@ -28,6 +28,7 @@ planetwars-matchrunner = { path = "../planetwars-matchrunner" }
 config = { version = "0.12", features = ["toml"] }
 thiserror = "1.0.31"
 sha2 = "0.10"
+tokio-util = { version="0.7.3", features=["io"] }
 
 # TODO: remove me
 shlex = "1.1"
