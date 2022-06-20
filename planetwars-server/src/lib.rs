@@ -24,7 +24,7 @@ use axum::{
     extract::{Extension, FromRequest, RequestParts},
     http::StatusCode,
     routing::{get, post},
-    AddExtensionLayer, Router,
+    Router,
 };
 
 // TODO: make these configurable
@@ -105,12 +105,16 @@ pub fn get_config() -> Result<Configuration, ConfigError> {
         .try_deserialize()
 }
 
-async fn run_registry(_db_pool: DbPool) {
+async fn run_registry(db_pool: DbPool) {
     // TODO: put in config
     let addr = SocketAddr::from(([127, 0, 0, 1], 9001));
 
     axum::Server::bind(&addr)
-        .serve(registry_service().into_make_service())
+        .serve(
+            registry_service()
+                .layer(Extension(db_pool))
+                .into_make_service(),
+        )
         .await
         .unwrap();
 }
@@ -124,7 +128,7 @@ pub async fn run_app() {
 
     let api_service = Router::new()
         .nest("/api", api())
-        .layer(AddExtensionLayer::new(db_pool))
+        .layer(Extension(db_pool))
         .into_make_service();
 
     // TODO: put in config

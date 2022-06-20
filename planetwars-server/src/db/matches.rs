@@ -160,14 +160,17 @@ pub fn find_match_base(id: i32, conn: &PgConnection) -> QueryResult<MatchBase> {
 }
 
 pub enum MatchResult {
-    Finished { winner: Option<i32> }
+    Finished { winner: Option<i32> },
 }
 
 pub fn save_match_result(id: i32, result: MatchResult, conn: &PgConnection) -> QueryResult<()> {
     let MatchResult::Finished { winner } = result;
 
     diesel::update(matches::table.find(id))
-        .set((matches::winner.eq(winner), matches::state.eq(MatchState::Finished)))
+        .set((
+            matches::winner.eq(winner),
+            matches::state.eq(MatchState::Finished),
+        ))
         .execute(conn)?;
     Ok(())
 }

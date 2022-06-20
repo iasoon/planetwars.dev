@@ -5,7 +5,7 @@ use axum::extract::{FromRequest, RequestParts, TypedHeader};
 use axum::headers::authorization::Bearer;
 use axum::headers::Authorization;
 use axum::http::StatusCode;
-use axum::response::{Headers, IntoResponse, Response};
+use axum::response::{IntoResponse, Response};
 use axum::{async_trait, Json};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -163,9 +163,9 @@ pub async fn login(conn: DatabaseConnection, params: Json<LoginParams>) -> Respo
         Some(user) => {
             let session = sessions::create_session(&user, &conn);
             let user_data: UserData = user.into();
-            let headers = Headers(vec![("Token", &session.token)]);
+            let headers = [("Token", &session.token)];
 
-            (headers, Json(user_data)).into_response()
+            (StatusCode::OK, headers, Json(user_data)).into_response()
         }
     }
 }

@@ -9,7 +9,7 @@ edition = "2021"
 futures = "0.3"
 tokio = { version = "1.15", features = ["full"] }
 hyper = "0.14"
-axum = { version = "0.4", features = ["json", "headers", "multipart"] }
+axum = { version = "0.5", features = ["json", "headers", "multipart"] }
 diesel = { version = "1.4.4", features = ["postgres", "chrono"] }
 diesel-derive-enum = { version = "1.1", features = ["postgres"] }
 bb8 = "0.7"
