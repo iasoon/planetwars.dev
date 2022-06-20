@@ -1,4 +1,4 @@
-use axum::body::{Body, Bytes, StreamBody};
+use axum::body::{Body, StreamBody};
 use axum::extract::{BodyStream, FromRequest, Path, Query, RequestParts, TypedHeader};
 use axum::handler::Handler;
 use axum::headers::authorization::Basic;
@@ -14,8 +14,12 @@ use tokio::io::AsyncWriteExt;
 use tokio_util::io::ReaderStream;
 
 use crate::util::gen_alphanumeric;
+use crate::DatabaseConnection;
 
-const REGISTRY_PATH: &'static str = "./data/registry";
+use crate::db::users::{authenticate_user, Credentials, User};
+
+const REGISTRY_PATH: &str = "./data/registry";
+
 pub fn registry_service() -> Router {
     Router::new()
         // The docker API requires this trailing slash
@@ -49,34 +53,61 @@ async fn fallback(request: axum::http::Request<Body>) -> impl IntoResponse {
 
 type AuthorizationHeader = TypedHeader<Authorization<Basic>>;
 
-struct RegistryAuth;
+enum RegistryAuth {
+    User(User),
+}
+
+enum RegistryAuthError {
+    NoAuthHeader,
+    InvalidCredentials,
+}
+
+impl IntoResponse for RegistryAuthError {
+    fn into_response(self) -> Response {
+        // TODO: create enum for registry errors
+        let err = RegistryErrors {
+            errors: vec![RegistryError {
+                code: "UNAUTHORIZED".to_string(),
+                message: "please log in".to_string(),
+                detail: serde_json::Value::Null,
+            }],
+        };
+
+        (
+            StatusCode::UNAUTHORIZED,
+            [
+                ("Docker-Distribution-API-Version", "registry/2.0"),
+                ("WWW-Authenticate", "Basic"),
+            ],
+            serde_json::to_string(&err).unwrap(),
+        )
+            .into_response()
+    }
+}
 
 #[async_trait]
 impl<B> FromRequest<B> for RegistryAuth
 where
     B: Send,
 {
-    type Rejection = Response<axum::body::Full<Bytes>>;
+    type Rejection = RegistryAuthError;
 
     async fn from_request(req: &mut RequestParts<B>) -> Result<Self, Self::Rejection> {
-        let TypedHeader(Authorization(_basic)) =
-            AuthorizationHeader::from_request(req).await.map_err(|_| {
-                let err = RegistryErrors {
-                    errors: vec![RegistryError {
-                        code: "UNAUTHORIZED".to_string(),
-                        message: "please log in".to_string(),
-                        detail: serde_json::Value::Null,
-                    }],
-                };
-                Response::builder()
-                    .status(StatusCode::UNAUTHORIZED)
-                    .header("Docker-Distribution-API-Version", "registry/2.0")
-                    .header("WWW-Authenticate", "Basic")
-                    .body(axum::body::Full::from(serde_json::to_vec(&err).unwrap()))
-                    .unwrap()
-            })?;
+        let db_conn = DatabaseConnection::from_request(req).await.unwrap();
 
-        Ok(RegistryAuth)
+        let TypedHeader(Authorization(basic)) = AuthorizationHeader::from_request(req)
+            .await
+            .map_err(|_| RegistryAuthError::NoAuthHeader)?;
+
+        // TODO: Into<Credentials> would be nice
+        let credentials = Credentials {
+            username: basic.username(),
+            password: basic.password(),
+        };
+        let user = authenticate_user(&credentials, &db_conn)
+            .ok_or(RegistryAuthError::InvalidCredentials)?;
+
+        Ok(RegistryAuth::User(user))
     }
 }
 
@@ -102,6 +133,7 @@ pub struct RegistryError {
 }
 
 async fn check_blob_exists(
+    _auth: RegistryAuth,
     Path((_repository_name, raw_digest)): Path<(String, String)>,
 ) -> impl IntoResponse {
     let digest = raw_digest.strip_prefix("sha256:").unwrap();
@@ -114,6 +146,7 @@ async fn check_blob_exists(
 }
 
 async fn get_blob(
+    _auth: RegistryAuth,
     Path((_repository_name, raw_digest)): Path<(String, String)>,
 ) -> impl IntoResponse {
     let digest = raw_digest.strip_prefix("sha256:").unwrap();
@@ -127,7 +160,10 @@ async fn get_blob(
     Ok(stream_body)
 }
 
-async fn create_upload(Path(repository_name): Path<String>) -> impl IntoResponse {
+async fn create_upload(
+    _auth: RegistryAuth,
+    Path(repository_name): Path<String>,
+) -> impl IntoResponse {
     let uuid = gen_alphanumeric(16);
     tokio::fs::File::create(PathBuf::from(REGISTRY_PATH).join("uploads").join(&uuid))
         .await
@@ -148,6 +184,7 @@ async fn create_upload(Path(repository_name): Path<String>) -> impl IntoResponse
 use futures::StreamExt;
 
 async fn patch_upload(
+    _auth: RegistryAuth,
     Path((repository_name, uuid)): Path<(String, String)>,
     mut stream: BodyStream,
 ) -> impl IntoResponse {
@@ -189,6 +226,7 @@ struct UploadParams {
 }
 
 async fn put_upload(
+    _auth: RegistryAuth,
     Path((repository_name, uuid)): Path<(String, String)>,
     Query(params): Query<UploadParams>,
     mut stream: BodyStream,
@@ -227,6 +265,7 @@ async fn put_upload(
 }
 
 async fn get_manifest(
+    _auth: RegistryAuth,
     Path((repository_name, reference)): Path<(String, String)>,
 ) -> impl IntoResponse {
     let manifest_path = PathBuf::from(REGISTRY_PATH)
@@ -247,6 +286,7 @@ async fn get_manifest(
 }
 
 async fn put_manifest(
+    _auth: RegistryAuth,
     Path((repository_name, reference)): Path<(String, String)>,
     mut stream: BodyStream,
 ) -> impl IntoResponse {
