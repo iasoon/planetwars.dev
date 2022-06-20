@@ -25,16 +25,19 @@ pub fn registry_service() -> Router {
 
 fn registry_api_v2() -> Router {
     Router::new()
-        .route("/", get(root_handler))
-        .route("/:name/blobs/:digest", head(blob_check).get(get_blob))
-        .route("/:name/blobs/uploads/", post(blob_upload))
-        .route(
-            "/:name/blobs/uploads/:uuid",
-            put(put_handler).patch(handle_upload),
-        )
+        .route("/", get(get_root))
         .route(
             "/:name/manifests/:reference",
             get(get_manifest).put(put_manifest),
+        )
+        .route(
+            "/:name/blobs/:digest",
+            head(check_blob_exists).get(get_blob),
+        )
+        .route("/:name/blobs/uploads/", post(create_upload))
+        .route(
+            "/:name/blobs/uploads/:uuid",
+            put(put_upload).patch(patch_upload),
         )
 }
 
@@ -77,7 +80,7 @@ where
     }
 }
 
-async fn root_handler(_auth: RegistryAuth) -> impl IntoResponse {
+async fn get_root(_auth: RegistryAuth) -> impl IntoResponse {
     // root should return 200 OK to confirm api compliance
     Response::builder()
         .status(StatusCode::OK)
@@ -98,7 +101,7 @@ pub struct RegistryError {
     detail: serde_json::Value,
 }
 
-async fn blob_check(
+async fn check_blob_exists(
     Path((_repository_name, raw_digest)): Path<(String, String)>,
 ) -> impl IntoResponse {
     let digest = raw_digest.strip_prefix("sha256:").unwrap();
@@ -124,7 +127,7 @@ async fn get_blob(
     Ok(stream_body)
 }
 
-async fn blob_upload(Path(repository_name): Path<String>) -> impl IntoResponse {
+async fn create_upload(Path(repository_name): Path<String>) -> impl IntoResponse {
     let uuid = gen_alphanumeric(16);
     tokio::fs::File::create(PathBuf::from(REGISTRY_PATH).join("uploads").join(&uuid))
         .await
@@ -144,7 +147,7 @@ async fn blob_upload(Path(repository_name): Path<String>) -> impl IntoResponse {
 
 use futures::StreamExt;
 
-async fn handle_upload(
+async fn patch_upload(
     Path((repository_name, uuid)): Path<(String, String)>,
     mut stream: BodyStream,
 ) -> impl IntoResponse {
@@ -185,7 +188,7 @@ struct UploadParams {
     digest: String,
 }
 
-async fn put_handler(
+async fn put_upload(
     Path((repository_name, uuid)): Path<(String, String)>,
     Query(params): Query<UploadParams>,
     mut stream: BodyStream,
