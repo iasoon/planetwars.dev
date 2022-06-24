@@ -360,7 +360,7 @@ fn check_access(
         .expect("could not run query");
 
     match res {
-        None => Ok(()), // name has not been claimed yet (TODO: verify its validity)
+        None => Err(StatusCode::FORBIDDEN),
         Some(existing_bot) => {
             let RegistryAuth::User(user) = auth;
             if existing_bot.owner_id == Some(user.id) {
