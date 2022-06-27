@@ -52,10 +52,15 @@ async fn fallback(request: axum::http::Request<Body>) -> impl IntoResponse {
     StatusCode::NOT_FOUND
 }
 
+const ADMIN_USERNAME: &str = "admin";
+// TODO: put this in some configuration
+const ADMIN_PASSWORD: &str = "supersecretpassword";
+
 type AuthorizationHeader = TypedHeader<Authorization<Basic>>;
 
 enum RegistryAuth {
     User(User),
+    Admin,
 }
 
 enum RegistryAuthError {
@@ -94,8 +99,6 @@ where
     type Rejection = RegistryAuthError;
 
     async fn from_request(req: &mut RequestParts<B>) -> Result<Self, Self::Rejection> {
-        let db_conn = DatabaseConnection::from_request(req).await.unwrap();
-
         let TypedHeader(Authorization(basic)) = AuthorizationHeader::from_request(req)
             .await
             .map_err(|_| RegistryAuthError::NoAuthHeader)?;
@@ -105,10 +108,20 @@ where
             username: basic.username(),
             password: basic.password(),
         };
-        let user = authenticate_user(&credentials, &db_conn)
-            .ok_or(RegistryAuthError::InvalidCredentials)?;
 
-        Ok(RegistryAuth::User(user))
+        if credentials.username == ADMIN_USERNAME {
+            if credentials.password == ADMIN_PASSWORD {
+                Ok(RegistryAuth::Admin)
+            } else {
+                Err(RegistryAuthError::InvalidCredentials)
+            }
+        } else {
+            let db_conn = DatabaseConnection::from_request(req).await.unwrap();
+            let user = authenticate_user(&credentials, &db_conn)
+                .ok_or(RegistryAuthError::InvalidCredentials)?;
+
+            Ok(RegistryAuth::User(user))
+        }
     }
 }
 
@@ -348,6 +361,8 @@ async fn put_manifest(
         .unwrap())
 }
 
+/// Ensure that the accessed repository exists
+/// and the user is allowed to access ti
 fn check_access(
     repository_name: &str,
     auth: &RegistryAuth,
@@ -355,15 +370,17 @@ fn check_access(
 ) -> Result<(), StatusCode> {
     use diesel::OptionalExtension;
 
-    let res = db::bots::find_bot_by_name(repository_name, db_conn)
+    // TODO: it would be nice to provide the found repository
+    // to the route handlers
+    let bot = db::bots::find_bot_by_name(repository_name, db_conn)
         .optional()
-        .expect("could not run query");
+        .expect("could not run query")
+        .ok_or(StatusCode::NOT_FOUND)?;
 
-    match res {
-        None => Err(StatusCode::FORBIDDEN),
-        Some(existing_bot) => {
-            let RegistryAuth::User(user) = auth;
-            if existing_bot.owner_id == Some(user.id) {
+    match &auth {
+        RegistryAuth::Admin => Ok(()),
+        RegistryAuth::User(user) => {
+            if bot.owner_id == Some(user.id) {
                 Ok(())
             } else {
                 Err(StatusCode::FORBIDDEN)
