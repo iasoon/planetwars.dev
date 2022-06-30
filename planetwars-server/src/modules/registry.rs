@@ -227,8 +227,8 @@ async fn patch_upload(
         .await
         .unwrap();
     while let Some(Ok(chunk)) = stream.next().await {
-        let n_bytes = file.write(&chunk).await.unwrap();
-        len += n_bytes;
+        file.write_all(&chunk).await.unwrap();
+        len += chunk.len();
     }
 
     Ok(Response::builder()
@@ -270,9 +270,10 @@ async fn put_upload(
         .unwrap();
 
     while let Some(Ok(chunk)) = stream.next().await {
-        let n_bytes = file.write(&chunk).await.unwrap();
-        _len += n_bytes;
+        file.write_all(&chunk).await.unwrap();
+        _len += chunk.len();
     }
+
     let digest = params.digest.strip_prefix("sha256:").unwrap();
     // TODO: check the digest
     let target_path = PathBuf::from(REGISTRY_PATH).join("sha256").join(&digest);
