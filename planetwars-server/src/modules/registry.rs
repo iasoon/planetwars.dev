@@ -125,6 +125,15 @@ where
     }
 }
 
+// Since async file io just calls spawn_blocking internally, it does not really make sense
+// to make this an async function
+fn file_sha256_digest(path: &std::path::Path) -> std::io::Result<String> {
+    let mut file = std::fs::File::open(path)?;
+    let mut hasher = Sha256::new();
+    let _n = std::io::copy(&mut file, &mut hasher)?;
+    Ok(format!("{:x}", hasher.finalize()))
+}
+
 async fn get_root(_auth: RegistryAuth) -> impl IntoResponse {
     // root should return 200 OK to confirm api compliance
     Response::builder()
@@ -273,9 +282,15 @@ async fn put_upload(
         file.write_all(&chunk).await.unwrap();
         _len += chunk.len();
     }
+    file.flush().await.unwrap();
 
-    let digest = params.digest.strip_prefix("sha256:").unwrap();
-    // TODO: check the digest
+    let expected_digest = params.digest.strip_prefix("sha256:").unwrap();
+    let digest = file_sha256_digest(&upload_path).unwrap();
+    if digest != expected_digest {
+        // TODO: return a docker error body
+        return Err(StatusCode::BAD_REQUEST);
+    }
+
     let target_path = PathBuf::from(REGISTRY_PATH).join("sha256").join(&digest);
     tokio::fs::rename(&upload_path, &target_path).await.unwrap();
 
@@ -286,8 +301,9 @@ async fn put_upload(
             format!("/v2/{}/blobs/{}", repository_name, digest),
         )
         .header("Docker-Upload-UUID", uuid)
-        // .header("Range", format!("0-{}", len))
-        .header("Docker-Content-Digest", digest)
+        // TODO: set content-range
+        // .header("Content-Range", format!("0-{}", len))
+        .header("Docker-Content-Digest", params.digest)
         .body(Body::empty())
         .unwrap())
 }
@@ -342,7 +358,7 @@ async fn put_manifest(
             .unwrap();
         while let Some(Ok(chunk)) = stream.next().await {
             hasher.update(&chunk);
-            file.write(&chunk).await.unwrap();
+            file.write_all(&chunk).await.unwrap();
         }
     }
     let digest = hasher.finalize();
