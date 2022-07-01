@@ -134,6 +134,13 @@ fn file_sha256_digest(path: &std::path::Path) -> std::io::Result<String> {
     Ok(format!("{:x}", hasher.finalize()))
 }
 
+/// Get the index of the last byte in a file
+async fn last_byte_pos(file: &tokio::fs::File) -> std::io::Result<u64> {
+    let n_bytes = file.metadata().await?.len();
+    let pos = if n_bytes == 0 { 0 } else { n_bytes - 1 };
+    Ok(pos)
+}
+
 async fn get_root(_auth: RegistryAuth) -> impl IntoResponse {
     // root should return 200 OK to confirm api compliance
     Response::builder()
@@ -165,7 +172,8 @@ async fn check_blob_exists(
     let digest = raw_digest.strip_prefix("sha256:").unwrap();
     let blob_path = PathBuf::from(REGISTRY_PATH).join("sha256").join(&digest);
     if blob_path.exists() {
-        Ok(StatusCode::OK)
+        let metadata = std::fs::metadata(&blob_path).unwrap();
+        Ok((StatusCode::OK, [("Content-Length", metadata.len())]))
     } else {
         Err(StatusCode::NOT_FOUND)
     }
@@ -221,11 +229,7 @@ async fn patch_upload(
 ) -> Result<impl IntoResponse, StatusCode> {
     check_access(&repository_name, &auth, &db_conn)?;
 
-    // let content_length = headers.get("Content-Length").unwrap();
-    // let content_range = headers.get("Content-Range").unwrap();
-    // let content_type = headers.get("Content-Type").unwrap();
-    // assert!(content_type == "application/octet-stream");
-    let mut len = 0;
+    // TODO: support content range header in request
     let upload_path = PathBuf::from(REGISTRY_PATH).join("uploads").join(&uuid);
     let mut file = tokio::fs::OpenOptions::new()
         .read(false)
@@ -237,8 +241,9 @@ async fn patch_upload(
         .unwrap();
     while let Some(Ok(chunk)) = stream.next().await {
         file.write_all(&chunk).await.unwrap();
-        len += chunk.len();
     }
+
+    let last_byte = last_byte_pos(&file).await.unwrap();
 
     Ok(Response::builder()
         .status(StatusCode::ACCEPTED)
@@ -247,7 +252,8 @@ async fn patch_upload(
             format!("/v2/{}/blobs/uploads/{}", repository_name, uuid),
         )
         .header("Docker-Upload-UUID", uuid)
-        .header("Range", format!("0-{}", len))
+        // range indicating current progress of the upload
+        .header("Range", format!("0-{}", last_byte))
         .body(Body::empty())
         .unwrap())
 }
@@ -267,7 +273,6 @@ async fn put_upload(
 ) -> Result<impl IntoResponse, StatusCode> {
     check_access(&repository_name, &auth, &db_conn)?;
 
-    let mut _len = 0;
     let upload_path = PathBuf::from(REGISTRY_PATH).join("uploads").join(&uuid);
     let mut file = tokio::fs::OpenOptions::new()
         .read(false)
@@ -278,11 +283,12 @@ async fn put_upload(
         .await
         .unwrap();
 
+    let range_begin = last_byte_pos(&file).await.unwrap();
     while let Some(Ok(chunk)) = stream.next().await {
         file.write_all(&chunk).await.unwrap();
-        _len += chunk.len();
     }
     file.flush().await.unwrap();
+    let range_end = last_byte_pos(&file).await.unwrap();
 
     let expected_digest = params.digest.strip_prefix("sha256:").unwrap();
     let digest = file_sha256_digest(&upload_path).unwrap();
@@ -301,8 +307,8 @@ async fn put_upload(
             format!("/v2/{}/blobs/{}", repository_name, digest),
         )
         .header("Docker-Upload-UUID", uuid)
-        // TODO: set content-range
-        // .header("Content-Range", format!("0-{}", len))
+        // content range for bytes that were in the body of this request
+        .header("Content-Range", format!("{}-{}", range_begin, range_end))
         .header("Docker-Content-Digest", params.digest)
         .body(Body::empty())
         .unwrap())
