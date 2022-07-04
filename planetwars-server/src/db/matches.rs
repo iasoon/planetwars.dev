@@ -25,7 +25,7 @@ pub struct NewMatchPlayer {
     /// player id within the match
     pub player_id: i32,
     /// id of the bot behind this player
-    pub code_bundle_id: i32,
+    pub code_bundle_id: Option<i32>,
 }
 
 #[derive(Queryable, Identifiable)]
@@ -44,11 +44,11 @@ pub struct MatchBase {
 pub struct MatchPlayer {
     pub match_id: i32,
     pub player_id: i32,
-    pub code_bundle_id: i32,
+    pub code_bundle_id: Option<i32>,
 }
 
 pub struct MatchPlayerData {
-    pub code_bundle_id: i32,
+    pub code_bundle_id: Option<i32>,
 }
 
 pub fn create_match(
@@ -92,7 +92,10 @@ pub fn list_matches(conn: &PgConnection) -> QueryResult<Vec<FullMatchData>> {
         let matches = matches::table.get_results::<MatchBase>(conn)?;
 
         let match_players = MatchPlayer::belonging_to(&matches)
-            .inner_join(code_bundles::table)
+            .left_join(
+                code_bundles::table
+                    .on(match_players::code_bundle_id.eq(code_bundles::id.nullable())),
+            )
             .left_join(bots::table.on(code_bundles::bot_id.eq(bots::id.nullable())))
             .load::<FullMatchPlayerData>(conn)?
             .grouped_by(&matches);
@@ -120,7 +123,7 @@ pub struct FullMatchData {
 // #[primary_key(base.match_id, base::player_id)]
 pub struct FullMatchPlayerData {
     pub base: MatchPlayer,
-    pub code_bundle: CodeBundle,
+    pub code_bundle: Option<CodeBundle>,
     pub bot: Option<Bot>,
 }
 
@@ -142,7 +145,10 @@ pub fn find_match(id: i32, conn: &PgConnection) -> QueryResult<FullMatchData> {
         let match_base = matches::table.find(id).get_result::<MatchBase>(conn)?;
 
         let match_players = MatchPlayer::belonging_to(&match_base)
-            .inner_join(code_bundles::table)
+            .left_join(
+                code_bundles::table
+                    .on(match_players::code_bundle_id.eq(code_bundles::id.nullable())),
+            )
             .left_join(bots::table.on(code_bundles::bot_id.eq(bots::id.nullable())))
             .load::<FullMatchPlayerData>(conn)?;
 

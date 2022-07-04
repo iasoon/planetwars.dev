@@ -16,32 +16,54 @@ use crate::{
 
 const PYTHON_IMAGE: &str = "python:3.10-slim-buster";
 
-pub struct RunMatch<'a> {
+pub struct RunMatch {
     log_file_name: String,
-    player_code_bundles: Vec<&'a db::bots::CodeBundle>,
+    players: Vec<MatchPlayer>,
     match_id: Option<i32>,
 }
 
-impl<'a> RunMatch<'a> {
-    pub fn from_players(player_code_bundles: Vec<&'a db::bots::CodeBundle>) -> Self {
+pub struct MatchPlayer {
+    bot_spec: Box<dyn BotSpec>,
+    // meta that will be passed on to database
+    code_bundle_id: Option<i32>,
+}
+
+impl MatchPlayer {
+    pub fn from_code_bundle(code_bundle: &db::bots::CodeBundle) -> Self {
+        MatchPlayer {
+            bot_spec: code_bundle_to_botspec(code_bundle),
+            code_bundle_id: Some(code_bundle.id),
+        }
+    }
+
+    pub fn from_bot_spec(bot_spec: Box<dyn BotSpec>) -> Self {
+        MatchPlayer {
+            bot_spec,
+            code_bundle_id: None,
+        }
+    }
+}
+
+impl RunMatch {
+    pub fn from_players(players: Vec<MatchPlayer>) -> Self {
         let log_file_name = format!("{}.log", gen_alphanumeric(16));
         RunMatch {
             log_file_name,
-            player_code_bundles,
+            players,
             match_id: None,
         }
     }
 
-    pub fn runner_config(&self) -> runner::MatchConfig {
+    pub fn into_runner_config(self) -> runner::MatchConfig {
         runner::MatchConfig {
             map_path: PathBuf::from(MAPS_DIR).join("hex.json"),
             map_name: "hex".to_string(),
             log_path: PathBuf::from(MATCHES_DIR).join(&self.log_file_name),
             players: self
-                .player_code_bundles
-                .iter()
-                .map(|b| runner::MatchPlayer {
-                    bot_spec: code_bundle_to_botspec(b),
+                .players
+                .into_iter()
+                .map(|player| runner::MatchPlayer {
+                    bot_spec: player.bot_spec,
                 })
                 .collect(),
         }
@@ -56,10 +78,10 @@ impl<'a> RunMatch<'a> {
             log_path: &self.log_file_name,
         };
         let new_match_players = self
-            .player_code_bundles
+            .players
             .iter()
-            .map(|b| db::matches::MatchPlayerData {
-                code_bundle_id: b.id,
+            .map(|p| db::matches::MatchPlayerData {
+                code_bundle_id: p.code_bundle_id,
             })
             .collect::<Vec<_>>();
 
@@ -70,7 +92,7 @@ impl<'a> RunMatch<'a> {
 
     pub fn spawn(self, pool: ConnectionPool) -> JoinHandle<MatchOutcome> {
         let match_id = self.match_id.expect("match must be saved before running");
-        let runner_config = self.runner_config();
+        let runner_config = self.into_runner_config();
         tokio::spawn(run_match_task(pool, runner_config, match_id))
     }
 }

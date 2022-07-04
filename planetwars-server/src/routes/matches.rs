@@ -61,7 +61,7 @@ pub async fn play_match(
         });
 
         bot_ids.push(matches::MatchPlayerData {
-            code_bundle_id: code_bundle.id,
+            code_bundle_id: Some(code_bundle.id),
         });
     }
 
@@ -107,7 +107,7 @@ pub struct ApiMatch {
 
 #[derive(Serialize, Deserialize)]
 pub struct ApiMatchPlayer {
-    code_bundle_id: i32,
+    code_bundle_id: Option<i32>,
     bot_id: Option<i32>,
     bot_name: Option<String>,
 }
@@ -127,7 +127,7 @@ pub fn match_data_to_api(data: matches::FullMatchData) -> ApiMatch {
             .match_players
             .iter()
             .map(|_p| ApiMatchPlayer {
-                code_bundle_id: _p.code_bundle.id,
+                code_bundle_id: _p.code_bundle.as_ref().map(|cb| cb.id),
                 bot_id: _p.bot.as_ref().map(|b| b.id),
                 bot_name: _p.bot.as_ref().map(|b| b.name.clone()),
             })

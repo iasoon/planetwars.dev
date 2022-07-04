@@ -1,7 +1,7 @@
 use crate::db;
 use crate::db::matches::{FullMatchData, FullMatchPlayerData};
 use crate::modules::bots::save_code_bundle;
-use crate::modules::matches::RunMatch;
+use crate::modules::matches::{MatchPlayer, RunMatch};
 use crate::ConnectionPool;
 use axum::extract::Extension;
 use axum::Json;
@@ -46,7 +46,10 @@ pub async fn submit_bot(
         // TODO: can we recover from this?
         .expect("could not save bot code");
 
-    let mut run_match = RunMatch::from_players(vec![&player_code_bundle, &opponent_code_bundle]);
+    let mut run_match = RunMatch::from_players(vec![
+        MatchPlayer::from_code_bundle(&player_code_bundle),
+        MatchPlayer::from_code_bundle(&opponent_code_bundle),
+    ]);
     let match_data = run_match
         .store_in_database(&conn)
         .expect("failed to save match");
@@ -58,12 +61,12 @@ pub async fn submit_bot(
         match_players: vec![
             FullMatchPlayerData {
                 base: match_data.match_players[0].clone(),
-                code_bundle: player_code_bundle,
+                code_bundle: Some(player_code_bundle),
                 bot: None,
             },
             FullMatchPlayerData {
                 base: match_data.match_players[1].clone(),
-                code_bundle: opponent_code_bundle,
+                code_bundle: Some(opponent_code_bundle),
                 bot: Some(opponent),
             },
         ],

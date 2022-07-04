@@ -8,6 +8,7 @@ edition = "2021"
 [dependencies]
 futures = "0.3"
 tokio = { version = "1.15", features = ["full"] }
+tokio-stream = "0.1.9"
 hyper = "0.14"
 axum = { version = "0.5", features = ["json", "headers", "multipart"] }
 diesel = { version = "1.4.4", features = ["postgres", "chrono"] }
@@ -29,9 +30,14 @@ config = { version = "0.12", features = ["toml"] }
 thiserror = "1.0.31"
 sha2 = "0.10"
 tokio-util = { version="0.7.3", features=["io"] }
+prost = "0.10"
+tonic = "0.7.2"
 
 # TODO: remove me
 shlex = "1.1"
+
+[build-dependencies]
+tonic-build = "0.7.2"
 
 [dev-dependencies]
 parking_lot = "0.11"

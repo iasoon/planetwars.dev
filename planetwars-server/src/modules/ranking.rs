@@ -1,8 +1,8 @@
 use crate::{db::bots::Bot, DbPool};
 
 use crate::db;
-use crate::modules::matches::RunMatch;
 use diesel::{PgConnection, QueryResult};
+use crate::modules::matches::{MatchPlayer, RunMatch};
 use rand::seq::SliceRandom;
 use std::collections::HashMap;
 use std::mem;
@@ -44,9 +44,12 @@ async fn play_ranking_match(selected_bots: Vec<Bot>, db_pool: DbPool) {
         code_bundles.push(code_bundle);
     }
 
-    let code_bundle_refs = code_bundles.iter().collect::<Vec<_>>();
+    let players = code_bundles
+        .iter()
+        .map(MatchPlayer::from_code_bundle)
+        .collect::<Vec<_>>();
 
-    let mut run_match = RunMatch::from_players(code_bundle_refs);
+    let mut run_match = RunMatch::from_players(players);
     run_match
         .store_in_database(&db_conn)
         .expect("could not store match in db");
