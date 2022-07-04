@@ -85,7 +85,7 @@ pub fn api() -> Router {
         )
         .route(
             "/matches",
-            get(routes::matches::list_matches).post(routes::matches::play_match),
+            get(routes::matches::list_matches),
         )
         .route("/matches/:match_id", get(routes::matches::get_match_data))
         .route(
