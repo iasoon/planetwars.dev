@@ -1,6 +1,7 @@
+// TODO: this module is functional, but it needs a good refactor for proper error handling.
+
 use axum::body::{Body, StreamBody};
 use axum::extract::{BodyStream, FromRequest, Path, Query, RequestParts, TypedHeader};
-use axum::handler::Handler;
 use axum::headers::authorization::Basic;
 use axum::headers::Authorization;
 use axum::response::{IntoResponse, Response};
@@ -19,13 +20,13 @@ use crate::{db, DatabaseConnection};
 
 use crate::db::users::{authenticate_user, Credentials, User};
 
+// TODO: put this in a config file
 const REGISTRY_PATH: &str = "./data/registry";
 
 pub fn registry_service() -> Router {
     Router::new()
         // The docker API requires this trailing slash
         .nest("/v2/", registry_api_v2())
-        .fallback(fallback.into_service())
 }
 
 fn registry_api_v2() -> Router {
@@ -44,12 +45,6 @@ fn registry_api_v2() -> Router {
             "/:name/blobs/uploads/:uuid",
             put(put_upload).patch(patch_upload),
         )
-}
-
-async fn fallback(request: axum::http::Request<Body>) -> impl IntoResponse {
-    // for debugging
-    println!("no route for {} {}", request.method(), request.uri());
-    StatusCode::NOT_FOUND
 }
 
 const ADMIN_USERNAME: &str = "admin";
