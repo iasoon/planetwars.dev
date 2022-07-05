@@ -5,10 +5,12 @@ table! {
     use diesel::sql_types::*;
     use crate::db_types::*;
 
-    bots (id) {
+    bot_versions (id) {
         id -> Int4,
-        owner_id -> Nullable<Int4>,
-        name -> Text,
+        bot_id -> Nullable<Int4>,
+        code_bundle_path -> Nullable<Text>,
+        created_at -> Timestamp,
+        container_digest -> Nullable<Text>,
     }
 }
 
@@ -16,11 +18,10 @@ table! {
     use diesel::sql_types::*;
     use crate::db_types::*;
 
-    code_bundles (id) {
+    bots (id) {
         id -> Int4,
-        bot_id -> Nullable<Int4>,
-        path -> Text,
-        created_at -> Timestamp,
+        owner_id -> Nullable<Int4>,
+        name -> Text,
     }
 }
 
@@ -81,16 +82,16 @@ table! {
     }
 }
 
+joinable!(bot_versions -> bots (bot_id));
 joinable!(bots -> users (owner_id));
-joinable!(code_bundles -> bots (bot_id));
-joinable!(match_players -> code_bundles (code_bundle_id));
+joinable!(match_players -> bot_versions (code_bundle_id));
 joinable!(match_players -> matches (match_id));
 joinable!(ratings -> bots (bot_id));
 joinable!(sessions -> users (user_id));
 
 allow_tables_to_appear_in_same_query!(
+    bot_versions,
     bots,
-    code_bundles,
     match_players,
     matches,
     ratings,

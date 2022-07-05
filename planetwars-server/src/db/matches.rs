@@ -6,7 +6,7 @@ use diesel::{
 };
 use diesel::{Connection, GroupedBy, PgConnection, QueryResult};
 
-use crate::schema::{bots, code_bundles, match_players, matches};
+use crate::schema::{bot_versions, bots, match_players, matches};
 
 use super::bots::{Bot, CodeBundle};
 
@@ -93,10 +93,10 @@ pub fn list_matches(conn: &PgConnection) -> QueryResult<Vec<FullMatchData>> {
 
         let match_players = MatchPlayer::belonging_to(&matches)
             .left_join(
-                code_bundles::table
-                    .on(match_players::code_bundle_id.eq(code_bundles::id.nullable())),
+                bot_versions::table
+                    .on(match_players::code_bundle_id.eq(bot_versions::id.nullable())),
             )
-            .left_join(bots::table.on(code_bundles::bot_id.eq(bots::id.nullable())))
+            .left_join(bots::table.on(bot_versions::bot_id.eq(bots::id.nullable())))
             .load::<FullMatchPlayerData>(conn)?
             .grouped_by(&matches);
 
@@ -146,10 +146,10 @@ pub fn find_match(id: i32, conn: &PgConnection) -> QueryResult<FullMatchData> {
 
         let match_players = MatchPlayer::belonging_to(&match_base)
             .left_join(
-                code_bundles::table
-                    .on(match_players::code_bundle_id.eq(code_bundles::id.nullable())),
+                bot_versions::table
+                    .on(match_players::code_bundle_id.eq(bot_versions::id.nullable())),
             )
-            .left_join(bots::table.on(code_bundles::bot_id.eq(bots::id.nullable())))
+            .left_join(bots::table.on(bot_versions::bot_id.eq(bots::id.nullable())))
             .load::<FullMatchPlayerData>(conn)?;
 
         let res = FullMatchData {

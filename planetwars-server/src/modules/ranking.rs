@@ -1,8 +1,8 @@
 use crate::{db::bots::Bot, DbPool};
 
 use crate::db;
-use diesel::{PgConnection, QueryResult};
 use crate::modules::matches::{MatchPlayer, RunMatch};
+use diesel::{PgConnection, QueryResult};
 use rand::seq::SliceRandom;
 use std::collections::HashMap;
 use std::mem;

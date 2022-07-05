@@ -83,10 +83,7 @@ pub fn api() -> Router {
             "/bots/:bot_id/upload",
             post(routes::bots::upload_code_multipart),
         )
-        .route(
-            "/matches",
-            get(routes::matches::list_matches),
-        )
+        .route("/matches", get(routes::matches::list_matches))
         .route("/matches/:match_id", get(routes::matches::get_match_data))
         .route(
             "/matches/:match_id/log",

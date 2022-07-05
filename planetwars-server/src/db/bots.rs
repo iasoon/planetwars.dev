@@ -1,7 +1,7 @@
 use diesel::prelude::*;
 use serde::{Deserialize, Serialize};
 
-use crate::schema::{bots, code_bundles};
+use crate::schema::{bot_versions, bots};
 use chrono;
 
 #[derive(Insertable)]
@@ -44,38 +44,39 @@ pub fn find_all_bots(conn: &PgConnection) -> QueryResult<Vec<Bot>> {
 }
 
 #[derive(Insertable)]
-#[table_name = "code_bundles"]
+#[table_name = "bot_versions"]
 pub struct NewCodeBundle<'a> {
     pub bot_id: Option<i32>,
-    pub path: &'a str,
+    pub code_bundle_path: &'a str,
 }
 
 #[derive(Queryable, Serialize, Deserialize, Debug)]
 pub struct CodeBundle {
     pub id: i32,
     pub bot_id: Option<i32>,
-    pub path: String,
+    pub code_bundle_path: Option<String>,
     pub created_at: chrono::NaiveDateTime,
+    pub container_digest: Option<String>,
 }
 
 pub fn create_code_bundle(
     new_code_bundle: &NewCodeBundle,
     conn: &PgConnection,
 ) -> QueryResult<CodeBundle> {
-    diesel::insert_into(code_bundles::table)
+    diesel::insert_into(bot_versions::table)
         .values(new_code_bundle)
         .get_result(conn)
 }
 
 pub fn find_bot_code_bundles(bot_id: i32, conn: &PgConnection) -> QueryResult<Vec<CodeBundle>> {
-    code_bundles::table
-        .filter(code_bundles::bot_id.eq(bot_id))
+    bot_versions::table
+        .filter(bot_versions::bot_id.eq(bot_id))
         .get_results(conn)
 }
 
 pub fn active_code_bundle(bot_id: i32, conn: &PgConnection) -> QueryResult<CodeBundle> {
-    code_bundles::table
-        .filter(code_bundles::bot_id.eq(bot_id))
-        .order(code_bundles::created_at.desc())
+    bot_versions::table
+        .filter(bot_versions::bot_id.eq(bot_id))
+        .order(bot_versions::created_at.desc())
         .first(conn)
 }

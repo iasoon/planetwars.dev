@@ -1,7 +1,7 @@
-use std::path::PathBuf;
 use axum::{extract::Path, Json};
 use hyper::StatusCode;
 use serde::{Deserialize, Serialize};
+use std::path::PathBuf;
 
 use crate::{
     db::matches::{self, MatchState},
@@ -45,7 +45,6 @@ pub fn match_data_to_api(data: matches::FullMatchData) -> ApiMatch {
             .collect(),
     }
 }
-
 
 pub async fn get_match_data(
     Path(match_id): Path<i32>,

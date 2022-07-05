@@ -98,7 +98,8 @@ impl RunMatch {
 }
 
 pub fn code_bundle_to_botspec(code_bundle: &db::bots::CodeBundle) -> Box<dyn BotSpec> {
-    let bundle_path = PathBuf::from(BOTS_DIR).join(&code_bundle.path);
+    // TODO: get rid of this unwrap
+    let bundle_path = PathBuf::from(BOTS_DIR).join(code_bundle.code_bundle_path.as_ref().unwrap());
 
     Box::new(DockerBotSpec {
         code_path: bundle_path,
@@ -126,5 +127,5 @@ async fn run_match_task(
 
     db::matches::save_match_result(match_id, result, &conn).expect("could not save match result");
 
-    return outcome;
+    outcome
 }

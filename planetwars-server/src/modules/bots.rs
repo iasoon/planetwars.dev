@@ -17,7 +17,7 @@ pub fn save_code_bundle(
 
     let new_code_bundle = db::bots::NewCodeBundle {
         bot_id,
-        path: &bundle_name,
+        code_bundle_path: &bundle_name,
     };
     db::bots::create_code_bundle(&new_code_bundle, conn)
 }

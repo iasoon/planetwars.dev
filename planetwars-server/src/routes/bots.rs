@@ -215,7 +215,7 @@ pub async fn upload_code_multipart(
 
     let bundle = bots::NewCodeBundle {
         bot_id: Some(bot.id),
-        path: &folder_name,
+        code_bundle_path: &folder_name,
     };
     let code_bundle =
         bots::create_code_bundle(&bundle, &conn).expect("Failed to create code bundle");
