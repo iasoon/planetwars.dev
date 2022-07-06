@@ -104,7 +104,7 @@ impl pb::bot_api_service_server::BotApiService for BotApiServer {
 
         let opponent = db::bots::find_bot_by_name(&match_request.opponent_name, &conn)
             .map_err(|_| Status::not_found("opponent not found"))?;
-        let opponent_code_bundle = db::bots::active_code_bundle(opponent.id, &conn)
+        let opponent_code_bundle = db::bots::active_bot_version(opponent.id, &conn)
             .map_err(|_| Status::not_found("opponent has no code"))?;
 
         let player_key = gen_alphanumeric(32);

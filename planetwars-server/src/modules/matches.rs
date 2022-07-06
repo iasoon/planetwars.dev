@@ -29,7 +29,7 @@ pub struct MatchPlayer {
 }
 
 impl MatchPlayer {
-    pub fn from_code_bundle(code_bundle: &db::bots::CodeBundle) -> Self {
+    pub fn from_code_bundle(code_bundle: &db::bots::BotVersion) -> Self {
         MatchPlayer {
             bot_spec: code_bundle_to_botspec(code_bundle),
             code_bundle_id: Some(code_bundle.id),
@@ -97,7 +97,7 @@ impl RunMatch {
     }
 }
 
-pub fn code_bundle_to_botspec(code_bundle: &db::bots::CodeBundle) -> Box<dyn BotSpec> {
+pub fn code_bundle_to_botspec(code_bundle: &db::bots::BotVersion) -> Box<dyn BotSpec> {
     // TODO: get rid of this unwrap
     let bundle_path = PathBuf::from(BOTS_DIR).join(code_bundle.code_bundle_path.as_ref().unwrap());
 

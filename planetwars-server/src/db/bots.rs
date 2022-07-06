@@ -51,7 +51,7 @@ pub struct NewCodeBundle<'a> {
 }
 
 #[derive(Queryable, Serialize, Deserialize, Debug)]
-pub struct CodeBundle {
+pub struct BotVersion {
     pub id: i32,
     pub bot_id: Option<i32>,
     pub code_bundle_path: Option<String>,
@@ -62,19 +62,19 @@ pub struct CodeBundle {
 pub fn create_code_bundle(
     new_code_bundle: &NewCodeBundle,
     conn: &PgConnection,
-) -> QueryResult<CodeBundle> {
+) -> QueryResult<BotVersion> {
     diesel::insert_into(bot_versions::table)
         .values(new_code_bundle)
         .get_result(conn)
 }
 
-pub fn find_bot_code_bundles(bot_id: i32, conn: &PgConnection) -> QueryResult<Vec<CodeBundle>> {
+pub fn find_bot_versions(bot_id: i32, conn: &PgConnection) -> QueryResult<Vec<BotVersion>> {
     bot_versions::table
         .filter(bot_versions::bot_id.eq(bot_id))
         .get_results(conn)
 }
 
-pub fn active_code_bundle(bot_id: i32, conn: &PgConnection) -> QueryResult<CodeBundle> {
+pub fn active_bot_version(bot_id: i32, conn: &PgConnection) -> QueryResult<BotVersion> {
     bot_versions::table
         .filter(bot_versions::bot_id.eq(bot_id))
         .order(bot_versions::created_at.desc())

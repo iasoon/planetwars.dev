@@ -8,7 +8,7 @@ pub fn save_code_bundle(
     bot_code: &str,
     bot_id: Option<i32>,
     conn: &PgConnection,
-) -> QueryResult<db::bots::CodeBundle> {
+) -> QueryResult<db::bots::BotVersion> {
     let bundle_name = gen_alphanumeric(16);
 
     let code_bundle_dir = PathBuf::from(BOTS_DIR).join(&bundle_name);

@@ -32,7 +32,7 @@ table! {
     match_players (match_id, player_id) {
         match_id -> Int4,
         player_id -> Int4,
-        code_bundle_id -> Nullable<Int4>,
+        bot_version_id -> Nullable<Int4>,
     }
 }
 
@@ -84,7 +84,7 @@ table! {
 
 joinable!(bot_versions -> bots (bot_id));
 joinable!(bots -> users (owner_id));
-joinable!(match_players -> bot_versions (code_bundle_id));
+joinable!(match_players -> bot_versions (bot_version_id));
 joinable!(match_players -> matches (match_id));
 joinable!(ratings -> bots (bot_id));
 joinable!(sessions -> users (user_id));

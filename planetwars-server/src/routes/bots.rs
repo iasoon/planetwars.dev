@@ -11,7 +11,7 @@ use std::io::Cursor;
 use std::path::PathBuf;
 use thiserror;
 
-use crate::db::bots::{self, CodeBundle};
+use crate::db::bots::{self, BotVersion};
 use crate::db::ratings::{self, RankedBot};
 use crate::db::users::User;
 use crate::modules::bots::save_code_bundle;
@@ -148,8 +148,8 @@ pub async fn get_bot(
     Path(bot_id): Path<i32>,
 ) -> Result<Json<JsonValue>, StatusCode> {
     let bot = bots::find_bot(bot_id, &conn).map_err(|_| StatusCode::NOT_FOUND)?;
-    let bundles = bots::find_bot_code_bundles(bot.id, &conn)
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let bundles =
+        bots::find_bot_versions(bot.id, &conn).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     Ok(Json(json!({
         "bot": bot,
         "bundles": bundles,
@@ -183,7 +183,7 @@ pub async fn upload_code_multipart(
     user: User,
     Path(bot_id): Path<i32>,
     mut multipart: Multipart,
-) -> Result<Json<CodeBundle>, StatusCode> {
+) -> Result<Json<BotVersion>, StatusCode> {
     let bots_dir = PathBuf::from(BOTS_DIR);
 
     let bot = bots::find_bot(bot_id, &conn).map_err(|_| StatusCode::NOT_FOUND)?;
