@@ -213,12 +213,13 @@ pub async fn upload_code_multipart(
         .extract(bots_dir.join(&folder_name))
         .map_err(|_| StatusCode::BAD_REQUEST)?;
 
-    let bundle = bots::NewCodeBundle {
+    let bot_version = bots::NewBotVersion {
         bot_id: Some(bot.id),
-        code_bundle_path: &folder_name,
+        code_bundle_path: Some(&folder_name),
+        container_digest: None,
     };
     let code_bundle =
-        bots::create_code_bundle(&bundle, &conn).expect("Failed to create code bundle");
+        bots::create_bot_version(&bot_version, &conn).expect("Failed to create code bundle");
 
     Ok(Json(code_bundle))
 }

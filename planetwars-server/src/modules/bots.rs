@@ -15,9 +15,10 @@ pub fn save_code_bundle(
     std::fs::create_dir(&code_bundle_dir).unwrap();
     std::fs::write(code_bundle_dir.join("bot.py"), bot_code).unwrap();
 
-    let new_code_bundle = db::bots::NewCodeBundle {
+    let new_code_bundle = db::bots::NewBotVersion {
         bot_id,
-        code_bundle_path: &bundle_name,
+        code_bundle_path: Some(&bundle_name),
+        container_digest: None,
     };
-    db::bots::create_code_bundle(&new_code_bundle, conn)
+    db::bots::create_bot_version(&new_code_bundle, conn)
 }

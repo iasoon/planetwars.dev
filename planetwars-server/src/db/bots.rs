@@ -45,9 +45,10 @@ pub fn find_all_bots(conn: &PgConnection) -> QueryResult<Vec<Bot>> {
 
 #[derive(Insertable)]
 #[table_name = "bot_versions"]
-pub struct NewCodeBundle<'a> {
+pub struct NewBotVersion<'a> {
     pub bot_id: Option<i32>,
-    pub code_bundle_path: &'a str,
+    pub code_bundle_path: Option<&'a str>,
+    pub container_digest: Option<&'a str>,
 }
 
 #[derive(Queryable, Serialize, Deserialize, Debug)]
@@ -59,12 +60,12 @@ pub struct BotVersion {
     pub container_digest: Option<String>,
 }
 
-pub fn create_code_bundle(
-    new_code_bundle: &NewCodeBundle,
+pub fn create_bot_version(
+    new_bot_version: &NewBotVersion,
     conn: &PgConnection,
 ) -> QueryResult<BotVersion> {
     diesel::insert_into(bot_versions::table)
-        .values(new_code_bundle)
+        .values(new_bot_version)
         .get_result(conn)
 }
 
