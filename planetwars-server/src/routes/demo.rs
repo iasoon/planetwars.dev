@@ -1,6 +1,6 @@
 use crate::db;
 use crate::db::matches::{FullMatchData, FullMatchPlayerData};
-use crate::modules::bots::save_code_bundle;
+use crate::modules::bots::save_code_string;
 use crate::modules::matches::{MatchPlayer, RunMatch};
 use crate::ConnectionPool;
 use axum::extract::Extension;
@@ -42,7 +42,7 @@ pub async fn submit_bot(
     let opponent_bot_version =
         db::bots::active_bot_version(opponent.id, &conn).map_err(|_| StatusCode::BAD_REQUEST)?;
 
-    let player_bot_version = save_code_bundle(&params.code, None, &conn)
+    let player_bot_version = save_code_string(&params.code, None, &conn)
         // TODO: can we recover from this?
         .expect("could not save bot code");
 

@@ -51,7 +51,7 @@ pub async fn seed_simplebot(pool: &ConnectionPool) {
         let simplebot_code =
             std::fs::read_to_string(SIMPLEBOT_PATH).expect("could not read simplebot code");
 
-        modules::bots::save_code_bundle(&simplebot_code, Some(simplebot.id), &conn)?;
+        modules::bots::save_code_string(&simplebot_code, Some(simplebot.id), &conn)?;
 
         println!("initialized simplebot");
 

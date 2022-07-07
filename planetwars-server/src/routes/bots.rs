@@ -14,7 +14,7 @@ use thiserror;
 use crate::db::bots::{self, BotVersion};
 use crate::db::ratings::{self, RankedBot};
 use crate::db::users::User;
-use crate::modules::bots::save_code_bundle;
+use crate::modules::bots::save_code_string;
 use crate::{DatabaseConnection, BOTS_DIR};
 use bots::Bot;
 
@@ -120,7 +120,7 @@ pub async fn save_bot(
         }
     };
     let _code_bundle =
-        save_code_bundle(&params.code, Some(bot.id), &conn).expect("failed to save code bundle");
+        save_code_string(&params.code, Some(bot.id), &conn).expect("failed to save code bundle");
     Ok(Json(bot))
 }
 

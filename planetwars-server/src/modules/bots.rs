@@ -4,7 +4,8 @@ use diesel::{PgConnection, QueryResult};
 
 use crate::{db, util::gen_alphanumeric, BOTS_DIR};
 
-pub fn save_code_bundle(
+/// Save a string containing bot code as a code bundle.
+pub fn save_code_string(
     bot_code: &str,
     bot_id: Option<i32>,
     conn: &PgConnection,
