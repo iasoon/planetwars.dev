@@ -15,6 +15,7 @@ use std::path::PathBuf;
 use tokio::io::AsyncWriteExt;
 use tokio_util::io::ReaderStream;
 
+use crate::db::bots::NewBotVersion;
 use crate::util::gen_alphanumeric;
 use crate::{db, DatabaseConnection};
 
@@ -339,7 +340,7 @@ async fn put_manifest(
     Path((repository_name, reference)): Path<(String, String)>,
     mut stream: BodyStream,
 ) -> Result<impl IntoResponse, StatusCode> {
-    check_access(&repository_name, &auth, &db_conn)?;
+    let bot = check_access(&repository_name, &auth, &db_conn)?;
 
     let repository_dir = PathBuf::from(REGISTRY_PATH)
         .join("manifests")
@@ -368,6 +369,15 @@ async fn put_manifest(
     let digest_path = repository_dir.join(&content_digest).with_extension("json");
     tokio::fs::copy(manifest_path, digest_path).await.unwrap();
 
+    // Register the new image as a bot version
+    // TODO: how should tags be handled?
+    let new_version = NewBotVersion {
+        bot_id: Some(bot.id),
+        code_bundle_path: None,
+        container_digest: Some(&content_digest),
+    };
+    db::bots::create_bot_version(&new_version, &db_conn).expect("could not save bot version");
+
     Ok(Response::builder()
         .status(StatusCode::CREATED)
         .header(
@@ -380,12 +390,13 @@ async fn put_manifest(
 }
 
 /// Ensure that the accessed repository exists
-/// and the user is allowed to access ti
+/// and the user is allowed to access it.
+/// Returns the associated bot.
 fn check_access(
     repository_name: &str,
     auth: &RegistryAuth,
     db_conn: &DatabaseConnection,
-) -> Result<(), StatusCode> {
+) -> Result<db::bots::Bot, StatusCode> {
     use diesel::OptionalExtension;
 
     // TODO: it would be nice to provide the found repository
@@ -396,10 +407,10 @@ fn check_access(
         .ok_or(StatusCode::NOT_FOUND)?;
 
     match &auth {
-        RegistryAuth::Admin => Ok(()),
+        RegistryAuth::Admin => Ok(bot),
         RegistryAuth::User(user) => {
             if bot.owner_id == Some(user.id) {
-                Ok(())
+                Ok(bot)
             } else {
                 Err(StatusCode::FORBIDDEN)
             }
