@@ -37,17 +37,13 @@ pub async fn run_ranker(db_pool: DbPool) {
 
 async fn play_ranking_match(selected_bots: Vec<Bot>, db_pool: DbPool) {
     let db_conn = db_pool.get().await.expect("could not get db pool");
-    let mut code_bundles = Vec::new();
+    let mut players = Vec::new();
     for bot in &selected_bots {
-        let code_bundle = db::bots::active_bot_version(bot.id, &db_conn)
-            .expect("could not get active code bundle");
-        code_bundles.push(code_bundle);
+        let version = db::bots::active_bot_version(bot.id, &db_conn)
+            .expect("could not get active bot version");
+        let player = MatchPlayer::from_bot_version(bot, &version);
+        players.push(player);
     }
-
-    let players = code_bundles
-        .iter()
-        .map(MatchPlayer::from_code_bundle)
-        .collect::<Vec<_>>();
 
     let mut run_match = RunMatch::from_players(players);
     run_match

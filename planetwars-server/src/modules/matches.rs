@@ -24,15 +24,28 @@ pub struct RunMatch {
 
 pub struct MatchPlayer {
     bot_spec: Box<dyn BotSpec>,
-    // meta that will be passed on to database
+    // metadata that will be passed on to database
     code_bundle_id: Option<i32>,
 }
 
 impl MatchPlayer {
-    pub fn from_code_bundle(code_bundle: &db::bots::BotVersion) -> Self {
+    pub fn from_bot_version(bot: &db::bots::Bot, version: &db::bots::BotVersion) -> Self {
         MatchPlayer {
-            bot_spec: code_bundle_to_botspec(code_bundle),
-            code_bundle_id: Some(code_bundle.id),
+            bot_spec: bot_version_to_botspec(bot, version),
+            code_bundle_id: Some(version.id),
+        }
+    }
+
+    /// Construct a MatchPlayer from a BotVersion that certainly contains a code bundle path.
+    /// Will panic when this is not the case.
+    pub fn from_code_bundle_version(version: &db::bots::BotVersion) -> Self {
+        let code_bundle_path = version
+            .code_bundle_path
+            .as_ref()
+            .expect("no code_bundle_path found");
+        MatchPlayer {
+            bot_spec: python_docker_bot_spec(code_bundle_path),
+            code_bundle_id: Some(version.id),
         }
     }
 
@@ -97,12 +110,24 @@ impl RunMatch {
     }
 }
 
-pub fn code_bundle_to_botspec(code_bundle: &db::bots::BotVersion) -> Box<dyn BotSpec> {
-    // TODO: get rid of this unwrap
-    let bundle_path = PathBuf::from(BOTS_DIR).join(code_bundle.code_bundle_path.as_ref().unwrap());
+pub fn bot_version_to_botspec(
+    _bot: &db::bots::Bot,
+    bot_version: &db::bots::BotVersion,
+) -> Box<dyn BotSpec> {
+    if let Some(code_bundle_path) = &bot_version.code_bundle_path {
+        python_docker_bot_spec(code_bundle_path)
+    } else if let Some(_container_digest) = &bot_version.container_digest {
+        unimplemented!()
+    } else {
+        panic!("bad bot version")
+    }
+}
+
+fn python_docker_bot_spec(code_bundle_path: &str) -> Box<dyn BotSpec> {
+    let code_bundle_abs_path = PathBuf::from(BOTS_DIR).join(code_bundle_path);
 
     Box::new(DockerBotSpec {
-        code_path: bundle_path,
+        code_path: code_bundle_abs_path,
         image: PYTHON_IMAGE.to_string(),
         argv: vec!["python".to_string(), "bot.py".to_string()],
     })

@@ -37,18 +37,18 @@ pub async fn submit_bot(
         .opponent_name
         .unwrap_or_else(|| DEFAULT_OPPONENT_NAME.to_string());
 
-    let opponent =
+    let opponent_bot =
         db::bots::find_bot_by_name(&opponent_name, &conn).map_err(|_| StatusCode::BAD_REQUEST)?;
-    let opponent_bot_version =
-        db::bots::active_bot_version(opponent.id, &conn).map_err(|_| StatusCode::BAD_REQUEST)?;
+    let opponent_bot_version = db::bots::active_bot_version(opponent_bot.id, &conn)
+        .map_err(|_| StatusCode::BAD_REQUEST)?;
 
     let player_bot_version = save_code_string(&params.code, None, &conn)
         // TODO: can we recover from this?
         .expect("could not save bot code");
 
     let mut run_match = RunMatch::from_players(vec![
-        MatchPlayer::from_code_bundle(&player_bot_version),
-        MatchPlayer::from_code_bundle(&opponent_bot_version),
+        MatchPlayer::from_code_bundle_version(&player_bot_version),
+        MatchPlayer::from_bot_version(&opponent_bot, &opponent_bot_version),
     ]);
     let match_data = run_match
         .store_in_database(&conn)
@@ -67,7 +67,7 @@ pub async fn submit_bot(
             FullMatchPlayerData {
                 base: match_data.match_players[1].clone(),
                 bot_version: Some(opponent_bot_version),
-                bot: Some(opponent),
+                bot: Some(opponent_bot),
             },
         ],
     };

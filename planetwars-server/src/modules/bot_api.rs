@@ -115,7 +115,7 @@ impl pb::bot_api_service_server::BotApiService for BotApiServer {
         });
         let mut run_match = RunMatch::from_players(vec![
             MatchPlayer::from_bot_spec(remote_bot_spec),
-            MatchPlayer::from_code_bundle(&opponent_code_bundle),
+            MatchPlayer::from_bot_version(&opponent, &opponent_code_bundle),
         ]);
         let created_match = run_match
             .store_in_database(&conn)
