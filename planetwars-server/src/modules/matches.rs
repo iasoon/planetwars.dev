@@ -111,25 +111,36 @@ impl RunMatch {
 }
 
 pub fn bot_version_to_botspec(
-    _bot: &db::bots::Bot,
+    bot: &db::bots::Bot,
     bot_version: &db::bots::BotVersion,
 ) -> Box<dyn BotSpec> {
     if let Some(code_bundle_path) = &bot_version.code_bundle_path {
         python_docker_bot_spec(code_bundle_path)
-    } else if let Some(_container_digest) = &bot_version.container_digest {
-        unimplemented!()
+    } else if let Some(container_digest) = &bot_version.container_digest {
+        // TODO: put this in config
+        let registry_url = "localhost:9001";
+        Box::new(DockerBotSpec {
+            image: format!("{}/{}@{}", registry_url, bot.name, container_digest),
+            binds: None,
+            argv: None,
+            working_dir: None,
+        })
     } else {
         panic!("bad bot version")
     }
 }
 
 fn python_docker_bot_spec(code_bundle_path: &str) -> Box<dyn BotSpec> {
-    let code_bundle_abs_path = PathBuf::from(BOTS_DIR).join(code_bundle_path);
+    let code_bundle_rel_path = PathBuf::from(BOTS_DIR).join(code_bundle_path);
+    let code_bundle_abs_path = std::fs::canonicalize(&code_bundle_rel_path).unwrap();
+    let code_bundle_path_str = code_bundle_abs_path.as_os_str().to_str().unwrap();
 
+    // TODO: it would be good to simplify this configuration
     Box::new(DockerBotSpec {
-        code_path: code_bundle_abs_path,
         image: PYTHON_IMAGE.to_string(),
-        argv: vec!["python".to_string(), "bot.py".to_string()],
+        binds: Some(vec![format!("{}:{}", code_bundle_path_str, "/workdir")]),
+        argv: Some(vec!["python".to_string(), "bot.py".to_string()]),
+        working_dir: Some("/workdir".to_string()),
     })
 }
 
