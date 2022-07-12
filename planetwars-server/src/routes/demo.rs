@@ -47,8 +47,14 @@ pub async fn submit_bot(
         .expect("could not save bot code");
 
     let mut run_match = RunMatch::from_players(vec![
-        MatchPlayer::from_code_bundle_version(&player_bot_version),
-        MatchPlayer::from_bot_version(&opponent_bot, &opponent_bot_version),
+        MatchPlayer::BotVersion {
+            bot: None,
+            version: player_bot_version.clone(),
+        },
+        MatchPlayer::BotVersion {
+            bot: Some(opponent_bot.clone()),
+            version: opponent_bot_version.clone(),
+        },
     ]);
     let match_data = run_match
         .store_in_database(&conn)

@@ -41,7 +41,10 @@ async fn play_ranking_match(selected_bots: Vec<Bot>, db_pool: DbPool) {
     for bot in &selected_bots {
         let version = db::bots::active_bot_version(bot.id, &db_conn)
             .expect("could not get active bot version");
-        let player = MatchPlayer::from_bot_version(bot, &version);
+        let player = MatchPlayer::BotVersion {
+            bot: Some(bot.clone()),
+            version,
+        };
         players.push(player);
     }
 

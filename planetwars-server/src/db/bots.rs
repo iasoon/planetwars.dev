@@ -51,7 +51,7 @@ pub struct NewBotVersion<'a> {
     pub container_digest: Option<&'a str>,
 }
 
-#[derive(Queryable, Serialize, Deserialize, Debug)]
+#[derive(Queryable, Serialize, Deserialize, Clone, Debug)]
 pub struct BotVersion {
     pub id: i32,
     pub bot_id: Option<i32>,

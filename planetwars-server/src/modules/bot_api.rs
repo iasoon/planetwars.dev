@@ -102,10 +102,10 @@ impl pb::bot_api_service_server::BotApiService for BotApiServer {
 
         let match_request = req.get_ref();
 
-        let opponent = db::bots::find_bot_by_name(&match_request.opponent_name, &conn)
+        let opponent_bot = db::bots::find_bot_by_name(&match_request.opponent_name, &conn)
             .map_err(|_| Status::not_found("opponent not found"))?;
-        let opponent_code_bundle = db::bots::active_bot_version(opponent.id, &conn)
-            .map_err(|_| Status::not_found("opponent has no code"))?;
+        let opponent_bot_version = db::bots::active_bot_version(opponent_bot.id, &conn)
+            .map_err(|_| Status::not_found("no opponent version found"))?;
 
         let player_key = gen_alphanumeric(32);
 
@@ -114,8 +114,13 @@ impl pb::bot_api_service_server::BotApiService for BotApiServer {
             router: self.router.clone(),
         });
         let mut run_match = RunMatch::from_players(vec![
-            MatchPlayer::from_bot_spec(remote_bot_spec),
-            MatchPlayer::from_bot_version(&opponent, &opponent_code_bundle),
+            MatchPlayer::BotSpec {
+                spec: remote_bot_spec,
+            },
+            MatchPlayer::BotVersion {
+                bot: Some(opponent_bot),
+                version: opponent_bot_version,
+            },
         ]);
         let created_match = run_match
             .store_in_database(&conn)

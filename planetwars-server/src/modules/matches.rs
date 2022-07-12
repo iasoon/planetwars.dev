@@ -22,39 +22,14 @@ pub struct RunMatch {
     match_id: Option<i32>,
 }
 
-pub struct MatchPlayer {
-    bot_spec: Box<dyn BotSpec>,
-    // metadata that will be passed on to database
-    code_bundle_id: Option<i32>,
-}
-
-impl MatchPlayer {
-    pub fn from_bot_version(bot: &db::bots::Bot, version: &db::bots::BotVersion) -> Self {
-        MatchPlayer {
-            bot_spec: bot_version_to_botspec(bot, version),
-            code_bundle_id: Some(version.id),
-        }
-    }
-
-    /// Construct a MatchPlayer from a BotVersion that certainly contains a code bundle path.
-    /// Will panic when this is not the case.
-    pub fn from_code_bundle_version(version: &db::bots::BotVersion) -> Self {
-        let code_bundle_path = version
-            .code_bundle_path
-            .as_ref()
-            .expect("no code_bundle_path found");
-        MatchPlayer {
-            bot_spec: python_docker_bot_spec(code_bundle_path),
-            code_bundle_id: Some(version.id),
-        }
-    }
-
-    pub fn from_bot_spec(bot_spec: Box<dyn BotSpec>) -> Self {
-        MatchPlayer {
-            bot_spec,
-            code_bundle_id: None,
-        }
-    }
+pub enum MatchPlayer {
+    BotVersion {
+        bot: Option<db::bots::Bot>,
+        version: db::bots::BotVersion,
+    },
+    BotSpec {
+        spec: Box<dyn BotSpec>,
+    },
 }
 
 impl RunMatch {
@@ -76,7 +51,12 @@ impl RunMatch {
                 .players
                 .into_iter()
                 .map(|player| runner::MatchPlayer {
-                    bot_spec: player.bot_spec,
+                    bot_spec: match player {
+                        MatchPlayer::BotVersion { bot, version } => {
+                            bot_version_to_botspec(bot.as_ref(), &version)
+                        }
+                        MatchPlayer::BotSpec { spec } => spec,
+                    },
                 })
                 .collect(),
         }
@@ -94,11 +74,14 @@ impl RunMatch {
             .players
             .iter()
             .map(|p| db::matches::MatchPlayerData {
-                code_bundle_id: p.code_bundle_id,
+                code_bundle_id: match p {
+                    MatchPlayer::BotVersion { version, .. } => Some(version.id),
+                    MatchPlayer::BotSpec { .. } => None,
+                },
             })
             .collect::<Vec<_>>();
 
-        let match_data = db::matches::create_match(&new_match_data, &new_match_players, &db_conn)?;
+        let match_data = db::matches::create_match(&new_match_data, &new_match_players, db_conn)?;
         self.match_id = Some(match_data.base.id);
         Ok(match_data)
     }
@@ -111,12 +94,12 @@ impl RunMatch {
 }
 
 pub fn bot_version_to_botspec(
-    bot: &db::bots::Bot,
+    bot: Option<&db::bots::Bot>,
     bot_version: &db::bots::BotVersion,
 ) -> Box<dyn BotSpec> {
     if let Some(code_bundle_path) = &bot_version.code_bundle_path {
         python_docker_bot_spec(code_bundle_path)
-    } else if let Some(container_digest) = &bot_version.container_digest {
+    } else if let (Some(container_digest), Some(bot)) = (&bot_version.container_digest, bot) {
         // TODO: put this in config
         let registry_url = "localhost:9001";
         Box::new(DockerBotSpec {
@@ -126,6 +109,7 @@ pub fn bot_version_to_botspec(
             working_dir: None,
         })
     } else {
+        // TODO: ideally this would not be possible
         panic!("bad bot version")
     }
 }
