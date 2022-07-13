@@ -46,7 +46,7 @@ pub async fn submit_bot(
         // TODO: can we recover from this?
         .expect("could not save bot code");
 
-    let mut run_match = RunMatch::from_players(vec![
+    let run_match = RunMatch::from_players(vec![
         MatchPlayer::BotVersion {
             bot: None,
             version: player_bot_version.clone(),
@@ -56,10 +56,10 @@ pub async fn submit_bot(
             version: opponent_bot_version.clone(),
         },
     ]);
-    let match_data = run_match
-        .store_in_database(&conn)
-        .expect("failed to save match");
-    run_match.spawn(pool.clone());
+    let (match_data, _) = run_match
+        .run(pool.clone())
+        .await
+        .expect("failed to run match");
 
     // TODO: avoid clones
     let full_match_data = FullMatchData {

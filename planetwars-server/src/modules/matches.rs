@@ -19,7 +19,6 @@ const PYTHON_IMAGE: &str = "python:3.10-slim-buster";
 pub struct RunMatch {
     log_file_name: String,
     players: Vec<MatchPlayer>,
-    match_id: Option<i32>,
 }
 
 pub enum MatchPlayer {
@@ -38,7 +37,6 @@ impl RunMatch {
         RunMatch {
             log_file_name,
             players,
-            match_id: None,
         }
     }
 
@@ -62,10 +60,24 @@ impl RunMatch {
         }
     }
 
-    pub fn store_in_database(&mut self, db_conn: &PgConnection) -> QueryResult<MatchData> {
-        // don't store the same match twice
-        assert!(self.match_id.is_none());
+    pub async fn run(
+        self,
+        conn_pool: ConnectionPool,
+    ) -> QueryResult<(MatchData, JoinHandle<MatchOutcome>)> {
+        let match_data = {
+            // TODO: it would be nice to get an already-open connection here when possible.
+            // Maybe we need an additional abstraction, bundling a connection and connection pool?
+            let db_conn = conn_pool.get().await.expect("could not get a connection");
+            self.store_in_database(&db_conn)?
+        };
 
+        let runner_config = self.into_runner_config();
+        let handle = tokio::spawn(run_match_task(conn_pool, runner_config, match_data.base.id));
+
+        Ok((match_data, handle))
+    }
+
+    fn store_in_database(&self, db_conn: &PgConnection) -> QueryResult<MatchData> {
         let new_match_data = db::matches::NewMatch {
             state: db::matches::MatchState::Playing,
             log_path: &self.log_file_name,
@@ -81,15 +93,7 @@ impl RunMatch {
             })
             .collect::<Vec<_>>();
 
-        let match_data = db::matches::create_match(&new_match_data, &new_match_players, db_conn)?;
-        self.match_id = Some(match_data.base.id);
-        Ok(match_data)
-    }
-
-    pub fn spawn(self, pool: ConnectionPool) -> JoinHandle<MatchOutcome> {
-        let match_id = self.match_id.expect("match must be saved before running");
-        let runner_config = self.into_runner_config();
-        tokio::spawn(run_match_task(pool, runner_config, match_id))
+        db::matches::create_match(&new_match_data, &new_match_players, db_conn)
     }
 }
 

@@ -48,14 +48,12 @@ async fn play_ranking_match(selected_bots: Vec<Bot>, db_pool: DbPool) {
         players.push(player);
     }
 
-    let mut run_match = RunMatch::from_players(players);
-    run_match
-        .store_in_database(&db_conn)
-        .expect("could not store match in db");
-    run_match
-        .spawn(db_pool.clone())
+    let (_, handle) = RunMatch::from_players(players)
+        .run(db_pool.clone())
         .await
-        .expect("running match failed");
+        .expect("failed to run match");
+    // wait for match to complete, so that only one ranking match can be running
+    let _outcome = handle.await;
 }
 
 fn recalculate_ratings(db_conn: &PgConnection) -> QueryResult<()> {

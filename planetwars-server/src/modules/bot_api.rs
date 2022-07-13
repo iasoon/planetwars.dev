@@ -122,10 +122,10 @@ impl pb::bot_api_service_server::BotApiService for BotApiServer {
                 version: opponent_bot_version,
             },
         ]);
-        let created_match = run_match
-            .store_in_database(&conn)
-            .expect("failed to save match");
-        run_match.spawn(self.conn_pool.clone());
+        let (created_match, _) = run_match
+            .run(self.conn_pool.clone())
+            .await
+            .expect("failed to create match");
 
         Ok(Response::new(pb::CreatedMatch {
             match_id: created_match.base.id,
