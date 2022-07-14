@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::{path::PathBuf, sync::Arc};
 
 use diesel::{PgConnection, QueryResult};
 use planetwars_matchrunner::{self as runner, docker_runner::DockerBotSpec, BotSpec, MatchConfig};
@@ -14,11 +14,16 @@ use crate::{
     ConnectionPool, BOTS_DIR, MAPS_DIR, MATCHES_DIR,
 };
 
-const PYTHON_IMAGE: &str = "python:3.10-slim-buster";
+// TODO: add all paths
+pub struct MatchRunnerConfig {
+    pub python_runner_image: String,
+    pub container_registry_url: String,
+}
 
 pub struct RunMatch {
     log_file_name: String,
     players: Vec<MatchPlayer>,
+    runner_config: Arc<MatchRunnerConfig>,
 }
 
 pub enum MatchPlayer {
@@ -32,15 +37,16 @@ pub enum MatchPlayer {
 }
 
 impl RunMatch {
-    pub fn from_players(players: Vec<MatchPlayer>) -> Self {
+    pub fn from_players(runner_config: Arc<MatchRunnerConfig>, players: Vec<MatchPlayer>) -> Self {
         let log_file_name = format!("{}.log", gen_alphanumeric(16));
         RunMatch {
+            runner_config,
             log_file_name,
             players,
         }
     }
 
-    pub fn into_runner_config(self) -> runner::MatchConfig {
+    fn into_runner_config(self) -> runner::MatchConfig {
         runner::MatchConfig {
             map_path: PathBuf::from(MAPS_DIR).join("hex.json"),
             map_name: "hex".to_string(),
@@ -51,7 +57,7 @@ impl RunMatch {
                 .map(|player| runner::MatchPlayer {
                     bot_spec: match player {
                         MatchPlayer::BotVersion { bot, version } => {
-                            bot_version_to_botspec(bot.as_ref(), &version)
+                            bot_version_to_botspec(&self.runner_config, bot.as_ref(), &version)
                         }
                         MatchPlayer::BotSpec { spec } => spec,
                     },
@@ -98,16 +104,18 @@ impl RunMatch {
 }
 
 pub fn bot_version_to_botspec(
+    runner_config: &Arc<MatchRunnerConfig>,
     bot: Option<&db::bots::Bot>,
     bot_version: &db::bots::BotVersion,
 ) -> Box<dyn BotSpec> {
     if let Some(code_bundle_path) = &bot_version.code_bundle_path {
-        python_docker_bot_spec(code_bundle_path)
+        python_docker_bot_spec(runner_config, code_bundle_path)
     } else if let (Some(container_digest), Some(bot)) = (&bot_version.container_digest, bot) {
-        // TODO: put this in config
-        let registry_url = "localhost:9001";
         Box::new(DockerBotSpec {
-            image: format!("{}/{}@{}", registry_url, bot.name, container_digest),
+            image: format!(
+                "{}/{}@{}",
+                runner_config.container_registry_url, bot.name, container_digest
+            ),
             binds: None,
             argv: None,
             working_dir: None,
@@ -118,14 +126,17 @@ pub fn bot_version_to_botspec(
     }
 }
 
-fn python_docker_bot_spec(code_bundle_path: &str) -> Box<dyn BotSpec> {
+fn python_docker_bot_spec(
+    runner_config: &Arc<MatchRunnerConfig>,
+    code_bundle_path: &str,
+) -> Box<dyn BotSpec> {
     let code_bundle_rel_path = PathBuf::from(BOTS_DIR).join(code_bundle_path);
     let code_bundle_abs_path = std::fs::canonicalize(&code_bundle_rel_path).unwrap();
     let code_bundle_path_str = code_bundle_abs_path.as_os_str().to_str().unwrap();
 
     // TODO: it would be good to simplify this configuration
     Box::new(DockerBotSpec {
-        image: PYTHON_IMAGE.to_string(),
+        image: runner_config.python_runner_image.clone(),
         binds: Some(vec![format!("{}:{}", code_bundle_path_str, "/workdir")]),
         argv: Some(vec!["python".to_string(), "bot.py".to_string()]),
         working_dir: Some("/workdir".to_string()),

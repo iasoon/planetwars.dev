@@ -6,12 +6,15 @@ use diesel::{PgConnection, QueryResult};
 use rand::seq::SliceRandom;
 use std::collections::HashMap;
 use std::mem;
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio;
 
+use super::matches::MatchRunnerConfig;
+
 const RANKER_INTERVAL: u64 = 60;
 
-pub async fn run_ranker(db_pool: DbPool) {
+pub async fn run_ranker(runner_config: Arc<MatchRunnerConfig>, db_pool: DbPool) {
     // TODO: make this configurable
     // play at most one match every n seconds
     let mut interval = tokio::time::interval(Duration::from_secs(RANKER_INTERVAL));
@@ -30,12 +33,16 @@ pub async fn run_ranker(db_pool: DbPool) {
             let mut rng = &mut rand::thread_rng();
             bots.choose_multiple(&mut rng, 2).cloned().collect()
         };
-        play_ranking_match(selected_bots, db_pool.clone()).await;
+        play_ranking_match(runner_config.clone(), selected_bots, db_pool.clone()).await;
         recalculate_ratings(&db_conn).expect("could not recalculate ratings");
     }
 }
 
-async fn play_ranking_match(selected_bots: Vec<Bot>, db_pool: DbPool) {
+async fn play_ranking_match(
+    runner_config: Arc<MatchRunnerConfig>,
+    selected_bots: Vec<Bot>,
+    db_pool: DbPool,
+) {
     let db_conn = db_pool.get().await.expect("could not get db pool");
     let mut players = Vec::new();
     for bot in &selected_bots {
@@ -48,7 +55,7 @@ async fn play_ranking_match(selected_bots: Vec<Bot>, db_pool: DbPool) {
         players.push(player);
     }
 
-    let (_, handle) = RunMatch::from_players(players)
+    let (_, handle) = RunMatch::from_players(runner_config, players)
         .run(db_pool.clone())
         .await
         .expect("failed to run match");

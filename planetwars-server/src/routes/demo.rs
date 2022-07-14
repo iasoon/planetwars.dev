@@ -1,7 +1,9 @@
+use std::sync::Arc;
+
 use crate::db;
 use crate::db::matches::{FullMatchData, FullMatchPlayerData};
 use crate::modules::bots::save_code_string;
-use crate::modules::matches::{MatchPlayer, RunMatch};
+use crate::modules::matches::{MatchPlayer, MatchRunnerConfig, RunMatch};
 use crate::ConnectionPool;
 use axum::extract::Extension;
 use axum::Json;
@@ -30,6 +32,7 @@ pub struct SubmitBotResponse {
 pub async fn submit_bot(
     Json(params): Json<SubmitBotParams>,
     Extension(pool): Extension<ConnectionPool>,
+    Extension(runner_config): Extension<Arc<MatchRunnerConfig>>,
 ) -> Result<Json<SubmitBotResponse>, StatusCode> {
     let conn = pool.get().await.expect("could not get database connection");
 
@@ -46,16 +49,19 @@ pub async fn submit_bot(
         // TODO: can we recover from this?
         .expect("could not save bot code");
 
-    let run_match = RunMatch::from_players(vec![
-        MatchPlayer::BotVersion {
-            bot: None,
-            version: player_bot_version.clone(),
-        },
-        MatchPlayer::BotVersion {
-            bot: Some(opponent_bot.clone()),
-            version: opponent_bot_version.clone(),
-        },
-    ]);
+    let run_match = RunMatch::from_players(
+        runner_config,
+        vec![
+            MatchPlayer::BotVersion {
+                bot: None,
+                version: player_bot_version.clone(),
+            },
+            MatchPlayer::BotVersion {
+                bot: Some(opponent_bot.clone()),
+                version: opponent_bot_version.clone(),
+            },
+        ],
+    );
     let (match_data, _) = run_match
         .run(pool.clone())
         .await

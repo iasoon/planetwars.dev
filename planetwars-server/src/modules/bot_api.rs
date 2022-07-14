@@ -21,10 +21,11 @@ use crate::db;
 use crate::util::gen_alphanumeric;
 use crate::ConnectionPool;
 
-use super::matches::{MatchPlayer, RunMatch};
+use super::matches::{MatchPlayer, MatchRunnerConfig, RunMatch};
 
 pub struct BotApiServer {
     conn_pool: ConnectionPool,
+    runner_config: Arc<MatchRunnerConfig>,
     router: PlayerRouter,
 }
 
@@ -113,15 +114,18 @@ impl pb::bot_api_service_server::BotApiService for BotApiServer {
             player_key: player_key.clone(),
             router: self.router.clone(),
         });
-        let mut run_match = RunMatch::from_players(vec![
-            MatchPlayer::BotSpec {
-                spec: remote_bot_spec,
-            },
-            MatchPlayer::BotVersion {
-                bot: Some(opponent_bot),
-                version: opponent_bot_version,
-            },
-        ]);
+        let run_match = RunMatch::from_players(
+            self.runner_config.clone(),
+            vec![
+                MatchPlayer::BotSpec {
+                    spec: remote_bot_spec,
+                },
+                MatchPlayer::BotVersion {
+                    bot: Some(opponent_bot),
+                    version: opponent_bot_version,
+                },
+            ],
+        );
         let (created_match, _) = run_match
             .run(self.conn_pool.clone())
             .await
@@ -261,11 +265,12 @@ async fn schedule_timeout(
         .resolve_request(request_id, Err(RequestError::Timeout));
 }
 
-pub async fn run_bot_api(pool: ConnectionPool) {
+pub async fn run_bot_api(runner_config: Arc<MatchRunnerConfig>, pool: ConnectionPool) {
     let router = PlayerRouter::new();
     let server = BotApiServer {
         router,
-        conn_pool: pool.clone(),
+        conn_pool: pool,
+        runner_config,
     };
 
     let addr = SocketAddr::from(([127, 0, 0, 1], 50051));
