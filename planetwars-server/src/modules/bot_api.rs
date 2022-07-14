@@ -20,12 +20,13 @@ use planetwars_matchrunner as runner;
 use crate::db;
 use crate::util::gen_alphanumeric;
 use crate::ConnectionPool;
+use crate::GlobalConfig;
 
-use super::matches::{MatchPlayer, MatchRunnerConfig, RunMatch};
+use super::matches::{MatchPlayer, RunMatch};
 
 pub struct BotApiServer {
     conn_pool: ConnectionPool,
-    runner_config: Arc<MatchRunnerConfig>,
+    runner_config: Arc<GlobalConfig>,
     router: PlayerRouter,
 }
 
@@ -265,7 +266,7 @@ async fn schedule_timeout(
         .resolve_request(request_id, Err(RequestError::Timeout));
 }
 
-pub async fn run_bot_api(runner_config: Arc<MatchRunnerConfig>, pool: ConnectionPool) {
+pub async fn run_bot_api(runner_config: Arc<GlobalConfig>, pool: ConnectionPool) {
     let router = PlayerRouter::new();
     let server = BotApiServer {
         router,

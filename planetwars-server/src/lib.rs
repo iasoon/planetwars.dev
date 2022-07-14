@@ -16,8 +16,8 @@ use bb8::{Pool, PooledConnection};
 use bb8_diesel::{self, DieselConnectionManager};
 use config::ConfigError;
 use diesel::{Connection, PgConnection};
+use modules::ranking::run_ranker;
 use modules::registry::registry_service;
-use modules::{matches::MatchRunnerConfig, ranking::run_ranker};
 use serde::Deserialize;
 
 use axum::{
@@ -35,6 +35,11 @@ const MAPS_DIR: &str = "./data/maps";
 const SIMPLEBOT_PATH: &str = "../simplebot/simplebot.py";
 
 type ConnectionPool = bb8::Pool<DieselConnectionManager<PgConnection>>;
+
+pub struct GlobalConfig {
+    pub python_runner_image: String,
+    pub container_registry_url: String,
+}
 
 pub async fn seed_simplebot(pool: &ConnectionPool) {
     let conn = pool.get().await.expect("could not get database connection");
@@ -121,7 +126,7 @@ pub async fn run_app() {
     let configuration = get_config().unwrap();
     let db_pool = prepare_db(&configuration.database_url).await;
 
-    let runner_config = Arc::new(MatchRunnerConfig {
+    let runner_config = Arc::new(GlobalConfig {
         python_runner_image: "python:3.10-slim-buster".to_string(),
         container_registry_url: "localhost:9001".to_string(),
     });

@@ -11,19 +11,13 @@ use crate::{
         matches::{MatchData, MatchResult},
     },
     util::gen_alphanumeric,
-    ConnectionPool, BOTS_DIR, MAPS_DIR, MATCHES_DIR,
+    ConnectionPool, GlobalConfig, BOTS_DIR, MAPS_DIR, MATCHES_DIR,
 };
-
-// TODO: add all paths
-pub struct MatchRunnerConfig {
-    pub python_runner_image: String,
-    pub container_registry_url: String,
-}
 
 pub struct RunMatch {
     log_file_name: String,
     players: Vec<MatchPlayer>,
-    runner_config: Arc<MatchRunnerConfig>,
+    runner_config: Arc<GlobalConfig>,
 }
 
 pub enum MatchPlayer {
@@ -37,7 +31,7 @@ pub enum MatchPlayer {
 }
 
 impl RunMatch {
-    pub fn from_players(runner_config: Arc<MatchRunnerConfig>, players: Vec<MatchPlayer>) -> Self {
+    pub fn from_players(runner_config: Arc<GlobalConfig>, players: Vec<MatchPlayer>) -> Self {
         let log_file_name = format!("{}.log", gen_alphanumeric(16));
         RunMatch {
             runner_config,
@@ -104,7 +98,7 @@ impl RunMatch {
 }
 
 pub fn bot_version_to_botspec(
-    runner_config: &Arc<MatchRunnerConfig>,
+    runner_config: &Arc<GlobalConfig>,
     bot: Option<&db::bots::Bot>,
     bot_version: &db::bots::BotVersion,
 ) -> Box<dyn BotSpec> {
@@ -127,7 +121,7 @@ pub fn bot_version_to_botspec(
 }
 
 fn python_docker_bot_spec(
-    runner_config: &Arc<MatchRunnerConfig>,
+    runner_config: &Arc<GlobalConfig>,
     code_bundle_path: &str,
 ) -> Box<dyn BotSpec> {
     let code_bundle_rel_path = PathBuf::from(BOTS_DIR).join(code_bundle_path);
