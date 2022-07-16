@@ -11,13 +11,13 @@ use crate::{
         matches::{MatchData, MatchResult},
     },
     util::gen_alphanumeric,
-    ConnectionPool, GlobalConfig, BOTS_DIR, MAPS_DIR, MATCHES_DIR,
+    ConnectionPool, GlobalConfig,
 };
 
 pub struct RunMatch {
     log_file_name: String,
     players: Vec<MatchPlayer>,
-    runner_config: Arc<GlobalConfig>,
+    config: Arc<GlobalConfig>,
 }
 
 pub enum MatchPlayer {
@@ -31,10 +31,10 @@ pub enum MatchPlayer {
 }
 
 impl RunMatch {
-    pub fn from_players(runner_config: Arc<GlobalConfig>, players: Vec<MatchPlayer>) -> Self {
+    pub fn from_players(config: Arc<GlobalConfig>, players: Vec<MatchPlayer>) -> Self {
         let log_file_name = format!("{}.log", gen_alphanumeric(16));
         RunMatch {
-            runner_config,
+            config,
             log_file_name,
             players,
         }
@@ -42,16 +42,16 @@ impl RunMatch {
 
     fn into_runner_config(self) -> runner::MatchConfig {
         runner::MatchConfig {
-            map_path: PathBuf::from(MAPS_DIR).join("hex.json"),
+            map_path: PathBuf::from(&self.config.maps_directory).join("hex.json"),
             map_name: "hex".to_string(),
-            log_path: PathBuf::from(MATCHES_DIR).join(&self.log_file_name),
+            log_path: PathBuf::from(&self.config.match_logs_directory).join(&self.log_file_name),
             players: self
                 .players
                 .into_iter()
                 .map(|player| runner::MatchPlayer {
                     bot_spec: match player {
                         MatchPlayer::BotVersion { bot, version } => {
-                            bot_version_to_botspec(&self.runner_config, bot.as_ref(), &version)
+                            bot_version_to_botspec(&self.config, bot.as_ref(), &version)
                         }
                         MatchPlayer::BotSpec { spec } => spec,
                     },
@@ -98,7 +98,7 @@ impl RunMatch {
 }
 
 pub fn bot_version_to_botspec(
-    runner_config: &Arc<GlobalConfig>,
+    runner_config: &GlobalConfig,
     bot: Option<&db::bots::Bot>,
     bot_version: &db::bots::BotVersion,
 ) -> Box<dyn BotSpec> {
@@ -120,17 +120,14 @@ pub fn bot_version_to_botspec(
     }
 }
 
-fn python_docker_bot_spec(
-    runner_config: &Arc<GlobalConfig>,
-    code_bundle_path: &str,
-) -> Box<dyn BotSpec> {
-    let code_bundle_rel_path = PathBuf::from(BOTS_DIR).join(code_bundle_path);
+fn python_docker_bot_spec(config: &GlobalConfig, code_bundle_path: &str) -> Box<dyn BotSpec> {
+    let code_bundle_rel_path = PathBuf::from(&config.bots_directory).join(code_bundle_path);
     let code_bundle_abs_path = std::fs::canonicalize(&code_bundle_rel_path).unwrap();
     let code_bundle_path_str = code_bundle_abs_path.as_os_str().to_str().unwrap();
 
     // TODO: it would be good to simplify this configuration
     Box::new(DockerBotSpec {
-        image: runner_config.python_runner_image.clone(),
+        image: config.python_runner_image.clone(),
         binds: Some(vec![format!("{}:{}", code_bundle_path_str, "/workdir")]),
         argv: Some(vec!["python".to_string(), "bot.py".to_string()]),
         working_dir: Some("/workdir".to_string()),

@@ -46,7 +46,7 @@ pub async fn submit_bot(
     let opponent_bot_version = db::bots::active_bot_version(opponent_bot.id, &conn)
         .map_err(|_| StatusCode::BAD_REQUEST)?;
 
-    let player_bot_version = save_code_string(&params.code, None, &conn)
+    let player_bot_version = save_code_string(&params.code, None, &conn, &config)
         // TODO: can we recover from this?
         .expect("could not save bot code");
 

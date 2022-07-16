@@ -29,9 +29,6 @@ use axum::{
 };
 
 // TODO: make these configurable
-const BOTS_DIR: &str = "./data/bots";
-const MATCHES_DIR: &str = "./data/matches";
-const MAPS_DIR: &str = "./data/maps";
 const SIMPLEBOT_PATH: &str = "../simplebot/simplebot.py";
 
 type ConnectionPool = bb8::Pool<DieselConnectionManager<PgConnection>>;
@@ -39,9 +36,13 @@ type ConnectionPool = bb8::Pool<DieselConnectionManager<PgConnection>>;
 pub struct GlobalConfig {
     pub python_runner_image: String,
     pub container_registry_url: String,
+
+    pub bots_directory: String,
+    pub match_logs_directory: String,
+    pub maps_directory: String,
 }
 
-pub async fn seed_simplebot(pool: &ConnectionPool) {
+pub async fn seed_simplebot(config: &GlobalConfig, pool: &ConnectionPool) {
     let conn = pool.get().await.expect("could not get database connection");
     // This transaction is expected to fail when simplebot already exists.
     let _res = conn.transaction::<(), diesel::result::Error, _>(|| {
@@ -57,7 +58,7 @@ pub async fn seed_simplebot(pool: &ConnectionPool) {
         let simplebot_code =
             std::fs::read_to_string(SIMPLEBOT_PATH).expect("could not read simplebot code");
 
-        modules::bots::save_code_string(&simplebot_code, Some(simplebot.id), &conn)?;
+        modules::bots::save_code_string(&simplebot_code, Some(simplebot.id), &conn, config)?;
 
         println!("initialized simplebot");
 
@@ -67,10 +68,10 @@ pub async fn seed_simplebot(pool: &ConnectionPool) {
 
 pub type DbPool = Pool<DieselConnectionManager<PgConnection>>;
 
-pub async fn prepare_db(database_url: &str) -> DbPool {
+pub async fn prepare_db(database_url: &str, config: &GlobalConfig) -> DbPool {
     let manager = DieselConnectionManager::<PgConnection>::new(database_url);
     let pool = bb8::Pool::builder().build(manager).await.unwrap();
-    seed_simplebot(&pool).await;
+    seed_simplebot(&config, &pool).await;
     pool
 }
 
@@ -124,20 +125,25 @@ async fn run_registry(db_pool: DbPool) {
 
 pub async fn run_app() {
     let configuration = get_config().unwrap();
-    let db_pool = prepare_db(&configuration.database_url).await;
 
-    let runner_config = Arc::new(GlobalConfig {
+    let global_config = Arc::new(GlobalConfig {
         python_runner_image: "python:3.10-slim-buster".to_string(),
         container_registry_url: "localhost:9001".to_string(),
+
+        bots_directory: "./data/bots".to_string(),
+        match_logs_directory: "./data/matches".to_string(),
+        maps_directory: "./data/maps".to_string(),
     });
 
-    tokio::spawn(run_ranker(runner_config.clone(), db_pool.clone()));
+    let db_pool = prepare_db(&configuration.database_url, &global_config).await;
+
+    tokio::spawn(run_ranker(global_config.clone(), db_pool.clone()));
     tokio::spawn(run_registry(db_pool.clone()));
 
     let api_service = Router::new()
         .nest("/api", api())
         .layer(Extension(db_pool))
-        .layer(Extension(runner_config))
+        .layer(Extension(global_config))
         .into_make_service();
 
     // TODO: put in config
