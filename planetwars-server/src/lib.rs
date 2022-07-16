@@ -40,6 +40,9 @@ pub struct GlobalConfig {
     pub bots_directory: String,
     pub match_logs_directory: String,
     pub maps_directory: String,
+
+    pub registry_directory: String,
+    pub registry_admin_password: String,
 }
 
 pub async fn seed_simplebot(config: &GlobalConfig, pool: &ConnectionPool) {
@@ -109,7 +112,7 @@ pub fn get_config() -> Result<Configuration, ConfigError> {
         .try_deserialize()
 }
 
-async fn run_registry(db_pool: DbPool) {
+async fn run_registry(config: Arc<GlobalConfig>, db_pool: DbPool) {
     // TODO: put in config
     let addr = SocketAddr::from(([127, 0, 0, 1], 9001));
 
@@ -117,6 +120,7 @@ async fn run_registry(db_pool: DbPool) {
         .serve(
             registry_service()
                 .layer(Extension(db_pool))
+                .layer(Extension(config))
                 .into_make_service(),
         )
         .await
@@ -133,12 +137,15 @@ pub async fn run_app() {
         bots_directory: "./data/bots".to_string(),
         match_logs_directory: "./data/matches".to_string(),
         maps_directory: "./data/maps".to_string(),
+
+        registry_directory: "./data/registry".to_string(),
+        registry_admin_password: "verysecretadminpassword".to_string(),
     });
 
     let db_pool = prepare_db(&configuration.database_url, &global_config).await;
 
     tokio::spawn(run_ranker(global_config.clone(), db_pool.clone()));
-    tokio::spawn(run_registry(db_pool.clone()));
+    tokio::spawn(run_registry(global_config.clone(), db_pool.clone()));
 
     let api_service = Router::new()
         .nest("/api", api())

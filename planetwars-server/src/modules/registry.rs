@@ -6,23 +6,21 @@ use axum::headers::authorization::Basic;
 use axum::headers::Authorization;
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, head, post, put};
-use axum::{async_trait, Router};
+use axum::{async_trait, Extension, Router};
 use futures::StreamExt;
 use hyper::StatusCode;
 use serde::Serialize;
 use sha2::{Digest, Sha256};
 use std::path::PathBuf;
+use std::sync::Arc;
 use tokio::io::AsyncWriteExt;
 use tokio_util::io::ReaderStream;
 
 use crate::db::bots::NewBotVersion;
 use crate::util::gen_alphanumeric;
-use crate::{db, DatabaseConnection};
+use crate::{db, DatabaseConnection, GlobalConfig};
 
 use crate::db::users::{authenticate_user, Credentials, User};
-
-// TODO: put this in a config file
-const REGISTRY_PATH: &str = "./data/registry";
 
 pub fn registry_service() -> Router {
     Router::new()
@@ -49,8 +47,6 @@ fn registry_api_v2() -> Router {
 }
 
 const ADMIN_USERNAME: &str = "admin";
-// TODO: put this in some configuration
-const ADMIN_PASSWORD: &str = "supersecretpassword";
 
 type AuthorizationHeader = TypedHeader<Authorization<Basic>>;
 
@@ -105,8 +101,12 @@ where
             password: basic.password(),
         };
 
+        let Extension(config) = Extension::<Arc<GlobalConfig>>::from_request(req)
+            .await
+            .unwrap();
+
         if credentials.username == ADMIN_USERNAME {
-            if credentials.password == ADMIN_PASSWORD {
+            if credentials.password == config.registry_admin_password {
                 Ok(RegistryAuth::Admin)
             } else {
                 Err(RegistryAuthError::InvalidCredentials)
@@ -162,11 +162,14 @@ async fn check_blob_exists(
     db_conn: DatabaseConnection,
     auth: RegistryAuth,
     Path((repository_name, raw_digest)): Path<(String, String)>,
+    Extension(config): Extension<Arc<GlobalConfig>>,
 ) -> Result<impl IntoResponse, StatusCode> {
     check_access(&repository_name, &auth, &db_conn)?;
 
     let digest = raw_digest.strip_prefix("sha256:").unwrap();
-    let blob_path = PathBuf::from(REGISTRY_PATH).join("sha256").join(&digest);
+    let blob_path = PathBuf::from(&config.registry_directory)
+        .join("sha256")
+        .join(&digest);
     if blob_path.exists() {
         let metadata = std::fs::metadata(&blob_path).unwrap();
         Ok((StatusCode::OK, [("Content-Length", metadata.len())]))
@@ -179,11 +182,14 @@ async fn get_blob(
     db_conn: DatabaseConnection,
     auth: RegistryAuth,
     Path((repository_name, raw_digest)): Path<(String, String)>,
+    Extension(config): Extension<Arc<GlobalConfig>>,
 ) -> Result<impl IntoResponse, StatusCode> {
     check_access(&repository_name, &auth, &db_conn)?;
 
     let digest = raw_digest.strip_prefix("sha256:").unwrap();
-    let blob_path = PathBuf::from(REGISTRY_PATH).join("sha256").join(&digest);
+    let blob_path = PathBuf::from(&config.registry_directory)
+        .join("sha256")
+        .join(&digest);
     if !blob_path.exists() {
         return Err(StatusCode::NOT_FOUND);
     }
@@ -197,13 +203,18 @@ async fn create_upload(
     db_conn: DatabaseConnection,
     auth: RegistryAuth,
     Path(repository_name): Path<String>,
+    Extension(config): Extension<Arc<GlobalConfig>>,
 ) -> Result<impl IntoResponse, StatusCode> {
     check_access(&repository_name, &auth, &db_conn)?;
 
     let uuid = gen_alphanumeric(16);
-    tokio::fs::File::create(PathBuf::from(REGISTRY_PATH).join("uploads").join(&uuid))
-        .await
-        .unwrap();
+    tokio::fs::File::create(
+        PathBuf::from(&config.registry_directory)
+            .join("uploads")
+            .join(&uuid),
+    )
+    .await
+    .unwrap();
 
     Ok(Response::builder()
         .status(StatusCode::ACCEPTED)
@@ -222,11 +233,14 @@ async fn patch_upload(
     auth: RegistryAuth,
     Path((repository_name, uuid)): Path<(String, String)>,
     mut stream: BodyStream,
+    Extension(config): Extension<Arc<GlobalConfig>>,
 ) -> Result<impl IntoResponse, StatusCode> {
     check_access(&repository_name, &auth, &db_conn)?;
 
     // TODO: support content range header in request
-    let upload_path = PathBuf::from(REGISTRY_PATH).join("uploads").join(&uuid);
+    let upload_path = PathBuf::from(&config.registry_directory)
+        .join("uploads")
+        .join(&uuid);
     let mut file = tokio::fs::OpenOptions::new()
         .read(false)
         .write(true)
@@ -266,10 +280,13 @@ async fn put_upload(
     Path((repository_name, uuid)): Path<(String, String)>,
     Query(params): Query<UploadParams>,
     mut stream: BodyStream,
+    Extension(config): Extension<Arc<GlobalConfig>>,
 ) -> Result<impl IntoResponse, StatusCode> {
     check_access(&repository_name, &auth, &db_conn)?;
 
-    let upload_path = PathBuf::from(REGISTRY_PATH).join("uploads").join(&uuid);
+    let upload_path = PathBuf::from(&config.registry_directory)
+        .join("uploads")
+        .join(&uuid);
     let mut file = tokio::fs::OpenOptions::new()
         .read(false)
         .write(true)
@@ -293,7 +310,9 @@ async fn put_upload(
         return Err(StatusCode::BAD_REQUEST);
     }
 
-    let target_path = PathBuf::from(REGISTRY_PATH).join("sha256").join(&digest);
+    let target_path = PathBuf::from(&config.registry_directory)
+        .join("sha256")
+        .join(&digest);
     tokio::fs::rename(&upload_path, &target_path).await.unwrap();
 
     Ok(Response::builder()
@@ -314,10 +333,11 @@ async fn get_manifest(
     db_conn: DatabaseConnection,
     auth: RegistryAuth,
     Path((repository_name, reference)): Path<(String, String)>,
+    Extension(config): Extension<Arc<GlobalConfig>>,
 ) -> Result<impl IntoResponse, StatusCode> {
     check_access(&repository_name, &auth, &db_conn)?;
 
-    let manifest_path = PathBuf::from(REGISTRY_PATH)
+    let manifest_path = PathBuf::from(&config.registry_directory)
         .join("manifests")
         .join(&repository_name)
         .join(&reference)
@@ -339,10 +359,11 @@ async fn put_manifest(
     auth: RegistryAuth,
     Path((repository_name, reference)): Path<(String, String)>,
     mut stream: BodyStream,
+    Extension(config): Extension<Arc<GlobalConfig>>,
 ) -> Result<impl IntoResponse, StatusCode> {
     let bot = check_access(&repository_name, &auth, &db_conn)?;
 
-    let repository_dir = PathBuf::from(REGISTRY_PATH)
+    let repository_dir = PathBuf::from(&config.registry_directory)
         .join("manifests")
         .join(&repository_name);
 
