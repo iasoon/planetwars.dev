@@ -18,7 +18,7 @@ use config::ConfigError;
 use diesel::{Connection, PgConnection};
 use modules::ranking::run_ranker;
 use modules::registry::registry_service;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use axum::{
     async_trait,
@@ -33,15 +33,29 @@ const SIMPLEBOT_PATH: &str = "../simplebot/simplebot.py";
 
 type ConnectionPool = bb8::Pool<DieselConnectionManager<PgConnection>>;
 
+#[derive(Serialize, Deserialize)]
 pub struct GlobalConfig {
+    /// url for the postgres database
+    pub database_url: String,
+
+    /// which image to use for running python bots
     pub python_runner_image: String,
+
+    /// url for the internal container registry
+    /// this will be used when running bots
     pub container_registry_url: String,
 
+    /// directory where bot code will be stored
     pub bots_directory: String,
+    /// directory where match logs will be stored
     pub match_logs_directory: String,
+    /// directory where map files will be stored
     pub maps_directory: String,
 
+    /// base directory for registry data
     pub registry_directory: String,
+    /// secret admin password for internal docker login
+    /// used to pull bots when running matches
     pub registry_admin_password: String,
 }
 
@@ -71,8 +85,8 @@ pub async fn seed_simplebot(config: &GlobalConfig, pool: &ConnectionPool) {
 
 pub type DbPool = Pool<DieselConnectionManager<PgConnection>>;
 
-pub async fn prepare_db(database_url: &str, config: &GlobalConfig) -> DbPool {
-    let manager = DieselConnectionManager::<PgConnection>::new(database_url);
+pub async fn prepare_db(config: &GlobalConfig) -> DbPool {
+    let manager = DieselConnectionManager::<PgConnection>::new(&config.database_url);
     let pool = bb8::Pool::builder().build(manager).await.unwrap();
     seed_simplebot(&config, &pool).await;
     pool
@@ -104,7 +118,7 @@ pub fn api() -> Router {
         .route("/save_bot", post(routes::bots::save_bot))
 }
 
-pub fn get_config() -> Result<Configuration, ConfigError> {
+pub fn get_config() -> Result<GlobalConfig, ConfigError> {
     config::Config::builder()
         .add_source(config::File::with_name("configuration.toml"))
         .add_source(config::Environment::with_prefix("PLANETWARS"))
@@ -128,21 +142,8 @@ async fn run_registry(config: Arc<GlobalConfig>, db_pool: DbPool) {
 }
 
 pub async fn run_app() {
-    let configuration = get_config().unwrap();
-
-    let global_config = Arc::new(GlobalConfig {
-        python_runner_image: "python:3.10-slim-buster".to_string(),
-        container_registry_url: "localhost:9001".to_string(),
-
-        bots_directory: "./data/bots".to_string(),
-        match_logs_directory: "./data/matches".to_string(),
-        maps_directory: "./data/maps".to_string(),
-
-        registry_directory: "./data/registry".to_string(),
-        registry_admin_password: "verysecretadminpassword".to_string(),
-    });
-
-    let db_pool = prepare_db(&configuration.database_url, &global_config).await;
+    let global_config = Arc::new(get_config().unwrap());
+    let db_pool = prepare_db(&global_config).await;
 
     tokio::spawn(run_ranker(global_config.clone(), db_pool.clone()));
     tokio::spawn(run_registry(global_config.clone(), db_pool.clone()));

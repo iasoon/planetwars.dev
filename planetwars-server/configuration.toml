@@ -1,1 +1,11 @@
 database_url = "postgresql://planetwars:planetwars@localhost/planetwars"
+
+python_runner_image = "python:3.10-slim-buster"
+container_registry_url = "localhost:9001"
+
+bots_directory = "./data/bots"
+match_logs_directory = "./data/matches"
+maps_directory = "./data/maps"
+
+registry_directory = "./data/registry"
+registry_admin_password ="verysecretadminpassword"
