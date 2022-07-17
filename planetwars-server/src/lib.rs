@@ -8,10 +8,10 @@ pub mod routes;
 pub mod schema;
 pub mod util;
 
-use std::path::PathBuf;
-use std::{net::SocketAddr, fs};
 use std::ops::Deref;
+use std::path::PathBuf;
 use std::sync::Arc;
+use std::{fs, net::SocketAddr};
 
 use bb8::{Pool, PooledConnection};
 use bb8_diesel::{self, DieselConnectionManager};
@@ -56,6 +56,9 @@ pub struct GlobalConfig {
     /// secret admin password for internal docker login
     /// used to pull bots when running matches
     pub registry_admin_password: String,
+
+    /// Whether to run the ranker
+    pub ranker_enabled: bool,
 }
 
 // TODO: do we still need this? Is there a better way?
@@ -161,7 +164,9 @@ pub async fn run_app() {
     let db_pool = prepare_db(&global_config).await;
     init_directories(&global_config).unwrap();
 
-    tokio::spawn(run_ranker(global_config.clone(), db_pool.clone()));
+    if global_config.ranker_enabled {
+        tokio::spawn(run_ranker(global_config.clone(), db_pool.clone()));
+    }
     tokio::spawn(run_registry(global_config.clone(), db_pool.clone()));
 
     let api_service = Router::new()

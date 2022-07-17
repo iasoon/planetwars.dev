@@ -9,3 +9,5 @@ maps_directory = "./data/maps"
 
 registry_directory = "./data/registry"
 registry_admin_password ="verysecretadminpassword"
+
+ranker_enabled = false
