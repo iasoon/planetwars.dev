@@ -8,7 +8,8 @@ pub mod routes;
 pub mod schema;
 pub mod util;
 
-use std::net::SocketAddr;
+use std::path::PathBuf;
+use std::{net::SocketAddr, fs};
 use std::ops::Deref;
 use std::sync::Arc;
 
@@ -93,6 +94,19 @@ pub async fn prepare_db(config: &GlobalConfig) -> DbPool {
     pool
 }
 
+// create all directories required for further operation
+fn init_directories(config: &GlobalConfig) -> std::io::Result<()> {
+    fs::create_dir_all(&config.bots_directory)?;
+    fs::create_dir_all(&config.maps_directory)?;
+    fs::create_dir_all(&config.match_logs_directory)?;
+
+    let registry_path = PathBuf::from(&config.registry_directory);
+    fs::create_dir_all(registry_path.join("sha256"))?;
+    fs::create_dir_all(registry_path.join("manifests"))?;
+    fs::create_dir_all(registry_path.join("uploads"))?;
+    Ok(())
+}
+
 pub fn api() -> Router {
     Router::new()
         .route("/register", post(routes::users::register))
@@ -145,6 +159,7 @@ async fn run_registry(config: Arc<GlobalConfig>, db_pool: DbPool) {
 pub async fn run_app() {
     let global_config = Arc::new(get_config().unwrap());
     let db_pool = prepare_db(&global_config).await;
+    init_directories(&global_config).unwrap();
 
     tokio::spawn(run_ranker(global_config.clone(), db_pool.clone()));
     tokio::spawn(run_registry(global_config.clone(), db_pool.clone()));
