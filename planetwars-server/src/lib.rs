@@ -28,11 +28,9 @@ use axum::{
     Router,
 };
 
-// TODO: make these configurable
-const SIMPLEBOT_PATH: &str = "../simplebot/simplebot.py";
-
 type ConnectionPool = bb8::Pool<DieselConnectionManager<PgConnection>>;
 
+// this should probably be modularized a bit as the config grows
 #[derive(Serialize, Deserialize)]
 pub struct GlobalConfig {
     /// url for the postgres database
@@ -58,6 +56,9 @@ pub struct GlobalConfig {
     /// used to pull bots when running matches
     pub registry_admin_password: String,
 }
+
+// TODO: do we still need this? Is there a better way?
+const SIMPLEBOT_PATH: &str = "../simplebot/simplebot.py";
 
 pub async fn seed_simplebot(config: &GlobalConfig, pool: &ConnectionPool) {
     let conn = pool.get().await.expect("could not get database connection");
@@ -88,7 +89,7 @@ pub type DbPool = Pool<DieselConnectionManager<PgConnection>>;
 pub async fn prepare_db(config: &GlobalConfig) -> DbPool {
     let manager = DieselConnectionManager::<PgConnection>::new(&config.database_url);
     let pool = bb8::Pool::builder().build(manager).await.unwrap();
-    seed_simplebot(&config, &pool).await;
+    seed_simplebot(config, &pool).await;
     pool
 }
 
@@ -158,11 +159,6 @@ pub async fn run_app() {
     let addr = SocketAddr::from(([127, 0, 0, 1], 9000));
 
     axum::Server::bind(&addr).serve(api_service).await.unwrap();
-}
-
-#[derive(Deserialize)]
-pub struct Configuration {
-    pub database_url: String,
 }
 
 // we can also write a custom extractor that grabs a connection from the pool
