@@ -79,7 +79,6 @@ export class Label {
         const verts_pos = [];
         const verts_tex = [];
 
-        const letterHeight = this.font.letterHeight / this.font.textureHeight;
         let xPos = 0;
 
         switch (h_align) {
@@ -108,10 +107,17 @@ export class Label {
         for (let i = 0; i < text.length; i++) {
             const info = this.font.glyphInfos[text[i]];
             if (info) {
+                
                 const dx = info.width / this.font.letterHeight;
-                const letterWidth = info.width / this.font.textureWidth;
-                const x0 = info.x / this.font.textureWidth;
-                const y0 = info.y / this.font.textureHeight;
+
+                // apply half-pixel correction to prevent texture bleeding
+                // we should address the center of each texel, not the border
+                // https://gamedev.stackexchange.com/questions/46963/how-to-avoid-texture-bleeding-in-a-texture-atlas
+                const x0 = (info.x + 0.5) / this.font.textureWidth;
+                const y0 = (info.y + 0.5) / this.font.textureHeight;
+                const letterWidth = (info.width - 1) / this.font.textureWidth;
+                const letterHeight = (this.font.letterHeight - 1) / this.font.textureHeight;
+
                 verts_pos.push(xPos,      yStart);
                 verts_pos.push(xPos + dx, yStart);
                 verts_pos.push(xPos,      yStart-1);
