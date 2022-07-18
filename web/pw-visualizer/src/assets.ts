@@ -4,9 +4,13 @@ export {default as earthSvg} from "../assets/res/earth.svg";
 export {default as marsSvg} from "../assets/res/mars.svg";
 export {default as venusSvg} from "../assets/res/venus.svg";
 
+export {default as earthPng} from "../assets/res/earth.png";
+
 export {default as fontPng} from "../assets/res/font.png";
 
 export {default as imageFragmentShader} from "../assets/shaders/frag/image.glsl?url";
+export {default as maskedImageFragmentShader} from "../assets/shaders/frag/masked_image.glsl?url";
+
 export {default as simpleFragmentShader} from "../assets/shaders/frag/simple.glsl?url";
 export {default as vorFragmentShader} from "../assets/shaders/frag/vor.glsl?url";
 

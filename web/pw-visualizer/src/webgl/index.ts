@@ -57,8 +57,8 @@ async function main() {
         return;
     }
 
+    // TODO: do we still need this?
     const mesh = await url_to_mesh("static/res/images/earth.svg");
-    console.log(Math.max(...mesh.positions), Math.min(...mesh.positions));
     const renderer = new Renderer();
 
     const factory = await ShaderFactory.create_factory(assets.simpleFragmentShader, assets.simpleVertexShader);
