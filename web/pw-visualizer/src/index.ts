@@ -1,6 +1,4 @@
 import { Game } from "planetwars-rs";
-// import { memory } from "planetwars-rs/planetwars_rs_bg";
-// const memory = planetwars_bg.memory;
 import type { Dictionary } from './webgl/util';
 import type { BBox } from "./voronoi/voronoi-core";
 
@@ -8,8 +6,6 @@ import {
   Resizer,
   resizeCanvasToDisplaySize,
   FPSCounter,
-  url_to_mesh,
-  Mesh,
 } from "./webgl/util";
 import {
   Shader,
@@ -39,14 +35,6 @@ function to_bbox(box: number[]): BBox {
     yb: box[1] + box[3],
   };
 }
-
-// function f32v(ptr: number, size: number): Float32Array {
-//   return new Float32Array(memory.buffer, ptr, size);
-// }
-
-// function i32v(ptr: number, size: number): Int32Array {
-//   return new Int32Array(memory.buffer, ptr, size);
-// }
 
 export function set_game_name(name: string) {
   ELEMENTS["name"].innerHTML = name;
@@ -142,6 +130,7 @@ export class GameInstance {
 
   ship_ibo: IndexBuffer;
   ship_vao: VertexArray;
+  ship_texture: Texture;
   // TODO: find a better way
   max_num_ships: number;
 
@@ -161,8 +150,9 @@ export class GameInstance {
 
   constructor(
     game: Game,
-    meshes: Mesh[],
-    ship_mesh: Mesh,
+    planets_textures: Texture[],
+    ship_texture: Texture,
+    font_texture: Texture,
     shaders: Dictionary<ShaderFactory>
   ) {
     this.game = game;
@@ -178,9 +168,11 @@ export class GameInstance {
     });
     this.masked_image_shader = shaders["masked_image"].create_shader(GL);
 
-    this.text_factory = defaultLabelFactory(GL, this.image_shader);
+    this.text_factory = defaultLabelFactory(GL, font_texture, this.image_shader);
     this.planet_labels = [];
     this.ship_labels = [];
+
+    this.ship_texture = ship_texture
 
     this.resizer = new Resizer(CANVAS, [...game.get_viewbox()], true);
     this.renderer = new Renderer();
@@ -191,15 +183,8 @@ export class GameInstance {
 
     // List of [(x, y, r)] for all planets
     this._create_voronoi(planets);
-    this._create_planets(planets, meshes);
+    this._create_planets(planets, planets_textures);
 
-    // create_shipes
-    this.ship_ibo = new IndexBuffer(GL, ship_mesh.cells);
-    const ship_positions = new VertexBuffer(GL, ship_mesh.positions);
-    const ship_layout = new VertexBufferLayout();
-    ship_layout.push(GL.FLOAT, 3, 4, "a_position");
-    this.ship_vao = new VertexArray();
-    this.ship_vao.addBuffer(ship_positions, ship_layout);
     this.max_num_ships = 0;
 
     // Set slider correctly
@@ -236,9 +221,7 @@ export class GameInstance {
     this.renderer.addRenderable(this.vor_builder.getRenderable(), LAYERS.vor);
   }
 
-  _create_planets(planets: Float32Array, meshes: Mesh[]) {
-    const earth = Texture.fromImage(GL, assets.earthPng, 'earth');
-
+  _create_planets(planets: Float32Array, planets_textures: Texture[]) {
     for (let i = 0; i < this.planet_count; i++) {
       {
         const transform = new UniformMatrix3fv([
@@ -280,7 +263,7 @@ export class GameInstance {
           u_trans_next: transform,
         };
   
-        const renderable = new DefaultRenderable(ib, vao, this.masked_image_shader, [earth], uniforms);
+        const renderable = new DefaultRenderable(ib, vao, this.masked_image_shader, [planets_textures[0]], uniforms);
     
         this.renderer.addRenderable(renderable, LAYERS.planet);
     
@@ -361,16 +344,39 @@ export class GameInstance {
     const ship_colours = this.game.get_ship_colours();
 
     for (let i = this.max_num_ships; i < ship_counts.length; i++) {
-      this.renderer.addToDraw(
-        this.ship_ibo,
-        this.ship_vao,
-        this.shader,
-        {},
-        [],
-        LAYERS.ship
-      );
+      const gl = GL;
+      const ib = new IndexBuffer(gl, [
+        0, 1, 2,
+        1, 2, 3
+      ]);
+      const ratio = this.ship_texture.getWidth() / this.ship_texture.getHeight();
+      const vb_pos = new VertexBuffer(gl, [
+        -ratio,  1,
+         ratio,  1,
+        -ratio, -1,
+         ratio, -1
+      ]);
+      const vb_tex = new VertexBuffer(gl, [
+        0, 0,
+        1, 0,
+        0, 1,
+        1, 1,
+      ]);
+  
+      const layout_pos = new VertexBufferLayout();
+      layout_pos.push(gl.FLOAT, 2, 4, "a_position");
+  
+      const layout_tex = new VertexBufferLayout();
+      layout_tex.push(gl.FLOAT, 2, 4, "a_texCoord");
+  
+      const vao = new VertexArray();
+      vao.addBuffer(vb_pos, layout_pos);
+      vao.addBuffer(vb_tex, layout_tex);
 
+      const renderable = new DefaultRenderable(ib, vao, this.masked_image_shader, [this.ship_texture], {});
+      this.renderer.addRenderable(renderable, LAYERS.ship);
       const label = this.text_factory.build(GL);
+
       this.ship_labels.push(label);
       this.renderer.addRenderable(label.getRenderable(), LAYERS.ship_label);
     }
@@ -579,18 +585,17 @@ export class GameInstance {
 }
 
 var game_instance: GameInstance;
-var meshes: Mesh[];
+var textures: Texture[];
 var shaders: Dictionary<ShaderFactory>;
 
 export async function set_instance(source: string): Promise<GameInstance> {
   // TODO: embed shader programs
-  if (!meshes || !shaders) {
-    const mesh_promises = [
-      assets.shipSvg,
-      assets.earthSvg,
-      assets.marsSvg,
-      assets.venusSvg,
-    ].map(url_to_mesh);
+  if (!textures || !shaders) {
+    const texture_promises = [
+      Texture.fromImage(GL, assets.fontPng, "font"),
+      Texture.fromImage(GL, assets.shipPng, "ship"),
+      Texture.fromImage(GL, assets.earthPng, "earth")
+    ];
 
     const shader_promies = [
       (async () =>
@@ -628,8 +633,8 @@ export async function set_instance(source: string): Promise<GameInstance> {
 
     ];
     let shaders_array: [string, ShaderFactory][];
-    [meshes, shaders_array] = await Promise.all([
-      Promise.all(mesh_promises),
+    [textures, shaders_array] = await Promise.all([
+      Promise.all(texture_promises),
       Promise.all(shader_promies),
     ]);
 
@@ -641,8 +646,9 @@ export async function set_instance(source: string): Promise<GameInstance> {
 
   game_instance = new GameInstance(
     Game.new(source),
-    meshes.slice(1),
-    meshes[0],
+    textures.slice(2),
+    textures[1],
+    textures[0],
     shaders
   );
 

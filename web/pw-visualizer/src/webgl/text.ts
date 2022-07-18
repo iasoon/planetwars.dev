@@ -33,8 +33,8 @@ export class LabelFactory {
     font: FontInfo;
     shader: Shader;
 
-    constructor(gl: WebGLRenderingContext, loc: string, font: FontInfo, shader: Shader) {
-        this.texture = Texture.fromImage(gl, loc, 'font');
+    constructor(gl: WebGLRenderingContext, fontTexture: Texture, font: FontInfo, shader: Shader) {
+        this.texture = fontTexture;
         this.font = font;
         this.shader = shader;
     }
@@ -144,7 +144,7 @@ export class Label {
     }
 }
 
-export function defaultLabelFactory(gl: WebGLRenderingContext, shader: Shader): LabelFactory {
+export function defaultLabelFactory(gl: WebGLRenderingContext, fontTexture: Texture, shader: Shader): LabelFactory {
     const fontInfo = {
         letterHeight: 8,
         spaceWidth: 8,
@@ -195,5 +195,5 @@ export function defaultLabelFactory(gl: WebGLRenderingContext, shader: Shader): 
         },
     };
 
-    return new LabelFactory(gl, fontPng, fontInfo, shader);
+    return new LabelFactory(gl, fontTexture, fontInfo, shader);
 }

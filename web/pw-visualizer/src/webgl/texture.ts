@@ -11,15 +11,18 @@ export class Texture {
         gl: WebGLRenderingContext,
         path: string,
         name: string,
-    ): Texture {
-        const out = new Texture(gl, name);
+    ): Promise<Texture> {
+        return new Promise((resolve, reject) => {
+            const out = new Texture(gl, name);
 
-        const image = new Image();
-        image.onload = out.setImage.bind(out, gl, image);
-        image.onerror = error;
-        image.src = path;
-
-        return out;
+            const image = new Image();
+            image.onload = () => {
+                out.setImage(gl, image);
+                resolve(out);
+            }
+            image.onerror = reject;
+            image.src = path;
+        })
     }
 
     static fromRenderer(
@@ -98,9 +101,4 @@ export class Texture {
     getHeight(): number {
         return this.height;
     }
-}
-
-function error(e: any) {
-    console.error("IMAGE LOAD ERROR");
-    console.error(e);
 }
