@@ -6,9 +6,9 @@ use diesel::{
 };
 use diesel::{Connection, GroupedBy, PgConnection, QueryResult};
 
-use crate::schema::{bots, code_bundles, match_players, matches};
+use crate::schema::{bot_versions, bots, match_players, matches};
 
-use super::bots::{Bot, CodeBundle};
+use super::bots::{Bot, BotVersion};
 
 #[derive(Insertable)]
 #[table_name = "matches"]
@@ -25,7 +25,7 @@ pub struct NewMatchPlayer {
     /// player id within the match
     pub player_id: i32,
     /// id of the bot behind this player
-    pub code_bundle_id: i32,
+    pub bot_version_id: Option<i32>,
 }
 
 #[derive(Queryable, Identifiable)]
@@ -44,11 +44,11 @@ pub struct MatchBase {
 pub struct MatchPlayer {
     pub match_id: i32,
     pub player_id: i32,
-    pub code_bundle_id: i32,
+    pub code_bundle_id: Option<i32>,
 }
 
 pub struct MatchPlayerData {
-    pub code_bundle_id: i32,
+    pub code_bundle_id: Option<i32>,
 }
 
 pub fn create_match(
@@ -67,7 +67,7 @@ pub fn create_match(
             .map(|(num, player_data)| NewMatchPlayer {
                 match_id: match_base.id,
                 player_id: num as i32,
-                code_bundle_id: player_data.code_bundle_id,
+                bot_version_id: player_data.code_bundle_id,
             })
             .collect::<Vec<_>>();
 
@@ -92,8 +92,11 @@ pub fn list_matches(conn: &PgConnection) -> QueryResult<Vec<FullMatchData>> {
         let matches = matches::table.get_results::<MatchBase>(conn)?;
 
         let match_players = MatchPlayer::belonging_to(&matches)
-            .inner_join(code_bundles::table)
-            .left_join(bots::table.on(code_bundles::bot_id.eq(bots::id.nullable())))
+            .left_join(
+                bot_versions::table
+                    .on(match_players::bot_version_id.eq(bot_versions::id.nullable())),
+            )
+            .left_join(bots::table.on(bot_versions::bot_id.eq(bots::id.nullable())))
             .load::<FullMatchPlayerData>(conn)?
             .grouped_by(&matches);
 
@@ -120,7 +123,7 @@ pub struct FullMatchData {
 // #[primary_key(base.match_id, base::player_id)]
 pub struct FullMatchPlayerData {
     pub base: MatchPlayer,
-    pub code_bundle: CodeBundle,
+    pub bot_version: Option<BotVersion>,
     pub bot: Option<Bot>,
 }
 
@@ -142,8 +145,11 @@ pub fn find_match(id: i32, conn: &PgConnection) -> QueryResult<FullMatchData> {
         let match_base = matches::table.find(id).get_result::<MatchBase>(conn)?;
 
         let match_players = MatchPlayer::belonging_to(&match_base)
-            .inner_join(code_bundles::table)
-            .left_join(bots::table.on(code_bundles::bot_id.eq(bots::id.nullable())))
+            .left_join(
+                bot_versions::table
+                    .on(match_players::bot_version_id.eq(bot_versions::id.nullable())),
+            )
+            .left_join(bots::table.on(bot_versions::bot_id.eq(bots::id.nullable())))
             .load::<FullMatchPlayerData>(conn)?;
 
         let res = FullMatchData {
@@ -160,14 +166,17 @@ pub fn find_match_base(id: i32, conn: &PgConnection) -> QueryResult<MatchBase> {
 }
 
 pub enum MatchResult {
-    Finished { winner: Option<i32> }
+    Finished { winner: Option<i32> },
 }
 
 pub fn save_match_result(id: i32, result: MatchResult, conn: &PgConnection) -> QueryResult<()> {
     let MatchResult::Finished { winner } = result;
 
     diesel::update(matches::table.find(id))
-        .set((matches::winner.eq(winner), matches::state.eq(MatchState::Finished)))
+        .set((
+            matches::winner.eq(winner),
+            matches::state.eq(MatchState::Finished),
+        ))
         .execute(conn)?;
     Ok(())
 }

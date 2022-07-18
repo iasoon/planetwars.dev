@@ -1,17 +1,18 @@
-use crate::{db::bots::Bot, DbPool};
+use crate::{db::bots::Bot, DbPool, GlobalConfig};
 
 use crate::db;
-use crate::modules::matches::RunMatch;
+use crate::modules::matches::{MatchPlayer, RunMatch};
 use diesel::{PgConnection, QueryResult};
 use rand::seq::SliceRandom;
 use std::collections::HashMap;
 use std::mem;
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio;
 
 const RANKER_INTERVAL: u64 = 60;
 
-pub async fn run_ranker(db_pool: DbPool) {
+pub async fn run_ranker(config: Arc<GlobalConfig>, db_pool: DbPool) {
     // TODO: make this configurable
     // play at most one match every n seconds
     let mut interval = tokio::time::interval(Duration::from_secs(RANKER_INTERVAL));
@@ -30,30 +31,30 @@ pub async fn run_ranker(db_pool: DbPool) {
             let mut rng = &mut rand::thread_rng();
             bots.choose_multiple(&mut rng, 2).cloned().collect()
         };
-        play_ranking_match(selected_bots, db_pool.clone()).await;
+        play_ranking_match(config.clone(), selected_bots, db_pool.clone()).await;
         recalculate_ratings(&db_conn).expect("could not recalculate ratings");
     }
 }
 
-async fn play_ranking_match(selected_bots: Vec<Bot>, db_pool: DbPool) {
+async fn play_ranking_match(config: Arc<GlobalConfig>, selected_bots: Vec<Bot>, db_pool: DbPool) {
     let db_conn = db_pool.get().await.expect("could not get db pool");
-    let mut code_bundles = Vec::new();
+    let mut players = Vec::new();
     for bot in &selected_bots {
-        let code_bundle = db::bots::active_code_bundle(bot.id, &db_conn)
-            .expect("could not get active code bundle");
-        code_bundles.push(code_bundle);
+        let version = db::bots::active_bot_version(bot.id, &db_conn)
+            .expect("could not get active bot version");
+        let player = MatchPlayer::BotVersion {
+            bot: Some(bot.clone()),
+            version,
+        };
+        players.push(player);
     }
 
-    let code_bundle_refs = code_bundles.iter().collect::<Vec<_>>();
-
-    let mut run_match = RunMatch::from_players(code_bundle_refs);
-    run_match
-        .store_in_database(&db_conn)
-        .expect("could not store match in db");
-    run_match
-        .spawn(db_pool.clone())
+    let (_, handle) = RunMatch::from_players(config, players)
+        .run(db_pool.clone())
         .await
-        .expect("running match failed");
+        .expect("failed to run match");
+    // wait for match to complete, so that only one ranking match can be running
+    let _outcome = handle.await;
 }
 
 fn recalculate_ratings(db_conn: &PgConnection) -> QueryResult<()> {

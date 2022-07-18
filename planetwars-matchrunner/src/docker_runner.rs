@@ -1,5 +1,4 @@
 use std::io;
-use std::path::PathBuf;
 use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 
@@ -19,8 +18,9 @@ use crate::BotSpec;
 #[derive(Clone, Debug)]
 pub struct DockerBotSpec {
     pub image: String,
-    pub code_path: PathBuf,
-    pub argv: Vec<String>,
+    pub binds: Option<Vec<String>>,
+    pub argv: Option<Vec<String>>,
+    pub working_dir: Option<String>,
 }
 
 #[async_trait]
@@ -42,14 +42,12 @@ async fn spawn_docker_process(
     params: &DockerBotSpec,
 ) -> Result<ContainerProcess, bollard::errors::Error> {
     let docker = Docker::connect_with_socket_defaults()?;
-    let bot_code_dir = std::fs::canonicalize(&params.code_path).unwrap();
-    let code_dir_str = bot_code_dir.as_os_str().to_str().unwrap();
 
     let memory_limit = 512 * 1024 * 1024; // 512MB
     let config = container::Config {
         image: Some(params.image.clone()),
         host_config: Some(bollard::models::HostConfig {
-            binds: Some(vec![format!("{}:{}", code_dir_str, "/workdir")]),
+            binds: params.binds.clone(),
             network_mode: Some("none".to_string()),
             memory: Some(memory_limit),
             memory_swap: Some(memory_limit),
@@ -59,8 +57,8 @@ async fn spawn_docker_process(
             // cpu_quota: Some(10_000),
             ..Default::default()
         }),
-        working_dir: Some("/workdir".to_string()),
-        cmd: Some(params.argv.clone()),
+        working_dir: params.working_dir.clone(),
+        cmd: params.argv.clone(),
         attach_stdin: Some(true),
         attach_stdout: Some(true),
         attach_stderr: Some(true),

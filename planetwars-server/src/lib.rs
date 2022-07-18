@@ -8,33 +8,63 @@ pub mod routes;
 pub mod schema;
 pub mod util;
 
-use std::net::SocketAddr;
 use std::ops::Deref;
+use std::path::PathBuf;
+use std::sync::Arc;
+use std::{fs, net::SocketAddr};
 
 use bb8::{Pool, PooledConnection};
 use bb8_diesel::{self, DieselConnectionManager};
 use config::ConfigError;
 use diesel::{Connection, PgConnection};
 use modules::ranking::run_ranker;
-use serde::Deserialize;
+use modules::registry::registry_service;
+use serde::{Deserialize, Serialize};
 
 use axum::{
     async_trait,
     extract::{Extension, FromRequest, RequestParts},
     http::StatusCode,
     routing::{get, post},
-    AddExtensionLayer, Router,
+    Router,
 };
-
-// TODO: make these configurable
-const BOTS_DIR: &str = "./data/bots";
-const MATCHES_DIR: &str = "./data/matches";
-const MAPS_DIR: &str = "./data/maps";
-const SIMPLEBOT_PATH: &str = "../simplebot/simplebot.py";
 
 type ConnectionPool = bb8::Pool<DieselConnectionManager<PgConnection>>;
 
-pub async fn seed_simplebot(pool: &ConnectionPool) {
+// this should probably be modularized a bit as the config grows
+#[derive(Serialize, Deserialize)]
+pub struct GlobalConfig {
+    /// url for the postgres database
+    pub database_url: String,
+
+    /// which image to use for running python bots
+    pub python_runner_image: String,
+
+    /// url for the internal container registry
+    /// this will be used when running bots
+    pub container_registry_url: String,
+
+    /// directory where bot code will be stored
+    pub bots_directory: String,
+    /// directory where match logs will be stored
+    pub match_logs_directory: String,
+    /// directory where map files will be stored
+    pub maps_directory: String,
+
+    /// base directory for registry data
+    pub registry_directory: String,
+    /// secret admin password for internal docker login
+    /// used to pull bots when running matches
+    pub registry_admin_password: String,
+
+    /// Whether to run the ranker
+    pub ranker_enabled: bool,
+}
+
+// TODO: do we still need this? Is there a better way?
+const SIMPLEBOT_PATH: &str = "../simplebot/simplebot.py";
+
+pub async fn seed_simplebot(config: &GlobalConfig, pool: &ConnectionPool) {
     let conn = pool.get().await.expect("could not get database connection");
     // This transaction is expected to fail when simplebot already exists.
     let _res = conn.transaction::<(), diesel::result::Error, _>(|| {
@@ -50,7 +80,7 @@ pub async fn seed_simplebot(pool: &ConnectionPool) {
         let simplebot_code =
             std::fs::read_to_string(SIMPLEBOT_PATH).expect("could not read simplebot code");
 
-        modules::bots::save_code_bundle(&simplebot_code, Some(simplebot.id), &conn)?;
+        modules::bots::save_code_string(&simplebot_code, Some(simplebot.id), &conn, config)?;
 
         println!("initialized simplebot");
 
@@ -60,11 +90,24 @@ pub async fn seed_simplebot(pool: &ConnectionPool) {
 
 pub type DbPool = Pool<DieselConnectionManager<PgConnection>>;
 
-pub async fn prepare_db(database_url: &str) -> DbPool {
-    let manager = DieselConnectionManager::<PgConnection>::new(database_url);
+pub async fn prepare_db(config: &GlobalConfig) -> DbPool {
+    let manager = DieselConnectionManager::<PgConnection>::new(&config.database_url);
     let pool = bb8::Pool::builder().build(manager).await.unwrap();
-    seed_simplebot(&pool).await;
+    seed_simplebot(config, &pool).await;
     pool
+}
+
+// create all directories required for further operation
+fn init_directories(config: &GlobalConfig) -> std::io::Result<()> {
+    fs::create_dir_all(&config.bots_directory)?;
+    fs::create_dir_all(&config.maps_directory)?;
+    fs::create_dir_all(&config.match_logs_directory)?;
+
+    let registry_path = PathBuf::from(&config.registry_directory);
+    fs::create_dir_all(registry_path.join("sha256"))?;
+    fs::create_dir_all(registry_path.join("manifests"))?;
+    fs::create_dir_all(registry_path.join("uploads"))?;
+    Ok(())
 }
 
 pub fn api() -> Router {
@@ -82,10 +125,7 @@ pub fn api() -> Router {
             "/bots/:bot_id/upload",
             post(routes::bots::upload_code_multipart),
         )
-        .route(
-            "/matches",
-            get(routes::matches::list_matches).post(routes::matches::play_match),
-        )
+        .route("/matches", get(routes::matches::list_matches))
         .route("/matches/:match_id", get(routes::matches::get_match_data))
         .route(
             "/matches/:match_id/log",
@@ -96,7 +136,7 @@ pub fn api() -> Router {
         .route("/save_bot", post(routes::bots::save_bot))
 }
 
-pub fn get_config() -> Result<Configuration, ConfigError> {
+pub fn get_config() -> Result<GlobalConfig, ConfigError> {
     config::Config::builder()
         .add_source(config::File::with_name("configuration.toml"))
         .add_source(config::Environment::with_prefix("PLANETWARS"))
@@ -104,26 +144,41 @@ pub fn get_config() -> Result<Configuration, ConfigError> {
         .try_deserialize()
 }
 
-pub async fn run_app() {
-    let configuration = get_config().unwrap();
-    let db_pool = prepare_db(&configuration.database_url).await;
+async fn run_registry(config: Arc<GlobalConfig>, db_pool: DbPool) {
+    // TODO: put in config
+    let addr = SocketAddr::from(([127, 0, 0, 1], 9001));
 
-    tokio::spawn(run_ranker(db_pool.clone()));
+    axum::Server::bind(&addr)
+        .serve(
+            registry_service()
+                .layer(Extension(db_pool))
+                .layer(Extension(config))
+                .into_make_service(),
+        )
+        .await
+        .unwrap();
+}
+
+pub async fn run_app() {
+    let global_config = Arc::new(get_config().unwrap());
+    let db_pool = prepare_db(&global_config).await;
+    init_directories(&global_config).unwrap();
+
+    if global_config.ranker_enabled {
+        tokio::spawn(run_ranker(global_config.clone(), db_pool.clone()));
+    }
+    tokio::spawn(run_registry(global_config.clone(), db_pool.clone()));
 
     let api_service = Router::new()
         .nest("/api", api())
-        .layer(AddExtensionLayer::new(db_pool))
+        .layer(Extension(db_pool))
+        .layer(Extension(global_config))
         .into_make_service();
 
     // TODO: put in config
     let addr = SocketAddr::from(([127, 0, 0, 1], 9000));
 
     axum::Server::bind(&addr).serve(api_service).await.unwrap();
-}
-
-#[derive(Deserialize)]
-pub struct Configuration {
-    pub database_url: String,
 }
 
 // we can also write a custom extractor that grabs a connection from the pool

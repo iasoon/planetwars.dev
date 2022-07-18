@@ -1,7 +1,7 @@
 use axum::extract::{Multipart, Path};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
-use axum::{body, Json};
+use axum::{body, Extension, Json};
 use diesel::OptionalExtension;
 use rand::distributions::Alphanumeric;
 use rand::Rng;
@@ -9,13 +9,14 @@ use serde::{Deserialize, Serialize};
 use serde_json::{self, json, value::Value as JsonValue};
 use std::io::Cursor;
 use std::path::PathBuf;
+use std::sync::Arc;
 use thiserror;
 
-use crate::db::bots::{self, CodeBundle};
-use crate::db::ratings::{RankedBot, self};
+use crate::db::bots::{self, BotVersion};
+use crate::db::ratings::{self, RankedBot};
 use crate::db::users::User;
-use crate::modules::bots::save_code_bundle;
-use crate::{DatabaseConnection, BOTS_DIR};
+use crate::modules::bots::save_code_string;
+use crate::{DatabaseConnection, GlobalConfig};
 use bots::Bot;
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -96,6 +97,7 @@ pub async fn save_bot(
     Json(params): Json<SaveBotParams>,
     user: User,
     conn: DatabaseConnection,
+    Extension(config): Extension<Arc<GlobalConfig>>,
 ) -> Result<Json<Bot>, SaveBotError> {
     let res = bots::find_bot_by_name(&params.bot_name, &conn)
         .optional()
@@ -119,8 +121,8 @@ pub async fn save_bot(
             bots::create_bot(&new_bot, &conn).expect("could not create bot")
         }
     };
-    let _code_bundle =
-        save_code_bundle(&params.code, Some(bot.id), &conn).expect("failed to save code bundle");
+    let _code_bundle = save_code_string(&params.code, Some(bot.id), &conn, &config)
+        .expect("failed to save code bundle");
     Ok(Json(bot))
 }
 
@@ -148,8 +150,8 @@ pub async fn get_bot(
     Path(bot_id): Path<i32>,
 ) -> Result<Json<JsonValue>, StatusCode> {
     let bot = bots::find_bot(bot_id, &conn).map_err(|_| StatusCode::NOT_FOUND)?;
-    let bundles = bots::find_bot_code_bundles(bot.id, &conn)
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let bundles =
+        bots::find_bot_versions(bot.id, &conn).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     Ok(Json(json!({
         "bot": bot,
         "bundles": bundles,
@@ -183,8 +185,9 @@ pub async fn upload_code_multipart(
     user: User,
     Path(bot_id): Path<i32>,
     mut multipart: Multipart,
-) -> Result<Json<CodeBundle>, StatusCode> {
-    let bots_dir = PathBuf::from(BOTS_DIR);
+    Extension(config): Extension<Arc<GlobalConfig>>,
+) -> Result<Json<BotVersion>, StatusCode> {
+    let bots_dir = PathBuf::from(&config.bots_directory);
 
     let bot = bots::find_bot(bot_id, &conn).map_err(|_| StatusCode::NOT_FOUND)?;
 
@@ -213,12 +216,13 @@ pub async fn upload_code_multipart(
         .extract(bots_dir.join(&folder_name))
         .map_err(|_| StatusCode::BAD_REQUEST)?;
 
-    let bundle = bots::NewCodeBundle {
+    let bot_version = bots::NewBotVersion {
         bot_id: Some(bot.id),
-        path: &folder_name,
+        code_bundle_path: Some(&folder_name),
+        container_digest: None,
     };
     let code_bundle =
-        bots::create_code_bundle(&bundle, &conn).expect("Failed to create code bundle");
+        bots::create_bot_version(&bot_version, &conn).expect("Failed to create code bundle");
 
     Ok(Json(code_bundle))
 }

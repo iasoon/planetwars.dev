@@ -1,8 +1,11 @@
+use std::sync::Arc;
+
 use crate::db;
 use crate::db::matches::{FullMatchData, FullMatchPlayerData};
-use crate::modules::bots::save_code_bundle;
-use crate::modules::matches::RunMatch;
+use crate::modules::bots::save_code_string;
+use crate::modules::matches::{MatchPlayer, RunMatch};
 use crate::ConnectionPool;
+use crate::GlobalConfig;
 use axum::extract::Extension;
 use axum::Json;
 use hyper::StatusCode;
@@ -30,6 +33,7 @@ pub struct SubmitBotResponse {
 pub async fn submit_bot(
     Json(params): Json<SubmitBotParams>,
     Extension(pool): Extension<ConnectionPool>,
+    Extension(config): Extension<Arc<GlobalConfig>>,
 ) -> Result<Json<SubmitBotResponse>, StatusCode> {
     let conn = pool.get().await.expect("could not get database connection");
 
@@ -37,20 +41,32 @@ pub async fn submit_bot(
         .opponent_name
         .unwrap_or_else(|| DEFAULT_OPPONENT_NAME.to_string());
 
-    let opponent =
+    let opponent_bot =
         db::bots::find_bot_by_name(&opponent_name, &conn).map_err(|_| StatusCode::BAD_REQUEST)?;
-    let opponent_code_bundle =
-        db::bots::active_code_bundle(opponent.id, &conn).map_err(|_| StatusCode::BAD_REQUEST)?;
+    let opponent_bot_version = db::bots::active_bot_version(opponent_bot.id, &conn)
+        .map_err(|_| StatusCode::BAD_REQUEST)?;
 
-    let player_code_bundle = save_code_bundle(&params.code, None, &conn)
+    let player_bot_version = save_code_string(&params.code, None, &conn, &config)
         // TODO: can we recover from this?
         .expect("could not save bot code");
 
-    let mut run_match = RunMatch::from_players(vec![&player_code_bundle, &opponent_code_bundle]);
-    let match_data = run_match
-        .store_in_database(&conn)
-        .expect("failed to save match");
-    run_match.spawn(pool.clone());
+    let run_match = RunMatch::from_players(
+        config,
+        vec![
+            MatchPlayer::BotVersion {
+                bot: None,
+                version: player_bot_version.clone(),
+            },
+            MatchPlayer::BotVersion {
+                bot: Some(opponent_bot.clone()),
+                version: opponent_bot_version.clone(),
+            },
+        ],
+    );
+    let (match_data, _) = run_match
+        .run(pool.clone())
+        .await
+        .expect("failed to run match");
 
     // TODO: avoid clones
     let full_match_data = FullMatchData {
@@ -58,13 +74,13 @@ pub async fn submit_bot(
         match_players: vec![
             FullMatchPlayerData {
                 base: match_data.match_players[0].clone(),
-                code_bundle: player_code_bundle,
+                bot_version: Some(player_bot_version),
                 bot: None,
             },
             FullMatchPlayerData {
                 base: match_data.match_players[1].clone(),
-                code_bundle: opponent_code_bundle,
-                bot: Some(opponent),
+                bot_version: Some(opponent_bot_version),
+                bot: Some(opponent_bot),
             },
         ],
     };

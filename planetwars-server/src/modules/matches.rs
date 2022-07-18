@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::{path::PathBuf, sync::Arc};
 
 use diesel::{PgConnection, QueryResult};
 use planetwars_matchrunner::{self as runner, docker_runner::DockerBotSpec, BotSpec, MatchConfig};
@@ -11,77 +11,126 @@ use crate::{
         matches::{MatchData, MatchResult},
     },
     util::gen_alphanumeric,
-    ConnectionPool, BOTS_DIR, MAPS_DIR, MATCHES_DIR,
+    ConnectionPool, GlobalConfig,
 };
 
-const PYTHON_IMAGE: &str = "python:3.10-slim-buster";
-
-pub struct RunMatch<'a> {
+pub struct RunMatch {
     log_file_name: String,
-    player_code_bundles: Vec<&'a db::bots::CodeBundle>,
-    match_id: Option<i32>,
+    players: Vec<MatchPlayer>,
+    config: Arc<GlobalConfig>,
 }
 
-impl<'a> RunMatch<'a> {
-    pub fn from_players(player_code_bundles: Vec<&'a db::bots::CodeBundle>) -> Self {
+pub enum MatchPlayer {
+    BotVersion {
+        bot: Option<db::bots::Bot>,
+        version: db::bots::BotVersion,
+    },
+    BotSpec {
+        spec: Box<dyn BotSpec>,
+    },
+}
+
+impl RunMatch {
+    pub fn from_players(config: Arc<GlobalConfig>, players: Vec<MatchPlayer>) -> Self {
         let log_file_name = format!("{}.log", gen_alphanumeric(16));
         RunMatch {
+            config,
             log_file_name,
-            player_code_bundles,
-            match_id: None,
+            players,
         }
     }
 
-    pub fn runner_config(&self) -> runner::MatchConfig {
+    fn into_runner_config(self) -> runner::MatchConfig {
         runner::MatchConfig {
-            map_path: PathBuf::from(MAPS_DIR).join("hex.json"),
+            map_path: PathBuf::from(&self.config.maps_directory).join("hex.json"),
             map_name: "hex".to_string(),
-            log_path: PathBuf::from(MATCHES_DIR).join(&self.log_file_name),
+            log_path: PathBuf::from(&self.config.match_logs_directory).join(&self.log_file_name),
             players: self
-                .player_code_bundles
-                .iter()
-                .map(|b| runner::MatchPlayer {
-                    bot_spec: code_bundle_to_botspec(b),
+                .players
+                .into_iter()
+                .map(|player| runner::MatchPlayer {
+                    bot_spec: match player {
+                        MatchPlayer::BotVersion { bot, version } => {
+                            bot_version_to_botspec(&self.config, bot.as_ref(), &version)
+                        }
+                        MatchPlayer::BotSpec { spec } => spec,
+                    },
                 })
                 .collect(),
         }
     }
 
-    pub fn store_in_database(&mut self, db_conn: &PgConnection) -> QueryResult<MatchData> {
-        // don't store the same match twice
-        assert!(self.match_id.is_none());
+    pub async fn run(
+        self,
+        conn_pool: ConnectionPool,
+    ) -> QueryResult<(MatchData, JoinHandle<MatchOutcome>)> {
+        let match_data = {
+            // TODO: it would be nice to get an already-open connection here when possible.
+            // Maybe we need an additional abstraction, bundling a connection and connection pool?
+            let db_conn = conn_pool.get().await.expect("could not get a connection");
+            self.store_in_database(&db_conn)?
+        };
 
+        let runner_config = self.into_runner_config();
+        let handle = tokio::spawn(run_match_task(conn_pool, runner_config, match_data.base.id));
+
+        Ok((match_data, handle))
+    }
+
+    fn store_in_database(&self, db_conn: &PgConnection) -> QueryResult<MatchData> {
         let new_match_data = db::matches::NewMatch {
             state: db::matches::MatchState::Playing,
             log_path: &self.log_file_name,
         };
         let new_match_players = self
-            .player_code_bundles
+            .players
             .iter()
-            .map(|b| db::matches::MatchPlayerData {
-                code_bundle_id: b.id,
+            .map(|p| db::matches::MatchPlayerData {
+                code_bundle_id: match p {
+                    MatchPlayer::BotVersion { version, .. } => Some(version.id),
+                    MatchPlayer::BotSpec { .. } => None,
+                },
             })
             .collect::<Vec<_>>();
 
-        let match_data = db::matches::create_match(&new_match_data, &new_match_players, &db_conn)?;
-        self.match_id = Some(match_data.base.id);
-        Ok(match_data)
-    }
-
-    pub fn spawn(self, pool: ConnectionPool) -> JoinHandle<MatchOutcome> {
-        let match_id = self.match_id.expect("match must be saved before running");
-        let runner_config = self.runner_config();
-        tokio::spawn(run_match_task(pool, runner_config, match_id))
+        db::matches::create_match(&new_match_data, &new_match_players, db_conn)
     }
 }
 
-pub fn code_bundle_to_botspec(code_bundle: &db::bots::CodeBundle) -> Box<dyn BotSpec> {
-    let bundle_path = PathBuf::from(BOTS_DIR).join(&code_bundle.path);
+pub fn bot_version_to_botspec(
+    runner_config: &GlobalConfig,
+    bot: Option<&db::bots::Bot>,
+    bot_version: &db::bots::BotVersion,
+) -> Box<dyn BotSpec> {
+    if let Some(code_bundle_path) = &bot_version.code_bundle_path {
+        python_docker_bot_spec(runner_config, code_bundle_path)
+    } else if let (Some(container_digest), Some(bot)) = (&bot_version.container_digest, bot) {
+        Box::new(DockerBotSpec {
+            image: format!(
+                "{}/{}@{}",
+                runner_config.container_registry_url, bot.name, container_digest
+            ),
+            binds: None,
+            argv: None,
+            working_dir: None,
+        })
+    } else {
+        // TODO: ideally this would not be possible
+        panic!("bad bot version")
+    }
+}
 
+fn python_docker_bot_spec(config: &GlobalConfig, code_bundle_path: &str) -> Box<dyn BotSpec> {
+    let code_bundle_rel_path = PathBuf::from(&config.bots_directory).join(code_bundle_path);
+    let code_bundle_abs_path = std::fs::canonicalize(&code_bundle_rel_path).unwrap();
+    let code_bundle_path_str = code_bundle_abs_path.as_os_str().to_str().unwrap();
+
+    // TODO: it would be good to simplify this configuration
     Box::new(DockerBotSpec {
-        code_path: bundle_path,
-        image: PYTHON_IMAGE.to_string(),
-        argv: vec!["python".to_string(), "bot.py".to_string()],
+        image: config.python_runner_image.clone(),
+        binds: Some(vec![format!("{}:{}", code_bundle_path_str, "/workdir")]),
+        argv: Some(vec!["python".to_string(), "bot.py".to_string()]),
+        working_dir: Some("/workdir".to_string()),
     })
 }
 
@@ -104,5 +153,5 @@ async fn run_match_task(
 
     db::matches::save_match_result(match_id, result, &conn).expect("could not save match result");
 
-    return outcome;
+    outcome
 }

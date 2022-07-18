@@ -1,7 +1,7 @@
 use diesel::prelude::*;
 use serde::{Deserialize, Serialize};
 
-use crate::schema::{bots, code_bundles};
+use crate::schema::{bot_versions, bots};
 use chrono;
 
 #[derive(Insertable)]
@@ -44,38 +44,40 @@ pub fn find_all_bots(conn: &PgConnection) -> QueryResult<Vec<Bot>> {
 }
 
 #[derive(Insertable)]
-#[table_name = "code_bundles"]
-pub struct NewCodeBundle<'a> {
+#[table_name = "bot_versions"]
+pub struct NewBotVersion<'a> {
     pub bot_id: Option<i32>,
-    pub path: &'a str,
+    pub code_bundle_path: Option<&'a str>,
+    pub container_digest: Option<&'a str>,
 }
 
-#[derive(Queryable, Serialize, Deserialize, Debug)]
-pub struct CodeBundle {
+#[derive(Queryable, Serialize, Deserialize, Clone, Debug)]
+pub struct BotVersion {
     pub id: i32,
     pub bot_id: Option<i32>,
-    pub path: String,
+    pub code_bundle_path: Option<String>,
     pub created_at: chrono::NaiveDateTime,
+    pub container_digest: Option<String>,
 }
 
-pub fn create_code_bundle(
-    new_code_bundle: &NewCodeBundle,
+pub fn create_bot_version(
+    new_bot_version: &NewBotVersion,
     conn: &PgConnection,
-) -> QueryResult<CodeBundle> {
-    diesel::insert_into(code_bundles::table)
-        .values(new_code_bundle)
+) -> QueryResult<BotVersion> {
+    diesel::insert_into(bot_versions::table)
+        .values(new_bot_version)
         .get_result(conn)
 }
 
-pub fn find_bot_code_bundles(bot_id: i32, conn: &PgConnection) -> QueryResult<Vec<CodeBundle>> {
-    code_bundles::table
-        .filter(code_bundles::bot_id.eq(bot_id))
+pub fn find_bot_versions(bot_id: i32, conn: &PgConnection) -> QueryResult<Vec<BotVersion>> {
+    bot_versions::table
+        .filter(bot_versions::bot_id.eq(bot_id))
         .get_results(conn)
 }
 
-pub fn active_code_bundle(bot_id: i32, conn: &PgConnection) -> QueryResult<CodeBundle> {
-    code_bundles::table
-        .filter(code_bundles::bot_id.eq(bot_id))
-        .order(code_bundles::created_at.desc())
+pub fn active_bot_version(bot_id: i32, conn: &PgConnection) -> QueryResult<BotVersion> {
+    bot_versions::table
+        .filter(bot_versions::bot_id.eq(bot_id))
+        .order(bot_versions::created_at.desc())
         .first(conn)
 }
