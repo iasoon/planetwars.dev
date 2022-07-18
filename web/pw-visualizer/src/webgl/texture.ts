@@ -1,5 +1,15 @@
 import type { Renderer } from "./renderer";
 
+
+export function loadImage(image_url: string): Promise<HTMLImageElement> {
+    return new Promise((resolve, reject) => {
+        const image = new Image();
+        image.onload = () => { resolve(image) }
+        image.onerror = reject;
+        image.src = image_url;
+    })
+}
+  
 export class Texture {
     texture: WebGLTexture;
     width: number;
@@ -9,20 +19,12 @@ export class Texture {
 
     static fromImage(
         gl: WebGLRenderingContext,
-        path: string,
+        image: HTMLImageElement,
         name: string,
-    ): Promise<Texture> {
-        return new Promise((resolve, reject) => {
-            const out = new Texture(gl, name);
-
-            const image = new Image();
-            image.onload = () => {
-                out.setImage(gl, image);
-                resolve(out);
-            }
-            image.onerror = reject;
-            image.src = path;
-        })
+    ): Texture {
+        const tx = new Texture(gl, name);
+        tx.setImage(gl, image);
+        return tx;
     }
 
     static fromRenderer(

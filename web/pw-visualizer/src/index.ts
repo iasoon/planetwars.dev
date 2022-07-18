@@ -24,7 +24,7 @@ import { VertexBufferLayout, VertexArray } from "./webgl/vertexBufferLayout";
 import { defaultLabelFactory, LabelFactory, Align, Label } from "./webgl/text";
 import { VoronoiBuilder } from "./voronoi/voronoi";
 import * as assets from "./assets";
-import { Texture } from "./webgl/texture";
+import { loadImage, Texture } from "./webgl/texture";
 
 
 function to_bbox(box: number[]): BBox {
@@ -585,16 +585,16 @@ export class GameInstance {
 }
 
 var game_instance: GameInstance;
-var textures: Texture[];
+var texture_images: HTMLImageElement[];
 var shaders: Dictionary<ShaderFactory>;
 
 export async function set_instance(source: string): Promise<GameInstance> {
-  // TODO: embed shader programs
-  if (!textures || !shaders) {
-    const texture_promises = [
-      Texture.fromImage(GL, assets.fontPng, "font"),
-      Texture.fromImage(GL, assets.shipPng, "ship"),
-      Texture.fromImage(GL, assets.earthPng, "earth")
+  // TODO: this loading code is a mess. Please clean me up!
+  if (!texture_images || !shaders) {
+    const image_promises = [
+      loadImage(assets.fontPng),
+      loadImage(assets.shipPng),
+      loadImage(assets.earthPng),
     ];
 
     const shader_promies = [
@@ -633,8 +633,8 @@ export async function set_instance(source: string): Promise<GameInstance> {
 
     ];
     let shaders_array: [string, ShaderFactory][];
-    [textures, shaders_array] = await Promise.all([
-      Promise.all(texture_promises),
+    [texture_images, shaders_array] = await Promise.all([
+      Promise.all(image_promises),
       Promise.all(shader_promies),
     ]);
 
@@ -643,12 +643,15 @@ export async function set_instance(source: string): Promise<GameInstance> {
   }
 
   resizeCanvasToDisplaySize(CANVAS);
+  const fontTexture = Texture.fromImage(GL, texture_images[0], "font");
+  const shipTexture = Texture.fromImage(GL, texture_images[1], "ship");
+  const earthTexture = Texture.fromImage(GL, texture_images[2], "earth");
 
   game_instance = new GameInstance(
     Game.new(source),
-    textures.slice(2),
-    textures[1],
-    textures[0],
+    [earthTexture],
+    shipTexture,
+    fontTexture,
     shaders
   );
 
