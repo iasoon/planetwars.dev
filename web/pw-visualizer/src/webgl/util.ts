@@ -1,6 +1,3 @@
-import { parse as parsePath } from 'extract-svg-path';
-import svgMesh3d from 'svg-mesh-3d';
-
 export interface Dictionary<T> {
   [Key: string]: T;
 }
@@ -205,25 +202,4 @@ export class Mesh {
       this.cells = mesh.cells.flat();
       this.positions = mesh.positions.flat();
   }
-}
-
-export async function url_to_mesh(url: string): Promise<Mesh> {
-
-    return new Promise(function(resolve) {
-      fetch(url)
-        .then(resp => resp.text())
-        .then(data => {
-          // var div = document.createElement('div');
-          // div.innerHTML = data;
-          // var svg = div.querySelector('svg');
-    
-          var svgPath = parsePath(data);
-          var mesh = svgMesh3d(svgPath, {
-              delaunay: false,
-              scale: 10,
-          });
-
-          resolve(new Mesh(mesh));
-        })
-    });
 }
