@@ -2,7 +2,7 @@
 
 Planetwars is a competitive programming game. You implement a bot that will be pitted against all other bots.
 
-Currently a demo is available at https://demo.planetwars.dev.
+You can try it out at https://planetwars.dev
 
 current features:
 - write your bot in python
