@@ -57,16 +57,27 @@ async fn run_player(bot_config: BotConfig, player_key: String, channel: Channel)
 
     let (tx, rx) = mpsc::unbounded_channel();
     let mut stream = client
-        .connect_bot(UnboundedReceiverStream::new(rx))
+        .connect_player(UnboundedReceiverStream::new(rx))
         .await
         .unwrap()
         .into_inner();
     while let Some(message) = stream.message().await.unwrap() {
-        let moves = bot_process.communicate(&message.content).await.unwrap();
-        tx.send(pb::PlayerRequestResponse {
-            request_id: message.request_id,
-            content: moves.as_bytes().to_vec(),
-        })
-        .unwrap();
+        use pb::client_message::ClientMessage;
+        use pb::server_message::ServerMessage;
+
+        match message.server_message {
+            Some(ServerMessage::PlayerRequest(req)) => {
+                let moves = bot_process.communicate(&req.content).await.unwrap();
+                let resp = pb::PlayerRequestResponse {
+                    request_id: req.request_id,
+                    content: moves.as_bytes().to_vec(),
+                };
+                let msg = pb::ClientMessage {
+                    client_message: Some(ClientMessage::RequestResponse(resp)),
+                };
+                tx.send(msg).unwrap();
+            }
+            _ => {} // pass
+        }
     }
 }
