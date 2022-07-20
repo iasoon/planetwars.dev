@@ -66,12 +66,12 @@ impl PlayerRouter {
 
 #[tonic::async_trait]
 impl pb::bot_api_service_server::BotApiService for BotApiServer {
-    type ConnectBotStream = UnboundedReceiverStream<Result<pb::PlayerRequest, Status>>;
+    type ConnectPlayerStream = UnboundedReceiverStream<Result<pb::ServerMessage, Status>>;
 
-    async fn connect_bot(
+    async fn connect_player(
         &self,
-        req: Request<Streaming<pb::PlayerRequestResponse>>,
-    ) -> Result<Response<Self::ConnectBotStream>, Status> {
+        req: Request<Streaming<pb::ClientMessage>>,
+    ) -> Result<Response<Self::ConnectPlayerStream>, Status> {
         // TODO: clean up errors
         let player_key = req
             .metadata()
@@ -141,8 +141,8 @@ impl pb::bot_api_service_server::BotApiService for BotApiServer {
 
 // TODO: please rename me
 struct SyncThingData {
-    tx: oneshot::Sender<Streaming<pb::PlayerRequestResponse>>,
-    server_messages: mpsc::UnboundedReceiver<Result<pb::PlayerRequest, Status>>,
+    tx: oneshot::Sender<Streaming<pb::ClientMessage>>,
+    server_messages: mpsc::UnboundedReceiver<Result<pb::ServerMessage, Status>>,
 }
 
 struct RemoteBotSpec {
@@ -199,29 +199,41 @@ impl runner::BotSpec for RemoteBotSpec {
 async fn handle_bot_messages(
     player_id: u32,
     event_bus: Arc<Mutex<EventBus>>,
-    mut messages: Streaming<pb::PlayerRequestResponse>,
+    mut messages: Streaming<pb::ClientMessage>,
 ) {
+    // TODO: can this be writte nmore nicely?
     while let Some(message) = messages.message().await.unwrap() {
-        let request_id = (player_id, message.request_id as u32);
-        event_bus
-            .lock()
-            .unwrap()
-            .resolve_request(request_id, Ok(message.content));
+        match message.client_message {
+            Some(pb::client_message::ClientMessage::RequestResponse(resp)) => {
+                let request_id = (player_id, resp.request_id as u32);
+                event_bus
+                    .lock()
+                    .unwrap()
+                    .resolve_request(request_id, Ok(resp.content));
+            }
+            _ => (),
+        }
     }
 }
 
 struct RemoteBotHandle {
-    sender: mpsc::UnboundedSender<Result<pb::PlayerRequest, Status>>,
+    sender: mpsc::UnboundedSender<Result<pb::ServerMessage, Status>>,
     player_id: u32,
     event_bus: Arc<Mutex<EventBus>>,
 }
 
 impl PlayerHandle for RemoteBotHandle {
     fn send_request(&mut self, r: RequestMessage) {
-        let res = self.sender.send(Ok(pb::PlayerRequest {
+        let req = pb::PlayerRequest {
             request_id: r.request_id as i32,
             content: r.content,
-        }));
+        };
+
+        let server_message = pb::ServerMessage {
+            server_message: Some(pb::server_message::ServerMessage::PlayerRequest(req)),
+        };
+
+        let res = self.sender.send(Ok(server_message));
         match res {
             Ok(()) => {
                 // schedule a timeout. See comments at method implementation

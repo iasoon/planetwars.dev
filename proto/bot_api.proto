@@ -2,17 +2,20 @@ syntax = "proto3";
 
 package grpc.planetwars.bot_api;
 
-message Hello {
-  string hello_message = 1;
+message ServerMessage {
+  oneof server_message {
+    PlayerRequest player_request = 1;
+  }
 }
-
-message HelloResponse {
-  string response = 1;
-}
-
 message PlayerRequest {
   int32 request_id = 1;
   bytes content = 2;
+}
+
+message ClientMessage {
+  oneof client_message {
+    PlayerRequestResponse request_response = 1;
+  }
 }
 
 message PlayerRequestResponse {
@@ -32,5 +35,5 @@ message CreatedMatch {
 service BotApiService {
   rpc CreateMatch(MatchRequest) returns (CreatedMatch);
   // server sends requests to the player, player responds
-  rpc ConnectBot(stream PlayerRequestResponse) returns (stream PlayerRequest);
+  rpc ConnectPlayer(stream ClientMessage) returns (stream ServerMessage);
 }
