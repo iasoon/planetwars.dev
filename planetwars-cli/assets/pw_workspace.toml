@@ -1,6 +1,0 @@
-[paths]
-maps_dir = "maps"
-matches_dir = "matches"
-
-[bots.simplebot]
-path = "bots/simplebot"
