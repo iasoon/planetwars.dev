@@ -1,5 +1,8 @@
 database_url = "postgresql://planetwars:planetwars@localhost/planetwars"
 
+# front-end is served here in development, which proxies to the backend
+root_url = "http://localhost:3000"
+
 python_runner_image = "python:3.10-slim-buster"
 container_registry_url = "localhost:9001"
 

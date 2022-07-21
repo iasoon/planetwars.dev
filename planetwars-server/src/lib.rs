@@ -45,6 +45,9 @@ pub struct GlobalConfig {
     /// this will be used when running bots
     pub container_registry_url: String,
 
+    /// webserver root url, used to construct links
+    pub root_url: String,
+
     /// directory where bot code will be stored
     pub bots_directory: String,
     /// directory where match logs will be stored

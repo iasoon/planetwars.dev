@@ -135,6 +135,11 @@ impl pb::bot_api_service_server::BotApiService for BotApiServer {
         Ok(Response::new(pb::CreatedMatch {
             match_id: created_match.base.id,
             player_key,
+            // TODO: can we avoid hardcoding this?
+            match_url: format!(
+                "{}/matches/{}",
+                self.runner_config.root_url, created_match.base.id
+            ),
         }))
     }
 }

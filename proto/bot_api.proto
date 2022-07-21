@@ -30,6 +30,7 @@ message MatchRequest {
 message CreatedMatch {
   int32 match_id = 1;
   string player_key = 2;
+  string match_url = 3;
 }
 
 service BotApiService {

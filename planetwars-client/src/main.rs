@@ -29,6 +29,10 @@ async fn main() {
 
     let created_match = create_match(channel.clone()).await.unwrap();
     run_player(bot_config, created_match.player_key, channel).await;
+    println!(
+        "Match completed. Watch the replay at {}",
+        created_match.match_url
+    );
     tokio::time::sleep(Duration::from_secs(1)).await;
 }
 
