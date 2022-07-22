@@ -17,5 +17,6 @@ Project layout:
 - `planetwars-server`: rust webserver
 - `planetwars-matchrunner`: code for running matches
 - `planetwars-rules`: implements the game rules
+- `planetwars-client`: for running your bot locally
 - `web/pw-server`: frontend
 - `web/pw-visualizer`: code for the visualizer
