@@ -32,7 +32,24 @@ struct PlayMatch {
 struct BotConfig {
     #[allow(dead_code)]
     name: String,
-    command: Vec<String>,
+    command: Command,
+    working_directory: Option<String>,
+}
+
+#[derive(Deserialize)]
+#[serde(untagged)]
+enum Command {
+    String(String),
+    Argv(Vec<String>),
+}
+
+impl Command {
+    pub fn to_argv(&self) -> Vec<String> {
+        match self {
+            Command::Argv(vec) => vec.clone(),
+            Command::String(s) => shlex::split(s).expect("invalid command string"),
+        }
+    }
 }
 
 #[tokio::main]
@@ -76,8 +93,12 @@ async fn run_player(bot_config: BotConfig, player_key: String, channel: Channel)
     });
 
     let mut bot_process = Bot {
-        working_dir: PathBuf::from("."),
-        argv: bot_config.command,
+        working_dir: PathBuf::from(
+            bot_config
+                .working_directory
+                .unwrap_or_else(|| ".".to_string()),
+        ),
+        argv: bot_config.command.to_argv(),
     }
     .spawn_process();
 
