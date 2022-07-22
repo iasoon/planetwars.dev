@@ -22,10 +22,10 @@ struct PlayMatch {
     #[clap(
         value_parser,
         long,
-        default_value = "http://planetwars.dev:7492",
+        default_value = "https://planetwars.dev:7492",
         env = "PLANETWARS_GRPC_SERVER_URL"
     )]
-    gprc_server_url: String,
+    grpc_server_url: String,
 }
 
 #[derive(Deserialize)]
@@ -42,11 +42,12 @@ async fn main() {
     let content = std::fs::read_to_string(play_match.bot_config_path).unwrap();
     let bot_config: BotConfig = toml::from_str(&content).unwrap();
 
-    let channel = Channel::from_shared(play_match.gprc_server_url)
-        .expect("invalid grpc server url")
-        .connect()
-        .await
-        .unwrap();
+    let uri = play_match
+        .grpc_server_url
+        .parse()
+        .expect("invalid grpc url");
+
+    let channel = Channel::builder(uri).connect().await.unwrap();
 
     let created_match = create_match(channel.clone(), play_match.opponent_name)
         .await
