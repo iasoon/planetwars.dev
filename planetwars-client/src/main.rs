@@ -2,6 +2,7 @@ pub mod pb {
     tonic::include_proto!("grpc.planetwars.bot_api");
 }
 
+use clap::Parser;
 use pb::bot_api_service_client::BotApiServiceClient;
 use planetwars_matchrunner::bot_runner::Bot;
 use serde::Deserialize;
@@ -9,6 +10,15 @@ use std::{path::PathBuf, time::Duration};
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::UnboundedReceiverStream;
 use tonic::{metadata::MetadataValue, transport::Channel, Request, Status};
+
+#[derive(clap::Parser)]
+struct PlayMatch {
+    #[clap(value_parser)]
+    bot_config_path: String,
+
+    #[clap(value_parser)]
+    opponent_name: String,
+}
 
 #[derive(Deserialize)]
 struct BotConfig {
@@ -19,7 +29,9 @@ struct BotConfig {
 
 #[tokio::main]
 async fn main() {
-    let content = std::fs::read_to_string("simplebot.toml").unwrap();
+    let play_match = PlayMatch::parse();
+
+    let content = std::fs::read_to_string(play_match.bot_config_path).unwrap();
     let bot_config: BotConfig = toml::from_str(&content).unwrap();
 
     let channel = Channel::from_static("http://localhost:50051")
@@ -27,7 +39,9 @@ async fn main() {
         .await
         .unwrap();
 
-    let created_match = create_match(channel.clone()).await.unwrap();
+    let created_match = create_match(channel.clone(), play_match.opponent_name)
+        .await
+        .unwrap();
     run_player(bot_config, created_match.player_key, channel).await;
     println!(
         "Match completed. Watch the replay at {}",
@@ -36,12 +50,10 @@ async fn main() {
     tokio::time::sleep(Duration::from_secs(1)).await;
 }
 
-async fn create_match(channel: Channel) -> Result<pb::CreatedMatch, Status> {
+async fn create_match(channel: Channel, opponent_name: String) -> Result<pb::CreatedMatch, Status> {
     let mut client = BotApiServiceClient::new(channel);
     let res = client
-        .create_match(Request::new(pb::MatchRequest {
-            opponent_name: "simplebot".to_string(),
-        }))
+        .create_match(Request::new(pb::MatchRequest { opponent_name }))
         .await;
     res.map(|response| response.into_inner())
 }
