@@ -97,6 +97,10 @@ pub fn list_matches(conn: &PgConnection) -> QueryResult<Vec<FullMatchData>> {
                     .on(match_players::bot_version_id.eq(bot_versions::id.nullable())),
             )
             .left_join(bots::table.on(bot_versions::bot_id.eq(bots::id.nullable())))
+            .order_by((
+                match_players::match_id.asc(),
+                match_players::player_id.asc(),
+            ))
             .load::<FullMatchPlayerData>(conn)?
             .grouped_by(&matches);
 
@@ -150,6 +154,7 @@ pub fn find_match(id: i32, conn: &PgConnection) -> QueryResult<FullMatchData> {
                     .on(match_players::bot_version_id.eq(bot_versions::id.nullable())),
             )
             .left_join(bots::table.on(bot_versions::bot_id.eq(bots::id.nullable())))
+            .order_by(match_players::player_id.asc())
             .load::<FullMatchPlayerData>(conn)?;
 
         let res = FullMatchData {
