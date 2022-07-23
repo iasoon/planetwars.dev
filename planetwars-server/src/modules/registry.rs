@@ -397,7 +397,10 @@ async fn put_manifest(
         code_bundle_path: None,
         container_digest: Some(&content_digest),
     };
-    db::bots::create_bot_version(&new_version, &db_conn).expect("could not save bot version");
+    let version =
+        db::bots::create_bot_version(&new_version, &db_conn).expect("could not save bot version");
+    db::bots::set_active_version(bot.id, Some(version.id), &db_conn)
+        .expect("could not update bot version");
 
     Ok(Response::builder()
         .status(StatusCode::CREATED)

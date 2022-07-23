@@ -28,8 +28,7 @@ pub struct SubmitBotResponse {
     pub match_data: ApiMatch,
 }
 
-/// submit python code for a bot, which will face off
-/// with a demo bot. Return a played match.
+/// Submit bot code and opponent name to play a match
 pub async fn submit_bot(
     Json(params): Json<SubmitBotParams>,
     Extension(pool): Extension<ConnectionPool>,
@@ -41,10 +40,9 @@ pub async fn submit_bot(
         .opponent_name
         .unwrap_or_else(|| DEFAULT_OPPONENT_NAME.to_string());
 
-    let opponent_bot =
-        db::bots::find_bot_by_name(&opponent_name, &conn).map_err(|_| StatusCode::BAD_REQUEST)?;
-    let opponent_bot_version = db::bots::active_bot_version(opponent_bot.id, &conn)
-        .map_err(|_| StatusCode::BAD_REQUEST)?;
+    let (opponent_bot, opponent_bot_version) =
+        db::bots::find_bot_with_version_by_name(&opponent_name, &conn)
+            .map_err(|_| StatusCode::BAD_REQUEST)?;
 
     let player_bot_version = save_code_string(&params.code, None, &conn, &config)
         // TODO: can we recover from this?

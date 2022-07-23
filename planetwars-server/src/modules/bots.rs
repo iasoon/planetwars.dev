@@ -5,6 +5,7 @@ use diesel::{PgConnection, QueryResult};
 use crate::{db, util::gen_alphanumeric, GlobalConfig};
 
 /// Save a string containing bot code as a code bundle.
+/// If a bot was provided, set the saved bundle as its active version.
 pub fn save_code_string(
     bot_code: &str,
     bot_id: Option<i32>,
@@ -22,5 +23,11 @@ pub fn save_code_string(
         code_bundle_path: Some(&bundle_name),
         container_digest: None,
     };
-    db::bots::create_bot_version(&new_code_bundle, conn)
+    let version = db::bots::create_bot_version(&new_code_bundle, conn)?;
+    // Leave this coupled for now - this is how the behaviour was bevore.
+    // It would be cleaner to separate version setting and bot selection, though.
+    if let Some(bot_id) = bot_id {
+        db::bots::set_active_version(bot_id, Some(version.id), conn)?;
+    }
+    Ok(version)
 }

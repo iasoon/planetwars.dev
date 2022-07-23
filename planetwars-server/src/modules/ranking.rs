@@ -1,3 +1,4 @@
+use crate::db::bots::BotVersion;
 use crate::{db::bots::Bot, DbPool, GlobalConfig};
 
 use crate::db;
@@ -22,12 +23,12 @@ pub async fn run_ranker(config: Arc<GlobalConfig>, db_pool: DbPool) {
         .expect("could not get database connection");
     loop {
         interval.tick().await;
-        let bots = db::bots::find_all_bots(&db_conn).unwrap();
+        let bots = db::bots::all_active_bots_with_version(&db_conn).unwrap();
         if bots.len() < 2 {
             // not enough bots to play a match
             continue;
         }
-        let selected_bots: Vec<Bot> = {
+        let selected_bots: Vec<(Bot, BotVersion)> = {
             let mut rng = &mut rand::thread_rng();
             bots.choose_multiple(&mut rng, 2).cloned().collect()
         };
@@ -36,15 +37,16 @@ pub async fn run_ranker(config: Arc<GlobalConfig>, db_pool: DbPool) {
     }
 }
 
-async fn play_ranking_match(config: Arc<GlobalConfig>, selected_bots: Vec<Bot>, db_pool: DbPool) {
-    let db_conn = db_pool.get().await.expect("could not get db pool");
+async fn play_ranking_match(
+    config: Arc<GlobalConfig>,
+    selected_bots: Vec<(Bot, BotVersion)>,
+    db_pool: DbPool,
+) {
     let mut players = Vec::new();
-    for bot in &selected_bots {
-        let version = db::bots::active_bot_version(bot.id, &db_conn)
-            .expect("could not get active bot version");
+    for (bot, bot_version) in selected_bots {
         let player = MatchPlayer::BotVersion {
-            bot: Some(bot.clone()),
-            version,
+            bot: Some(bot),
+            version: bot_version,
         };
         players.push(player);
     }

@@ -167,8 +167,9 @@ pub async fn get_my_bots(
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
 }
 
+/// List all active bots
 pub async fn list_bots(conn: DatabaseConnection) -> Result<Json<Vec<Bot>>, StatusCode> {
-    bots::find_all_bots(&conn)
+    bots::find_active_bots(&conn)
         .map(Json)
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
 }

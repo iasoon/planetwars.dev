@@ -104,10 +104,9 @@ impl pb::bot_api_service_server::BotApiService for BotApiServer {
 
         let match_request = req.get_ref();
 
-        let opponent_bot = db::bots::find_bot_by_name(&match_request.opponent_name, &conn)
-            .map_err(|_| Status::not_found("opponent not found"))?;
-        let opponent_bot_version = db::bots::active_bot_version(opponent_bot.id, &conn)
-            .map_err(|_| Status::not_found("no opponent version found"))?;
+        let (opponent_bot, opponent_bot_version) =
+            db::bots::find_bot_with_version_by_name(&match_request.opponent_name, &conn)
+                .map_err(|_| Status::not_found("opponent not found"))?;
 
         let player_key = gen_alphanumeric(32);
 

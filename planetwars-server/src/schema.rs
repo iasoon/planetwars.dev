@@ -22,6 +22,7 @@ table! {
         id -> Int4,
         owner_id -> Nullable<Int4>,
         name -> Text,
+        active_version -> Nullable<Int4>,
     }
 }
 
@@ -82,7 +83,6 @@ table! {
     }
 }
 
-joinable!(bot_versions -> bots (bot_id));
 joinable!(bots -> users (owner_id));
 joinable!(match_players -> bot_versions (bot_version_id));
 joinable!(match_players -> matches (match_id));
