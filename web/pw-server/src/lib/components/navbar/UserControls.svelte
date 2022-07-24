@@ -41,8 +41,8 @@
     </a>
     <div class="sign-out" on:click={signOut}>Sign out</div>
   {:else}
-    <a class="account-href" href="login">Sign in</a>
-    <a class="account-href" href="register">Sign up</a>
+    <a class="account-href" href="/login">Sign in</a>
+    <a class="account-href" href="/register">Sign up</a>
   {/if}
 </div>
 
