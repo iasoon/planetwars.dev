@@ -44,7 +44,8 @@
         <td class="leaderboard-bot">{entry["bot"]["name"]}</td>
         <td class="leaderboard-author">
           {#if entry["author"]}
-            {entry["author"]["username"]}
+          <!-- TODO: remove duplication -->
+            <a href="/users/{entry["author"]["username"]}">{entry["author"]["username"]}</a>
           {/if}
         </td>
       </tr>
@@ -68,5 +69,10 @@
   }
   .leaderboard-rank {
     color: #333;
+  }
+
+  .leaderboard-author a{
+    text-decoration: none;
+    color: black;
   }
 </style>

@@ -12,6 +12,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use thiserror;
 
+use crate::db;
 use crate::db::bots::{self, BotVersion};
 use crate::db::ratings::{self, RankedBot};
 use crate::db::users::User;
@@ -158,11 +159,13 @@ pub async fn get_bot(
     })))
 }
 
-pub async fn get_my_bots(
+pub async fn get_user_bots(
     conn: DatabaseConnection,
-    user: User,
+    Path(user_name): Path<String>,
 ) -> Result<Json<Vec<Bot>>, StatusCode> {
-    bots::find_bots_by_owner(user.id, &conn)
+    let user =
+        db::users::find_user_by_name(&user_name, &conn).map_err(|_| StatusCode::NOT_FOUND)?;
+    db::bots::find_bots_by_owner(user.id, &conn)
         .map(Json)
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
 }

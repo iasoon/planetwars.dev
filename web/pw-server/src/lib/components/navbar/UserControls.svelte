@@ -36,9 +36,9 @@
 
 <div class="user-controls">
   {#if $currentUser}
-    <div class="current-user-name">
-      {$currentUser["username"]}
-    </div>
+    <a class="current-user-name" href="/users/{$currentUser["username"]}">
+        {$currentUser["username"]}
+    </a>
     <div class="sign-out" on:click={signOut}>Sign out</div>
   {:else}
     <a class="account-href" href="login">Sign in</a>
@@ -61,6 +61,7 @@
 
   .current-user-name {
     @include navbar-item;
+    text-decoration: none;
     color: #fff;
   }
 

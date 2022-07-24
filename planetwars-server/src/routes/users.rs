@@ -89,7 +89,7 @@ impl RegistrationParams {
             errors.push("password must be at least 8 characters".to_string());
         }
 
-        if users::find_user(&self.username, &conn).is_ok() {
+        if users::find_user_by_name(&self.username, &conn).is_ok() {
             errors.push("username is already taken".to_string());
         }
 

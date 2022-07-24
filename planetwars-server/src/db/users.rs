@@ -57,14 +57,14 @@ pub fn create_user(credentials: &Credentials, conn: &PgConnection) -> QueryResul
         .get_result::<User>(conn)
 }
 
-pub fn find_user(username: &str, db_conn: &PgConnection) -> QueryResult<User> {
+pub fn find_user_by_name(username: &str, db_conn: &PgConnection) -> QueryResult<User> {
     users::table
         .filter(users::username.eq(username))
         .first::<User>(db_conn)
 }
 
 pub fn authenticate_user(credentials: &Credentials, db_conn: &PgConnection) -> Option<User> {
-    find_user(credentials.username, db_conn)
+    find_user_by_name(credentials.username, db_conn)
         .optional()
         .unwrap()
         .and_then(|user| {
