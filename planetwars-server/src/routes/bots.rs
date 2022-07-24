@@ -134,17 +134,25 @@ pub struct BotParams {
     name: String,
 }
 
+// TODO: can we unify this with save_bot?
 pub async fn create_bot(
     conn: DatabaseConnection,
     user: User,
     params: Json<BotParams>,
-) -> (StatusCode, Json<Bot>) {
+) -> Result<(StatusCode, Json<Bot>), SaveBotError> {
+    validate_bot_name(&params.name)?;
+    let existing_bot = bots::find_bot_by_name(&params.name, &conn)
+        .optional()
+        .expect("could not run query");
+    if existing_bot.is_some() {
+        return Err(SaveBotError::BotNameTaken);
+    }
     let bot_params = bots::NewBot {
         owner_id: Some(user.id),
         name: &params.name,
     };
     let bot = bots::create_bot(&bot_params, &conn).unwrap();
-    (StatusCode::CREATED, Json(bot))
+    Ok((StatusCode::CREATED, Json(bot)))
 }
 
 // TODO: handle errors

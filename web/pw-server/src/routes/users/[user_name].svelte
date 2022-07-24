@@ -17,6 +17,8 @@
 </script>
 
 <script lang="ts">
+  import { currentUser } from "$lib/stores/current_user";
+
   export let userName: string;
   export let bots: object[];
 </script>
@@ -25,7 +27,13 @@
   <div class="header">
     <h1 class="user-name">{userName}</h1>
   </div>
-  <h2>Bots</h2>
+
+  <div class="bot-list-header">
+    <h2 class="bot-list-header-title">Bots</h2>
+    {#if $currentUser && $currentUser.username == userName}
+      <a href="/bots/new" class="btn-new-bot"> New bot </a>
+    {/if}
+  </div>
   <ul class="bot-list">
     {#each bots as bot}
       <li class="bot">
@@ -49,6 +57,29 @@
 
   .user-name {
     margin-bottom: 0.5em;
+  }
+
+  .bot-list-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+  }
+
+  .bot-list-header-title {
+    margin-bottom: 0px;
+  }
+
+  .btn-new-bot {
+    padding: 8px 12px;
+    border-radius: 4px;
+    border: 0;
+    display: block;
+    color: white;
+    background-color: rgb(40, 167, 69);
+    font-weight: 500;
+    text-decoration: none;
+    font-size: 11pt;
+    cursor: pointer;
   }
 
   .bot-list {

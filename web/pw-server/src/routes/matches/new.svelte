@@ -1,6 +1,5 @@
 <script lang="ts" context="module">
   import { get_session_token } from "$lib/auth";
-  import { mount_component } from "svelte/internal";
 
   export async function load({ page }) {
     const token = get_session_token();
