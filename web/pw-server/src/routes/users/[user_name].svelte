@@ -41,6 +41,9 @@
       </li>
     {/each}
   </ul>
+  {#if bots.length == 0}
+    This user does not have any bots yet.
+  {/if}
 </div>
 
 <style lang="scss">

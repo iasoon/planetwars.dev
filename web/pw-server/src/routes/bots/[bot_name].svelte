@@ -101,6 +101,9 @@
         </li>
       {/each}
     </ul>
+    {#if versions.length == 0}
+      This bot does not have any versions yet.
+    {/if}
   </div>
 </div>
 
