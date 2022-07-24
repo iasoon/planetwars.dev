@@ -249,6 +249,7 @@
     color: #eee;
     padding-top: 15px;
     overflow-y: scroll;
+    padding-left: 0px;
   }
 
   .match-card {
