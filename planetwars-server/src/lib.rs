@@ -124,9 +124,9 @@ pub fn api() -> Router {
             "/bots",
             get(routes::bots::list_bots).post(routes::bots::create_bot),
         )
-        .route("/bots/:bot_id", get(routes::bots::get_bot))
+        .route("/bots/:bot_name", get(routes::bots::get_bot))
         .route(
-            "/bots/:bot_id/upload",
+            "/bots/:bot_name/upload",
             post(routes::bots::upload_code_multipart),
         )
         .route("/matches", get(routes::matches::list_matches))

@@ -1,12 +1,4 @@
 <script lang="ts" context="module">
-  function fetchJson(url: string): Promise<Response> {
-    return fetch(url, {
-      headers: {
-        "Content-Type": "application/json",
-      },
-    });
-  }
-
   export async function load({ params, fetch }) {
     const userName = params["user_name"];
     const userBotsResponse = await fetch(`/api/users/${userName}/bots`);
@@ -36,17 +28,17 @@
   <h2>Bots</h2>
   <ul class="bot-list">
     {#each bots as bot}
-    <li class="bot">
-      <span class="bot-name">{bot['name']}</span>
-    </li>
+      <li class="bot">
+        <a class="bot-name" href="/bots/{bot['name']}">{bot["name"]}</a>
+      </li>
     {/each}
   </ul>
 </div>
 
 <style lang="scss">
   .container {
-    min-width: 600px;
-    max-width: 800px;
+    width: 800px;
+    max-width: 80%;
     margin: 50px auto;
   }
 
@@ -56,7 +48,7 @@
   }
 
   .user-name {
-    margin-bottom: .5em;
+    margin-bottom: 0.5em;
   }
 
   .bot-list {
@@ -75,10 +67,11 @@
   .bot-name {
     font-size: 20px;
     font-weight: 400;
+    text-decoration: none;
+    color: black;
   }
 
   .bot:first-child {
     border-top: 1px solid $border-color;
   }
-
 </style>

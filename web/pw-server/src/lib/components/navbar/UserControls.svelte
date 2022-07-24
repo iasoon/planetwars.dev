@@ -36,8 +36,8 @@
 
 <div class="user-controls">
   {#if $currentUser}
-    <a class="current-user-name" href="/users/{$currentUser["username"]}">
-        {$currentUser["username"]}
+    <a class="current-user-name" href="/users/{$currentUser['username']}">
+      {$currentUser["username"]}
     </a>
     <div class="sign-out" on:click={signOut}>Sign out</div>
   {:else}

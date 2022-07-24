@@ -20,6 +20,8 @@ use crate::modules::bots::save_code_string;
 use crate::{DatabaseConnection, GlobalConfig};
 use bots::Bot;
 
+use super::users::UserData;
+
 #[derive(Serialize, Deserialize, Debug)]
 pub struct SaveBotParams {
     pub bot_name: String,
@@ -148,14 +150,23 @@ pub async fn create_bot(
 // TODO: handle errors
 pub async fn get_bot(
     conn: DatabaseConnection,
-    Path(bot_id): Path<i32>,
+    Path(bot_name): Path<String>,
 ) -> Result<Json<JsonValue>, StatusCode> {
-    let bot = bots::find_bot(bot_id, &conn).map_err(|_| StatusCode::NOT_FOUND)?;
-    let bundles =
+    let bot = db::bots::find_bot_by_name(&bot_name, &conn).map_err(|_| StatusCode::NOT_FOUND)?;
+    let owner: Option<UserData> = match bot.owner_id {
+        Some(user_id) => {
+            let user = db::users::find_user(user_id, &conn)
+                .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+            Some(user.into())
+        }
+        None => None,
+    };
+    let versions =
         bots::find_bot_versions(bot.id, &conn).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     Ok(Json(json!({
         "bot": bot,
-        "bundles": bundles,
+        "owner": owner,
+        "versions": versions,
     })))
 }
 
@@ -187,13 +198,13 @@ pub async fn get_ranking(conn: DatabaseConnection) -> Result<Json<Vec<RankedBot>
 pub async fn upload_code_multipart(
     conn: DatabaseConnection,
     user: User,
-    Path(bot_id): Path<i32>,
+    Path(bot_name): Path<String>,
     mut multipart: Multipart,
     Extension(config): Extension<Arc<GlobalConfig>>,
 ) -> Result<Json<BotVersion>, StatusCode> {
     let bots_dir = PathBuf::from(&config.bots_directory);
 
-    let bot = bots::find_bot(bot_id, &conn).map_err(|_| StatusCode::NOT_FOUND)?;
+    let bot = bots::find_bot_by_name(&bot_name, &conn).map_err(|_| StatusCode::NOT_FOUND)?;
 
     if Some(user.id) != bot.owner_id {
         return Err(StatusCode::FORBIDDEN);

@@ -41,11 +41,17 @@
         <td class="leaderboard-rating">
           {formatRating(entry)}
         </td>
-        <td class="leaderboard-bot">{entry["bot"]["name"]}</td>
+        <td class="leaderboard-bot">
+          <a class="leaderboard-href" href="/bots/{entry['bot']['name']}"
+            >{entry["bot"]["name"]}
+          </a></td
+        >
         <td class="leaderboard-author">
           {#if entry["author"]}
-          <!-- TODO: remove duplication -->
-            <a href="/users/{entry["author"]["username"]}">{entry["author"]["username"]}</a>
+            <!-- TODO: remove duplication -->
+            <a class="leaderboard-href" href="/users/{entry['author']['username']}"
+              >{entry["author"]["username"]}</a
+            >
           {/if}
         </td>
       </tr>
@@ -71,7 +77,7 @@
     color: #333;
   }
 
-  .leaderboard-author a{
+  .leaderboard-href {
     text-decoration: none;
     color: black;
   }

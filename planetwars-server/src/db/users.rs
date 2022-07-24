@@ -57,6 +57,12 @@ pub fn create_user(credentials: &Credentials, conn: &PgConnection) -> QueryResul
         .get_result::<User>(conn)
 }
 
+pub fn find_user(user_id: i32, db_conn: &PgConnection) -> QueryResult<User> {
+    users::table
+        .filter(users::id.eq(user_id))
+        .first::<User>(db_conn)
+}
+
 pub fn find_user_by_name(username: &str, db_conn: &PgConnection) -> QueryResult<User> {
     users::table
         .filter(users::username.eq(username))
