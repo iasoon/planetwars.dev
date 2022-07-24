@@ -15,12 +15,22 @@ use crate::match_context::{EventBus, PlayerHandle, RequestError, RequestMessage}
 use crate::match_log::{MatchLogMessage, MatchLogger, StdErrMessage};
 use crate::BotSpec;
 
+// TODO: this API needs a better design with respect to pulling
+// and general container management
 #[derive(Clone, Debug)]
 pub struct DockerBotSpec {
     pub image: String,
     pub binds: Option<Vec<String>>,
     pub argv: Option<Vec<String>>,
     pub working_dir: Option<String>,
+    pub pull: bool,
+    pub credentials: Option<Credentials>,
+}
+
+#[derive(Clone, Debug)]
+pub struct Credentials {
+    pub username: String,
+    pub password: String,
 }
 
 #[async_trait]
@@ -42,6 +52,30 @@ async fn spawn_docker_process(
     params: &DockerBotSpec,
 ) -> Result<ContainerProcess, bollard::errors::Error> {
     let docker = Docker::connect_with_socket_defaults()?;
+
+    if params.pull {
+        let mut create_image_stream = docker.create_image(
+            Some(bollard::image::CreateImageOptions {
+                from_image: params.image.as_str(),
+                ..Default::default()
+            }),
+            None,
+            params
+                .credentials
+                .as_ref()
+                .map(|credentials| bollard::auth::DockerCredentials {
+                    username: Some(credentials.username.clone()),
+                    password: Some(credentials.password.clone()),
+                    ..Default::default()
+                }),
+        );
+
+        while let Some(item) = create_image_stream.next().await {
+            // just consume the stream for now,
+            // and make noise when something breaks
+            let _info = item.expect("hit error in docker pull");
+        }
+    }
 
     let memory_limit = 512 * 1024 * 1024; // 512MB
     let config = container::Config {

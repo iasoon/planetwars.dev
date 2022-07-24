@@ -1,8 +1,7 @@
-use std::{path::PathBuf, sync::Arc};
-
 use diesel::{PgConnection, QueryResult};
 use planetwars_matchrunner::{self as runner, docker_runner::DockerBotSpec, BotSpec, MatchConfig};
 use runner::MatchOutcome;
+use std::{path::PathBuf, sync::Arc};
 use tokio::task::JoinHandle;
 
 use crate::{
@@ -113,6 +112,11 @@ pub fn bot_version_to_botspec(
             binds: None,
             argv: None,
             working_dir: None,
+            pull: true,
+            credentials: Some(runner::docker_runner::Credentials {
+                username: "admin".to_string(),
+                password: runner_config.registry_admin_password.clone(),
+            }),
         })
     } else {
         // TODO: ideally this would not be possible
@@ -131,6 +135,11 @@ fn python_docker_bot_spec(config: &GlobalConfig, code_bundle_path: &str) -> Box<
         binds: Some(vec![format!("{}:{}", code_bundle_path_str, "/workdir")]),
         argv: Some(vec!["python".to_string(), "bot.py".to_string()]),
         working_dir: Some("/workdir".to_string()),
+        // This would be a pull from dockerhub at the moment, let's avoid that for now.
+        // Maybe the best course of action would be to replicate all images in the dedicated
+        // registry, so that we only have to provide credentials to that one.
+        pull: false,
+        credentials: None,
     })
 }
 
