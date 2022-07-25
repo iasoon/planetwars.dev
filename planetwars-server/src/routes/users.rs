@@ -11,6 +11,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 use thiserror::Error;
 
+const RESERVED_USERNAMES: &[&str] = &["admin", "system"];
+
 type AuthorizationHeader = TypedHeader<Authorization<Bearer>>;
 
 #[async_trait]
@@ -87,6 +89,10 @@ impl RegistrationParams {
 
         if self.password.len() < 8 {
             errors.push("password must be at least 8 characters".to_string());
+        }
+
+        if RESERVED_USERNAMES.contains(&self.username.as_str()) {
+            errors.push("that username is not allowed".to_string());
         }
 
         if users::find_user_by_name(&self.username, &conn).is_ok() {
