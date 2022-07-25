@@ -11,7 +11,9 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio;
 
+// TODO: put these in a config
 const RANKER_INTERVAL: u64 = 60;
+const RANKER_NUM_MATCHES: i64 = 10_000;
 
 pub async fn run_ranker(config: Arc<GlobalConfig>, db_pool: DbPool) {
     // TODO: make this configurable
@@ -80,7 +82,7 @@ struct MatchStats {
 }
 
 fn fetch_match_stats(db_conn: &PgConnection) -> QueryResult<HashMap<(i32, i32), MatchStats>> {
-    let matches = db::matches::list_matches(db_conn)?;
+    let matches = db::matches::list_matches(RANKER_NUM_MATCHES, db_conn)?;
 
     let mut match_stats = HashMap::<(i32, i32), MatchStats>::new();
     for m in matches {

@@ -87,9 +87,12 @@ pub struct MatchData {
     pub match_players: Vec<MatchPlayer>,
 }
 
-pub fn list_matches(conn: &PgConnection) -> QueryResult<Vec<FullMatchData>> {
+pub fn list_matches(amount: i64, conn: &PgConnection) -> QueryResult<Vec<FullMatchData>> {
     conn.transaction(|| {
-        let matches = matches::table.get_results::<MatchBase>(conn)?;
+        let matches = matches::table
+            .order_by(matches::created_at.desc())
+            .limit(amount)
+            .get_results::<MatchBase>(conn)?;
 
         let match_players = MatchPlayer::belonging_to(&matches)
             .left_join(

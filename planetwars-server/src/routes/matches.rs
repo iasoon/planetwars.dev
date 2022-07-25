@@ -24,7 +24,7 @@ pub struct ApiMatchPlayer {
 }
 
 pub async fn list_matches(conn: DatabaseConnection) -> Result<Json<Vec<ApiMatch>>, StatusCode> {
-    matches::list_matches(&conn)
+    matches::list_matches(100, &conn)
         .map_err(|_| StatusCode::BAD_REQUEST)
         .map(|matches| Json(matches.into_iter().map(match_data_to_api).collect()))
 }
