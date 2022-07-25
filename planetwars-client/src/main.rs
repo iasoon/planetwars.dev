@@ -1,9 +1,12 @@
 pub mod pb {
-    tonic::include_proto!("grpc.planetwars.bot_api");
+    tonic::include_proto!("grpc.planetwars.client_api");
+
+    pub use player_api_client_message::ClientMessage as PlayerApiClientMessageType;
+    pub use player_api_server_message::ServerMessage as PlayerApiServerMessageType;
 }
 
 use clap::Parser;
-use pb::bot_api_service_client::BotApiServiceClient;
+use pb::client_api_service_client::ClientApiServiceClient;
 use planetwars_matchrunner::bot_runner::Bot;
 use serde::Deserialize;
 use std::{path::PathBuf, time::Duration};
@@ -77,16 +80,19 @@ async fn main() {
     tokio::time::sleep(Duration::from_secs(1)).await;
 }
 
-async fn create_match(channel: Channel, opponent_name: String) -> Result<pb::CreatedMatch, Status> {
-    let mut client = BotApiServiceClient::new(channel);
+async fn create_match(
+    channel: Channel,
+    opponent_name: String,
+) -> Result<pb::CreateMatchResponse, Status> {
+    let mut client = ClientApiServiceClient::new(channel);
     let res = client
-        .create_match(Request::new(pb::MatchRequest { opponent_name }))
+        .create_match(Request::new(pb::CreateMatchRequest { opponent_name }))
         .await;
     res.map(|response| response.into_inner())
 }
 
 async fn run_player(bot_config: BotConfig, player_key: String, channel: Channel) {
-    let mut client = BotApiServiceClient::with_interceptor(channel, |mut req: Request<()>| {
+    let mut client = ClientApiServiceClient::with_interceptor(channel, |mut req: Request<()>| {
         let player_key: MetadataValue<_> = player_key.parse().unwrap();
         req.metadata_mut().insert("player_key", player_key);
         Ok(req)
@@ -109,18 +115,15 @@ async fn run_player(bot_config: BotConfig, player_key: String, channel: Channel)
         .unwrap()
         .into_inner();
     while let Some(message) = stream.message().await.unwrap() {
-        use pb::client_message::ClientMessage;
-        use pb::server_message::ServerMessage;
-
         match message.server_message {
-            Some(ServerMessage::PlayerRequest(req)) => {
+            Some(pb::PlayerApiServerMessageType::ActionRequest(req)) => {
                 let moves = bot_process.communicate(&req.content).await.unwrap();
-                let resp = pb::PlayerRequestResponse {
-                    request_id: req.request_id,
+                let action = pb::PlayerAction {
+                    action_request_id: req.action_request_id,
                     content: moves.as_bytes().to_vec(),
                 };
-                let msg = pb::ClientMessage {
-                    client_message: Some(ClientMessage::RequestResponse(resp)),
+                let msg = pb::PlayerApiClientMessage {
+                    client_message: Some(pb::PlayerApiClientMessageType::Action(action)),
                 };
                 tx.send(msg).unwrap();
             }

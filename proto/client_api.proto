@@ -1,0 +1,45 @@
+syntax = "proto3";
+
+package grpc.planetwars.client_api;
+
+// Provides the planetwars client API, allowing for remote play.
+service ClientApiService {
+  rpc CreateMatch(CreateMatchRequest) returns (CreateMatchResponse);
+  rpc ConnectPlayer(stream PlayerApiClientMessage) returns (stream PlayerApiServerMessage);
+}
+
+message CreateMatchRequest {
+  string opponent_name = 1;
+}
+
+message CreateMatchResponse {
+  int32 match_id = 1;
+  string player_key = 2;
+  string match_url = 3;
+}
+
+
+// Server messages
+message PlayerApiServerMessage {
+  oneof server_message {
+    PlayerActionRequest action_request = 1;
+  }
+}
+
+message PlayerActionRequest {
+  int32 action_request_id = 1;
+  bytes content = 2;
+}
+
+
+// Player messages
+message PlayerApiClientMessage {
+  oneof client_message {
+    PlayerAction action = 1;
+  }
+}
+
+message PlayerAction {
+  int32 action_request_id = 1;
+  bytes content = 2;
+}

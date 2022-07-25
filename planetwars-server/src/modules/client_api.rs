@@ -1,5 +1,8 @@
 pub mod pb {
-    tonic::include_proto!("grpc.planetwars.bot_api");
+    tonic::include_proto!("grpc.planetwars.client_api");
+
+    pub use player_api_client_message::ClientMessage as PlayerApiClientMessageType;
+    pub use player_api_server_message::ServerMessage as PlayerApiServerMessageType;
 }
 
 use std::collections::HashMap;
@@ -24,7 +27,7 @@ use crate::GlobalConfig;
 
 use super::matches::{MatchPlayer, RunMatch};
 
-pub struct BotApiServer {
+pub struct ClientApiServer {
     conn_pool: ConnectionPool,
     runner_config: Arc<GlobalConfig>,
     router: PlayerRouter,
@@ -65,12 +68,12 @@ impl PlayerRouter {
 }
 
 #[tonic::async_trait]
-impl pb::bot_api_service_server::BotApiService for BotApiServer {
-    type ConnectPlayerStream = UnboundedReceiverStream<Result<pb::ServerMessage, Status>>;
+impl pb::client_api_service_server::ClientApiService for ClientApiServer {
+    type ConnectPlayerStream = UnboundedReceiverStream<Result<pb::PlayerApiServerMessage, Status>>;
 
     async fn connect_player(
         &self,
-        req: Request<Streaming<pb::ClientMessage>>,
+        req: Request<Streaming<pb::PlayerApiClientMessage>>,
     ) -> Result<Response<Self::ConnectPlayerStream>, Status> {
         // TODO: clean up errors
         let player_key = req
@@ -97,8 +100,8 @@ impl pb::bot_api_service_server::BotApiService for BotApiServer {
 
     async fn create_match(
         &self,
-        req: Request<pb::MatchRequest>,
-    ) -> Result<Response<pb::CreatedMatch>, Status> {
+        req: Request<pb::CreateMatchRequest>,
+    ) -> Result<Response<pb::CreateMatchResponse>, Status> {
         // TODO: unify with matchrunner module
         let conn = self.conn_pool.get().await.unwrap();
 
@@ -131,7 +134,7 @@ impl pb::bot_api_service_server::BotApiService for BotApiServer {
             .await
             .expect("failed to create match");
 
-        Ok(Response::new(pb::CreatedMatch {
+        Ok(Response::new(pb::CreateMatchResponse {
             match_id: created_match.base.id,
             player_key,
             // TODO: can we avoid hardcoding this?
@@ -145,8 +148,8 @@ impl pb::bot_api_service_server::BotApiService for BotApiServer {
 
 // TODO: please rename me
 struct SyncThingData {
-    tx: oneshot::Sender<Streaming<pb::ClientMessage>>,
-    server_messages: mpsc::UnboundedReceiver<Result<pb::ServerMessage, Status>>,
+    tx: oneshot::Sender<Streaming<pb::PlayerApiClientMessage>>,
+    server_messages: mpsc::UnboundedReceiver<Result<pb::PlayerApiServerMessage, Status>>,
 }
 
 struct RemoteBotSpec {
@@ -203,13 +206,13 @@ impl runner::BotSpec for RemoteBotSpec {
 async fn handle_bot_messages(
     player_id: u32,
     event_bus: Arc<Mutex<EventBus>>,
-    mut messages: Streaming<pb::ClientMessage>,
+    mut messages: Streaming<pb::PlayerApiClientMessage>,
 ) {
     // TODO: can this be writte nmore nicely?
     while let Some(message) = messages.message().await.unwrap() {
         match message.client_message {
-            Some(pb::client_message::ClientMessage::RequestResponse(resp)) => {
-                let request_id = (player_id, resp.request_id as u32);
+            Some(pb::PlayerApiClientMessageType::Action(resp)) => {
+                let request_id = (player_id, resp.action_request_id as u32);
                 event_bus
                     .lock()
                     .unwrap()
@@ -221,20 +224,20 @@ async fn handle_bot_messages(
 }
 
 struct RemoteBotHandle {
-    sender: mpsc::UnboundedSender<Result<pb::ServerMessage, Status>>,
+    sender: mpsc::UnboundedSender<Result<pb::PlayerApiServerMessage, Status>>,
     player_id: u32,
     event_bus: Arc<Mutex<EventBus>>,
 }
 
 impl PlayerHandle for RemoteBotHandle {
     fn send_request(&mut self, r: RequestMessage) {
-        let req = pb::PlayerRequest {
-            request_id: r.request_id as i32,
+        let req = pb::PlayerActionRequest {
+            action_request_id: r.request_id as i32,
             content: r.content,
         };
 
-        let server_message = pb::ServerMessage {
-            server_message: Some(pb::server_message::ServerMessage::PlayerRequest(req)),
+        let server_message = pb::PlayerApiServerMessage {
+            server_message: Some(pb::PlayerApiServerMessageType::ActionRequest(req)),
         };
 
         let res = self.sender.send(Ok(server_message));
@@ -282,9 +285,9 @@ async fn schedule_timeout(
         .resolve_request(request_id, Err(RequestError::Timeout));
 }
 
-pub async fn run_bot_api(runner_config: Arc<GlobalConfig>, pool: ConnectionPool) {
+pub async fn run_client_api(runner_config: Arc<GlobalConfig>, pool: ConnectionPool) {
     let router = PlayerRouter::new();
-    let server = BotApiServer {
+    let server = ClientApiServer {
         router,
         conn_pool: pool,
         runner_config,
@@ -292,7 +295,9 @@ pub async fn run_bot_api(runner_config: Arc<GlobalConfig>, pool: ConnectionPool)
 
     let addr = SocketAddr::from(([127, 0, 0, 1], 50051));
     Server::builder()
-        .add_service(pb::bot_api_service_server::BotApiServiceServer::new(server))
+        .add_service(pb::client_api_service_server::ClientApiServiceServer::new(
+            server,
+        ))
         .serve(addr)
         .await
         .unwrap()

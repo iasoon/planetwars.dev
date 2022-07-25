@@ -17,7 +17,7 @@ use bb8::{Pool, PooledConnection};
 use bb8_diesel::{self, DieselConnectionManager};
 use config::ConfigError;
 use diesel::{Connection, PgConnection};
-use modules::bot_api::run_bot_api;
+use modules::client_api::run_client_api;
 use modules::ranking::run_ranker;
 use modules::registry::registry_service;
 use serde::{Deserialize, Serialize};
@@ -172,7 +172,7 @@ pub async fn run_app() {
         tokio::spawn(run_ranker(global_config.clone(), db_pool.clone()));
     }
     tokio::spawn(run_registry(global_config.clone(), db_pool.clone()));
-    tokio::spawn(run_bot_api(global_config.clone(), db_pool.clone()));
+    tokio::spawn(run_client_api(global_config.clone(), db_pool.clone()));
 
     let api_service = Router::new()
         .nest("/api", api())
