@@ -1,15 +1,21 @@
 import adapter from "@sveltejs/adapter-node";
-import preprocess from "svelte-preprocess";
+import sveltePreprocess from "svelte-preprocess";
 import { viteCommonjs } from "@originjs/vite-plugin-commonjs";
 import wasmPack from "vite-plugin-wasm-pack";
 import { isoImport } from "vite-plugin-iso-import";
+import { mdsvex } from "mdsvex";
 
 /** @type {import('@sveltejs/kit').Config} */
 const config = {
   // Consult https://github.com/sveltejs/svelte-preprocess
   // for more information about preprocessors
-  preprocess: preprocess(),
-
+  preprocess: [
+    sveltePreprocess(),
+    mdsvex({
+      extensions: ['.md']
+    }),
+  ],
+  extensions: ['.svelte', '.md'],
   kit: {
     adapter: adapter(),
 
