@@ -15,6 +15,7 @@ use super::bots::{Bot, BotVersion};
 pub struct NewMatch<'a> {
     pub state: MatchState,
     pub log_path: &'a str,
+    pub is_public: bool,
 }
 
 #[derive(Insertable)]
@@ -36,6 +37,7 @@ pub struct MatchBase {
     pub log_path: String,
     pub created_at: NaiveDateTime,
     pub winner: Option<i32>,
+    pub is_public: bool,
 }
 
 #[derive(Queryable, Identifiable, Associations, Clone)]

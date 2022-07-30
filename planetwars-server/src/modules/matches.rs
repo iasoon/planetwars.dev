@@ -17,6 +17,7 @@ pub struct RunMatch {
     log_file_name: String,
     players: Vec<MatchPlayer>,
     config: Arc<GlobalConfig>,
+    is_public: bool,
 }
 
 pub enum MatchPlayer {
@@ -30,12 +31,18 @@ pub enum MatchPlayer {
 }
 
 impl RunMatch {
-    pub fn from_players(config: Arc<GlobalConfig>, players: Vec<MatchPlayer>) -> Self {
+    // TODO: create a MatchParams struct
+    pub fn from_players(
+        config: Arc<GlobalConfig>,
+        is_public: bool,
+        players: Vec<MatchPlayer>,
+    ) -> Self {
         let log_file_name = format!("{}.log", gen_alphanumeric(16));
         RunMatch {
             config,
             log_file_name,
             players,
+            is_public,
         }
     }
 
@@ -80,6 +87,7 @@ impl RunMatch {
         let new_match_data = db::matches::NewMatch {
             state: db::matches::MatchState::Playing,
             log_path: &self.log_file_name,
+            is_public: self.is_public,
         };
         let new_match_players = self
             .players

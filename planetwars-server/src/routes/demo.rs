@@ -50,6 +50,7 @@ pub async fn submit_bot(
 
     let run_match = RunMatch::from_players(
         config,
+        false,
         vec![
             MatchPlayer::BotVersion {
                 bot: None,

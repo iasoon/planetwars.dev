@@ -119,6 +119,7 @@ impl pb::client_api_service_server::ClientApiService for ClientApiServer {
         });
         let run_match = RunMatch::from_players(
             self.runner_config.clone(),
+            false,
             vec![
                 MatchPlayer::BotSpec {
                     spec: remote_bot_spec,

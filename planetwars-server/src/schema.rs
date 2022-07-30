@@ -47,6 +47,7 @@ table! {
         log_path -> Text,
         created_at -> Timestamp,
         winner -> Nullable<Int4>,
+        is_public -> Bool,
     }
 }
 

@@ -53,7 +53,7 @@ async fn play_ranking_match(
         players.push(player);
     }
 
-    let (_, handle) = RunMatch::from_players(config, players)
+    let (_, handle) = RunMatch::from_players(config, true, players)
         .run(db_pool.clone())
         .await
         .expect("failed to run match");
