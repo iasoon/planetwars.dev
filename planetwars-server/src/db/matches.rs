@@ -89,6 +89,36 @@ pub struct MatchData {
     pub match_players: Vec<MatchPlayer>,
 }
 
+/// Add player information to MatchBase instances
+fn fetch_full_match_data(
+    matches: Vec<MatchBase>,
+    conn: &PgConnection,
+) -> QueryResult<Vec<FullMatchData>> {
+    let match_players = MatchPlayer::belonging_to(&matches)
+        .left_join(
+            bot_versions::table.on(match_players::bot_version_id.eq(bot_versions::id.nullable())),
+        )
+        .left_join(bots::table.on(bot_versions::bot_id.eq(bots::id.nullable())))
+        .order_by((
+            match_players::match_id.asc(),
+            match_players::player_id.asc(),
+        ))
+        .load::<FullMatchPlayerData>(conn)?
+        .grouped_by(&matches);
+
+    let res = matches
+        .into_iter()
+        .zip(match_players.into_iter())
+        .map(|(base, players)| FullMatchData {
+            base,
+            match_players: players.into_iter().collect(),
+        })
+        .collect();
+
+    Ok(res)
+}
+
+// TODO: this method should disappear
 pub fn list_matches(amount: i64, conn: &PgConnection) -> QueryResult<Vec<FullMatchData>> {
     conn.transaction(|| {
         let matches = matches::table
@@ -96,29 +126,19 @@ pub fn list_matches(amount: i64, conn: &PgConnection) -> QueryResult<Vec<FullMat
             .limit(amount)
             .get_results::<MatchBase>(conn)?;
 
-        let match_players = MatchPlayer::belonging_to(&matches)
-            .left_join(
-                bot_versions::table
-                    .on(match_players::bot_version_id.eq(bot_versions::id.nullable())),
-            )
-            .left_join(bots::table.on(bot_versions::bot_id.eq(bots::id.nullable())))
-            .order_by((
-                match_players::match_id.asc(),
-                match_players::player_id.asc(),
-            ))
-            .load::<FullMatchPlayerData>(conn)?
-            .grouped_by(&matches);
+        fetch_full_match_data(matches, conn)
+    })
+}
 
-        let res = matches
-            .into_iter()
-            .zip(match_players.into_iter())
-            .map(|(base, players)| FullMatchData {
-                base,
-                match_players: players.into_iter().collect(),
-            })
-            .collect();
+pub fn list_public_matches(amount: i64, conn: &PgConnection) -> QueryResult<Vec<FullMatchData>> {
+    conn.transaction(|| {
+        let matches = matches::table
+            .filter(matches::is_public.eq(true))
+            .order_by(matches::created_at.desc())
+            .limit(amount)
+            .get_results::<MatchBase>(conn)?;
 
-        Ok(res)
+        fetch_full_match_data(matches, conn)
     })
 }
 

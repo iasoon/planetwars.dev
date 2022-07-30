@@ -23,8 +23,10 @@ pub struct ApiMatchPlayer {
     bot_name: Option<String>,
 }
 
-pub async fn list_matches(conn: DatabaseConnection) -> Result<Json<Vec<ApiMatch>>, StatusCode> {
-    matches::list_matches(100, &conn)
+pub async fn list_public_matches(
+    conn: DatabaseConnection,
+) -> Result<Json<Vec<ApiMatch>>, StatusCode> {
+    matches::list_public_matches(100, &conn)
         .map_err(|_| StatusCode::BAD_REQUEST)
         .map(|matches| Json(matches.into_iter().map(match_data_to_api).collect()))
 }
