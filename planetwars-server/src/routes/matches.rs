@@ -14,6 +14,7 @@ pub struct ApiMatch {
     timestamp: chrono::NaiveDateTime,
     state: MatchState,
     players: Vec<ApiMatchPlayer>,
+    winner: Option<i32>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -45,6 +46,7 @@ pub fn match_data_to_api(data: matches::FullMatchData) -> ApiMatch {
                 bot_name: _p.bot.as_ref().map(|b| b.name.clone()),
             })
             .collect(),
+        winner: data.base.winner,
     }
 }
 
