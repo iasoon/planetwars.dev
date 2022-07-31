@@ -34,7 +34,7 @@ struct PlayMatch {
 #[derive(Deserialize)]
 struct BotConfig {
     #[allow(dead_code)]
-    name: String,
+    name: Option<String>,
     command: Command,
     working_directory: Option<String>,
 }
