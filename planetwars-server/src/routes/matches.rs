@@ -1,4 +1,8 @@
-use axum::{extract::Path, Extension, Json};
+use axum::{
+    extract::{Path, Query},
+    Extension, Json,
+};
+use chrono::NaiveDateTime;
 use hyper::StatusCode;
 use serde::{Deserialize, Serialize};
 use std::{path::PathBuf, sync::Arc};
@@ -24,10 +28,28 @@ pub struct ApiMatchPlayer {
     bot_name: Option<String>,
 }
 
-pub async fn list_public_matches(
+#[derive(Serialize, Deserialize)]
+pub struct ListRecentMatchesParams {
+    count: Option<usize>,
+    // TODO: should timezone be specified here?
+    // TODO: implement these
+    before: Option<NaiveDateTime>,
+    after: Option<NaiveDateTime>,
+}
+
+const MAX_NUM_RETURNED_MATCHES: usize = 100;
+const DEFAULT_NUM_RETURNED_MATCHES: usize = 50;
+
+pub async fn list_recent_matches(
+    Query(params): Query<ListRecentMatchesParams>,
     conn: DatabaseConnection,
 ) -> Result<Json<Vec<ApiMatch>>, StatusCode> {
-    matches::list_public_matches(100, &conn)
+    let count = std::cmp::min(
+        params.count.unwrap_or(DEFAULT_NUM_RETURNED_MATCHES),
+        MAX_NUM_RETURNED_MATCHES,
+    );
+
+    matches::list_public_matches(count as i64, &conn)
         .map_err(|_| StatusCode::BAD_REQUEST)
         .map(|matches| Json(matches.into_iter().map(match_data_to_api).collect()))
 }
