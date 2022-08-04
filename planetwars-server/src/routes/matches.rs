@@ -8,7 +8,10 @@ use serde::{Deserialize, Serialize};
 use std::{path::PathBuf, sync::Arc};
 
 use crate::{
-    db::matches::{self, MatchState},
+    db::{
+        self,
+        matches::{self, MatchState},
+    },
     DatabaseConnection, GlobalConfig,
 };
 
@@ -35,6 +38,8 @@ pub struct ListRecentMatchesParams {
     // TODO: implement these
     before: Option<NaiveDateTime>,
     after: Option<NaiveDateTime>,
+
+    bot: Option<String>,
 }
 
 const MAX_NUM_RETURNED_MATCHES: usize = 100;
@@ -47,9 +52,18 @@ pub async fn list_recent_matches(
     let count = std::cmp::min(
         params.count.unwrap_or(DEFAULT_NUM_RETURNED_MATCHES),
         MAX_NUM_RETURNED_MATCHES,
-    );
+    ) as i64;
 
-    matches::list_public_matches(count as i64, &conn)
+    let matches = match params.bot {
+        Some(bot_name) => {
+            let bot = db::bots::find_bot_by_name(&bot_name, &conn)
+                .map_err(|_| StatusCode::BAD_REQUEST)?;
+            matches::list_bot_matches(bot.id, count, &conn)
+        }
+        None => matches::list_public_matches(count, &conn),
+    };
+
+    matches
         .map_err(|_| StatusCode::BAD_REQUEST)
         .map(|matches| Json(matches.into_iter().map(match_data_to_api).collect()))
 }

@@ -142,6 +142,36 @@ pub fn list_public_matches(amount: i64, conn: &PgConnection) -> QueryResult<Vec<
     })
 }
 
+pub fn list_bot_matches(
+    bot_id: i32,
+    amount: i64,
+    conn: &PgConnection,
+) -> QueryResult<Vec<FullMatchData>> {
+    conn.transaction(|| {
+        let matches = matches::table
+            .filter(matches::is_public.eq(true))
+            .order_by(matches::created_at.desc())
+            .inner_join(match_players::table)
+            .inner_join(
+                bot_versions::table
+                    .on(match_players::bot_version_id.eq(bot_versions::id.nullable())),
+            )
+            .filter(bot_versions::bot_id.eq(bot_id))
+            .limit(amount)
+            .select((
+                matches::id,
+                matches::state,
+                matches::log_path,
+                matches::created_at,
+                matches::winner,
+                matches::is_public,
+            ))
+            .get_results::<MatchBase>(conn)?;
+
+        fetch_full_match_data(matches, conn)
+    })
+}
+
 // TODO: maybe unify this with matchdata?
 pub struct FullMatchData {
     pub base: MatchBase,
