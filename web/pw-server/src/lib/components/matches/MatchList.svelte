@@ -43,10 +43,12 @@
 </table>
 
 <style lang="scss">
+  .matches-table {
+    width: 100%;
+  }
   .matches-table td,
   .matches-table th {
     padding: 8px 16px;
-    // width: 100%;
   }
 
   .header-timestamp {

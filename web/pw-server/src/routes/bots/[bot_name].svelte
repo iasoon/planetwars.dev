@@ -10,8 +10,17 @@
       },
     });
 
-    if (res.ok) {
+    const matches_res = await fetch(`/api/matches?bot=${params["bot_name"]}`, {
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+
+    if (res.ok && matches_res.ok) {
       const { bot, owner, versions } = await res.json();
+      const matches = await matches_res.json();
       // sort most recent first
       versions.sort((a: string, b: string) =>
         dayjs(a["created_at"]).isAfter(b["created_at"]) ? -1 : 1
@@ -21,6 +30,7 @@
           bot,
           owner,
           versions,
+          matches,
         },
       };
     }
@@ -34,12 +44,13 @@
 
 <script lang="ts">
   import dayjs from "dayjs";
-
   import { currentUser } from "$lib/stores/current_user";
+  import MatchList from "$lib/components/matches/MatchList.svelte";
 
   export let bot: object;
   export let owner: object;
   export let versions: object[];
+  export let matches: object[];
 
   // function last_updated() {
   //   versions.sort()
@@ -92,7 +103,12 @@
     </div>
   {/if}
 
-  <div class="versions">
+  <div class="matches">
+    <h3>Recent matches</h3>
+    <MatchList {matches} />
+  </div>
+
+  <!-- <div class="versions">
     <h4>Versions</h4>
     <ul class="version-list">
       {#each versions as version}
@@ -104,7 +120,7 @@
     {#if versions.length == 0}
       This bot does not have any versions yet.
     {/if}
-  </div>
+  </div> -->
 </div>
 
 <style lang="scss">
