@@ -1,27 +1,16 @@
 <script lang="ts" context="module">
-  import { get_session_token } from "$lib/auth";
+  import { ApiClient } from "$lib/api_client";
 
   export async function load({ params, fetch }) {
-    const token = get_session_token();
-    const res = await fetch(`/api/bots/${params["bot_name"]}`, {
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-    });
+    const apiClient = new ApiClient(fetch);
 
-    const matches_res = await fetch(`/api/matches?bot=${params["bot_name"]}`, {
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-    });
+    try {
+      const [botData, matches] = await Promise.all([
+        apiClient.get(`/api/bots/${params["bot_name"]}`),
+        apiClient.get("/api/matches", { bot: params["bot_name"] }),
+      ]);
 
-
-    if (res.ok && matches_res.ok) {
-      const { bot, owner, versions } = await res.json();
-      const matches = await matches_res.json();
-      // sort most recent first
+      const { bot, owner, versions } = botData;
       versions.sort((a: string, b: string) =>
         dayjs(a["created_at"]).isAfter(b["created_at"]) ? -1 : 1
       );
@@ -33,12 +22,12 @@
           matches,
         },
       };
+    } catch (error) {
+      return {
+        status: error.status,
+        error: error,
+      };
     }
-
-    return {
-      status: res.status,
-      error: new Error("Could not find bot"),
-    };
   }
 </script>
 
