@@ -1,33 +1,25 @@
 <script lang="ts" context="module">
-  function fetchJson(url: string): Promise<Response> {
-    return fetch(url, {
-      headers: {
-        "Content-Type": "application/json",
-      },
-    });
-  }
-
-  export async function load({ params }) {
-    // TODO: handle failure cases better
-    const matchId = params["match_id"];
-    const matchDataResponse = await fetchJson(`/api/matches/${matchId}`);
-    if (!matchDataResponse.ok) {
-    }
-    const matchLogResponse = await fetchJson(`/api/matches/${matchId}/log`);
-
-    if (matchDataResponse.ok && matchLogResponse.ok) {
+  import { ApiClient } from "$lib/api_client";
+  export async function load({ params, fetch }) {
+    try {
+      const matchId = params["match_id"];
+      const apiClient = new ApiClient(fetch);
+      const [matchData, matchLog] = await Promise.all([
+        apiClient.get(`/api/matches/${matchId}`),
+        apiClient.getText(`/api/matches/${matchId}/log`),
+      ]);
       return {
         props: {
-          matchData: await matchDataResponse.json(),
-          matchLog: await matchLogResponse.text(),
+          matchData: matchData,
+          matchLog: matchLog,
         },
       };
+    } catch (error) {
+      return {
+        status: error.status,
+        error: error,
+      };
     }
-
-    return {
-      status: matchDataResponse.status,
-      error: new Error("failed to load match"),
-    };
   }
 </script>
 

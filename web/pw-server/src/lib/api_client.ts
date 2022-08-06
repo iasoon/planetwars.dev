@@ -24,23 +24,15 @@ export class ApiClient {
   }
 
   async get(url: string, params?: Record<string, string>): Promise<any> {
-    const headers = { "Content-Type": "application/json" };
+    const response = await this.getRequest(url, params);
+    this.checkResponse(response);
+    return await response.json();
+  }
 
-    if (this.sessionToken) {
-      headers["Authorization"] = `Bearer ${this.sessionToken}`;
-    }
-
-    if (params) {
-      let searchParams = new URLSearchParams(params);
-      url = `${url}?${searchParams}`;
-    }
-
-    const response = await this.fetch_fn(url, {
-      method: "GET",
-      headers,
-    });
-
-    return await this.getJsonResponse(response);
+  async getText(url: string, params?: Record<string, string>): Promise<any> {
+    const response = await this.getRequest(url, params);
+    this.checkResponse(response);
+    return await response.text();
   }
 
   async post(url: string, data: any): Promise<any> {
@@ -57,13 +49,30 @@ export class ApiClient {
       body: JSON.stringify(data),
     });
 
-    return await this.getJsonResponse(response);
+    this.checkResponse(response);
+    return await response.json();
   }
 
-  private async getJsonResponse(response: Response): Promise<any> {
-    if (response.ok) {
-      return await response.json();
-    } else {
+  private async getRequest(url: string, params: Record<string, string>): Promise<Response> {
+    const headers = { "Content-Type": "application/json" };
+
+    if (this.sessionToken) {
+      headers["Authorization"] = `Bearer ${this.sessionToken}`;
+    }
+
+    if (params) {
+      let searchParams = new URLSearchParams(params);
+      url = `${url}?${searchParams}`;
+    }
+
+    return await this.fetch_fn(url, {
+      method: "GET",
+      headers,
+    });
+  }
+
+  private checkResponse(response: Response) {
+    if (!response.ok) {
       throw new ApiError(response.status, response.statusText);
     }
   }
