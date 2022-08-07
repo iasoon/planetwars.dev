@@ -1,23 +1,22 @@
 <script lang="ts" context="module">
-  export async function load() {
-    const res = await fetch("/api/matches", {
-      headers: {
-        "Content-Type": "application/json",
-      },
-    });
+  import { ApiClient } from "$lib/api_client";
 
-    if (res.ok) {
+  export async function load({ fetch }) {
+    try {
+      const apiClient = new ApiClient(fetch);
+      const matches = await apiClient.get("/api/matches");
+
       return {
         props: {
-          matches: await res.json(),
+          matches,
         },
       };
+    } catch (error) {
+      return {
+        status: error.status,
+        error: new Error("failed to load matches"),
+      };
     }
-
-    return {
-      status: res.status,
-      error: new Error("failed to load matches"),
-    };
   }
 </script>
 
