@@ -1,3 +1,4 @@
+import { browser } from "$app/env";
 import { get_session_token } from "./auth";
 
 export type FetchFn = (input: RequestInfo, init?: RequestInit) => Promise<Response>;
@@ -15,8 +16,8 @@ export class ApiClient {
   constructor(fetch_fn?: FetchFn) {
     if (fetch_fn) {
       this.fetch_fn = fetch_fn;
-    } else {
-      this.fetch_fn = fetch;
+    } else if (browser) {
+      this.fetch_fn = fetch.bind(window);
     }
 
     // TODO: maybe it is cleaner to pass this as a parameter
