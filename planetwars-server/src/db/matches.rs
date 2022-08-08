@@ -130,13 +130,34 @@ pub fn list_matches(amount: i64, conn: &PgConnection) -> QueryResult<Vec<FullMat
     })
 }
 
-pub fn list_public_matches(amount: i64, conn: &PgConnection) -> QueryResult<Vec<FullMatchData>> {
+pub fn list_public_matches(
+    amount: i64,
+    before: Option<NaiveDateTime>,
+    after: Option<NaiveDateTime>,
+    conn: &PgConnection,
+) -> QueryResult<Vec<FullMatchData>> {
     conn.transaction(|| {
-        let matches = matches::table
+        // TODO: how can this common logic be abstracted?
+        // TODO: this is not nice. Replace this with proper cursor logic.
+        let mut query = matches::table
             .filter(matches::is_public.eq(true))
-            .order_by(matches::created_at.desc())
-            .limit(amount)
-            .get_results::<MatchBase>(conn)?;
+            .into_boxed();
+
+        query = match (before, after) {
+            (None, None) => query.order_by(matches::created_at.desc()),
+            (Some(before), None) => query
+                .filter(matches::created_at.lt(before))
+                .order_by(matches::created_at.desc()),
+            (None, Some(after)) => query
+                .filter(matches::created_at.gt(after))
+                .order_by(matches::created_at.asc()),
+            (Some(before), Some(after)) => query
+                .filter(matches::created_at.lt(before))
+                .filter(matches::created_at.gt(after))
+                .order_by(matches::created_at.desc()),
+        };
+
+        let matches = query.limit(amount).get_results::<MatchBase>(conn)?;
 
         fetch_full_match_data(matches, conn)
     })
@@ -145,11 +166,15 @@ pub fn list_public_matches(amount: i64, conn: &PgConnection) -> QueryResult<Vec<
 pub fn list_bot_matches(
     bot_id: i32,
     amount: i64,
+    before: Option<NaiveDateTime>,
+    after: Option<NaiveDateTime>,
     conn: &PgConnection,
 ) -> QueryResult<Vec<FullMatchData>> {
     conn.transaction(|| {
         let matches = matches::table
             .filter(matches::is_public.eq(true))
+            .filter(matches::created_at.nullable().lt(before))
+            .filter(matches::created_at.nullable().gt(after))
             .order_by(matches::created_at.desc())
             .inner_join(match_players::table)
             .inner_join(

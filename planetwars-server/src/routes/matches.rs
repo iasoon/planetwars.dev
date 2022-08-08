@@ -35,7 +35,6 @@ pub struct ApiMatchPlayer {
 pub struct ListRecentMatchesParams {
     count: Option<usize>,
     // TODO: should timezone be specified here?
-    // TODO: implement these
     before: Option<NaiveDateTime>,
     after: Option<NaiveDateTime>,
 
@@ -58,9 +57,9 @@ pub async fn list_recent_matches(
         Some(bot_name) => {
             let bot = db::bots::find_bot_by_name(&bot_name, &conn)
                 .map_err(|_| StatusCode::BAD_REQUEST)?;
-            matches::list_bot_matches(bot.id, count, &conn)
+            matches::list_bot_matches(bot.id, count, params.before, params.after, &conn)
         }
-        None => matches::list_public_matches(count, &conn),
+        None => matches::list_public_matches(count, params.before, params.after, &conn),
     };
 
     matches
