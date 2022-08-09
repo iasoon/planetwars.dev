@@ -42,11 +42,17 @@ fn argon2_config() -> argon2::Config<'static> {
     }
 }
 
-pub fn create_user(credentials: &Credentials, conn: &PgConnection) -> QueryResult<User> {
+pub fn hash_password(password: &str) -> (Vec<u8>, [u8; 32]) {
     let argon_config = argon2_config();
-
     let salt: [u8; 32] = rand::thread_rng().gen();
-    let hash = argon2::hash_raw(credentials.password.as_bytes(), &salt, &argon_config).unwrap();
+    let hash = argon2::hash_raw(password.as_bytes(), &salt, &argon_config).unwrap();
+
+    (hash, salt)
+}
+
+pub fn create_user(credentials: &Credentials, conn: &PgConnection) -> QueryResult<User> {
+    let (hash, salt) = hash_password(&credentials.password);
+
     let new_user = NewUser {
         username: credentials.username,
         password_salt: &salt,
@@ -67,6 +73,22 @@ pub fn find_user_by_name(username: &str, db_conn: &PgConnection) -> QueryResult<
     users::table
         .filter(users::username.eq(username))
         .first::<User>(db_conn)
+}
+
+pub fn set_user_password(credentials: Credentials, db_conn: &PgConnection) -> QueryResult<()> {
+    let (hash, salt) = hash_password(&credentials.password);
+
+    let n_changes = diesel::update(users::table.filter(users::username.eq(&credentials.username)))
+        .set((
+            users::password_salt.eq(salt.as_slice()),
+            users::password_hash.eq(hash.as_slice()),
+        ))
+        .execute(db_conn)?;
+    if n_changes == 0 {
+        Err(diesel::result::Error::NotFound)
+    } else {
+        Ok(())
+    }
 }
 
 pub fn authenticate_user(credentials: &Credentials, db_conn: &PgConnection) -> Option<User> {

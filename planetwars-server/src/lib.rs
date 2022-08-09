@@ -94,11 +94,9 @@ pub async fn seed_simplebot(config: &GlobalConfig, pool: &ConnectionPool) {
 
 pub type DbPool = Pool<DieselConnectionManager<PgConnection>>;
 
-pub async fn prepare_db(config: &GlobalConfig) -> DbPool {
+pub async fn create_db_pool(config: &GlobalConfig) -> DbPool {
     let manager = DieselConnectionManager::<PgConnection>::new(&config.database_url);
-    let pool = bb8::Pool::builder().build(manager).await.unwrap();
-    seed_simplebot(config, &pool).await;
-    pool
+    bb8::Pool::builder().build(manager).await.unwrap()
 }
 
 // create all directories required for further operation
@@ -165,7 +163,8 @@ async fn run_registry(config: Arc<GlobalConfig>, db_pool: DbPool) {
 
 pub async fn run_app() {
     let global_config = Arc::new(get_config().unwrap());
-    let db_pool = prepare_db(&global_config).await;
+    let db_pool = create_db_pool(&global_config).await;
+    seed_simplebot(&global_config, &db_pool).await;
     init_directories(&global_config).unwrap();
 
     if global_config.ranker_enabled {

@@ -2,8 +2,16 @@
 name = "planetwars-server"
 version = "0.0.0"
 edition = "2021"
+default-run = "planetwars-server"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[[bin]]
+name = "planetwars-server"
+path = "src/main.rs"
+
+[[bin]]
+name = "planetwars-server-cli"
+path = "src/cli.rs"
 
 [dependencies]
 futures = "0.3"
@@ -32,6 +40,7 @@ sha2 = "0.10"
 tokio-util = { version="0.7.3", features=["io"] }
 prost = "0.10"
 tonic = "0.7.2"
+clap = { version = "3.2", features = ["derive", "env"]}
 
 # TODO: remove me
 shlex = "1.1"
