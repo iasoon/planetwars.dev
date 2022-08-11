@@ -3,12 +3,22 @@
 
   const PAGE_SIZE = "50";
 
-  export async function load({ fetch }) {
+  export async function load({ url, fetch }) {
     try {
       const apiClient = new ApiClient(fetch);
-      const matches = await apiClient.get("/api/matches", {
+
+      let query = {
         count: PAGE_SIZE,
-      });
+        before: url.searchParams.get("before"),
+        after: url.searchParams.get("after"),
+      };
+
+      let matches = await apiClient.get("/api/matches", removeUndefined(query));
+
+      // TODO: should this be done client-side?
+      if (query["after"]) {
+        matches = matches.reverse();
+      }
 
       return {
         props: {
@@ -22,28 +32,30 @@
       };
     }
   }
+
+  function removeUndefined(obj: Record<string, string>): Record<string, string> {
+    Object.keys(obj).forEach((key) => {
+      if (obj[key] === undefined || obj[key] === null) {
+        delete obj[key];
+      }
+    });
+    return obj;
+  }
 </script>
 
 <script lang="ts">
+  import { goto } from "$app/navigation";
+
   import MatchList from "$lib/components/matches/MatchList.svelte";
 
   export let matches: object[];
-  let loading = false;
 
   async function loadNewer() {
     if (matches.length == 0) {
       return;
     }
     const firstTimestamp = matches[0]["timestamp"];
-    const apiClient = new ApiClient();
-    const reversedNewPage = await apiClient.get("/api/matches", {
-      count: PAGE_SIZE,
-      after: firstTimestamp,
-    });
-
-    if (reversedNewPage.length > 0) {
-      matches = reversedNewPage.reverse();
-    }
+    goto(`?after=${firstTimestamp}`);
   }
 
   async function loadOlder() {
@@ -51,14 +63,7 @@
       return;
     }
     const lastTimestamp = matches[matches.length - 1]["timestamp"];
-    const apiClient = new ApiClient();
-    const newPage = await apiClient.get("/api/matches", {
-      count: PAGE_SIZE,
-      before: lastTimestamp,
-    });
-    if (newPage.length > 0) {
-      matches = newPage;
-    }
+    goto(`?before=${lastTimestamp}`);
   }
 </script>
 
