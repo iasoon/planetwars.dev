@@ -1,6 +1,9 @@
 pub use crate::db_types::MatchState;
 use chrono::NaiveDateTime;
 use diesel::associations::BelongsTo;
+use diesel::pg::Pg;
+use diesel::query_builder::BoxedSelectStatement;
+use diesel::query_source::{AppearsInFromClause, Once};
 use diesel::{
     BelongingToDsl, ExpressionMethods, JoinOnDsl, NullableExpressionMethods, QueryDsl, RunQueryDsl,
 };
@@ -138,27 +141,12 @@ pub fn list_public_matches(
 ) -> QueryResult<Vec<FullMatchData>> {
     conn.transaction(|| {
         // TODO: how can this common logic be abstracted?
-        // TODO: this is not nice. Replace this with proper cursor logic.
-        let mut query = matches::table
+        let query = matches::table
             .filter(matches::is_public.eq(true))
             .into_boxed();
 
-        query = match (before, after) {
-            (None, None) => query.order_by(matches::created_at.desc()),
-            (Some(before), None) => query
-                .filter(matches::created_at.lt(before))
-                .order_by(matches::created_at.desc()),
-            (None, Some(after)) => query
-                .filter(matches::created_at.gt(after))
-                .order_by(matches::created_at.asc()),
-            (Some(before), Some(after)) => query
-                .filter(matches::created_at.lt(before))
-                .filter(matches::created_at.gt(after))
-                .order_by(matches::created_at.desc()),
-        };
-
-        let matches = query.limit(amount).get_results::<MatchBase>(conn)?;
-
+        let matches =
+            select_matches_page(query, amount, before, after).get_results::<MatchBase>(conn)?;
         fetch_full_match_data(matches, conn)
     })
 }
@@ -170,31 +158,53 @@ pub fn list_bot_matches(
     after: Option<NaiveDateTime>,
     conn: &PgConnection,
 ) -> QueryResult<Vec<FullMatchData>> {
-    conn.transaction(|| {
-        let matches = matches::table
-            .filter(matches::is_public.eq(true))
-            .filter(matches::created_at.nullable().lt(before))
-            .filter(matches::created_at.nullable().gt(after))
-            .order_by(matches::created_at.desc())
-            .inner_join(match_players::table)
-            .inner_join(
-                bot_versions::table
-                    .on(match_players::bot_version_id.eq(bot_versions::id.nullable())),
-            )
-            .filter(bot_versions::bot_id.eq(bot_id))
-            .limit(amount)
-            .select((
-                matches::id,
-                matches::state,
-                matches::log_path,
-                matches::created_at,
-                matches::winner,
-                matches::is_public,
-            ))
-            .get_results::<MatchBase>(conn)?;
+    let query = matches::table
+        .filter(matches::is_public.eq(true))
+        .order_by(matches::created_at.desc())
+        .inner_join(match_players::table)
+        .inner_join(
+            bot_versions::table.on(match_players::bot_version_id.eq(bot_versions::id.nullable())),
+        )
+        .filter(bot_versions::bot_id.eq(bot_id))
+        .select((
+            matches::id,
+            matches::state,
+            matches::log_path,
+            matches::created_at,
+            matches::winner,
+            matches::is_public,
+        ))
+        .into_boxed();
 
-        fetch_full_match_data(matches, conn)
-    })
+    let matches =
+        select_matches_page(query, amount, before, after).get_results::<MatchBase>(conn)?;
+    fetch_full_match_data(matches, conn)
+}
+
+fn select_matches_page<QS>(
+    query: BoxedSelectStatement<'static, matches::SqlType, QS, Pg>,
+    amount: i64,
+    before: Option<NaiveDateTime>,
+    after: Option<NaiveDateTime>,
+) -> BoxedSelectStatement<'static, matches::SqlType, QS, Pg>
+where
+    QS: AppearsInFromClause<matches::table, Count = Once>,
+{
+    // TODO: this is not nice. Replace this with proper cursor logic.
+    match (before, after) {
+        (None, None) => query.order_by(matches::created_at.desc()),
+        (Some(before), None) => query
+            .filter(matches::created_at.lt(before))
+            .order_by(matches::created_at.desc()),
+        (None, Some(after)) => query
+            .filter(matches::created_at.gt(after))
+            .order_by(matches::created_at.asc()),
+        (Some(before), Some(after)) => query
+            .filter(matches::created_at.lt(before))
+            .filter(matches::created_at.gt(after))
+            .order_by(matches::created_at.desc()),
+    }
+    .limit(amount)
 }
 
 // TODO: maybe unify this with matchdata?
