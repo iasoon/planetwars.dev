@@ -6,11 +6,13 @@
   export async function load({ url, fetch }) {
     try {
       const apiClient = new ApiClient(fetch);
+      const botName = url.searchParams.get("bot");
 
       let query = {
         count: PAGE_SIZE,
         before: url.searchParams.get("before"),
         after: url.searchParams.get("after"),
+        bot: botName,
       };
 
       let matches = await apiClient.get("/api/matches", removeUndefined(query));
@@ -23,6 +25,7 @@
       return {
         props: {
           matches,
+          botName,
         },
       };
     } catch (error) {
@@ -49,13 +52,30 @@
   import MatchList from "$lib/components/matches/MatchList.svelte";
 
   export let matches: object[];
+  export let botName: string | null;
+
+  type Cursor = {
+    before?: string;
+    after?: string;
+  };
+
+  function pageLink(cursor: Cursor) {
+    let paramsObj = {
+      ...cursor,
+    };
+    if (botName) {
+      paramsObj["bot"] = botName;
+    }
+    const params = new URLSearchParams(paramsObj);
+    return `?${params}`;
+  }
 
   async function loadNewer() {
     if (matches.length == 0) {
       return;
     }
     const firstTimestamp = matches[0]["timestamp"];
-    goto(`?after=${firstTimestamp}`);
+    goto(pageLink({ after: firstTimestamp }));
   }
 
   async function loadOlder() {
@@ -63,7 +83,7 @@
       return;
     }
     const lastTimestamp = matches[matches.length - 1]["timestamp"];
-    goto(`?before=${lastTimestamp}`);
+    goto(pageLink({ before: lastTimestamp }));
   }
 </script>
 
