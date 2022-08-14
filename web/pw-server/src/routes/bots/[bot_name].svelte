@@ -7,7 +7,7 @@
     try {
       const [botData, matches] = await Promise.all([
         apiClient.get(`/api/bots/${params["bot_name"]}`),
-        apiClient.get("/api/matches", { bot: params["bot_name"] }),
+        apiClient.get("/api/matches", { bot: params["bot_name"], count: "20" }),
       ]);
 
       const { bot, owner, versions } = botData;
@@ -95,6 +95,11 @@
   <div class="matches">
     <h3>Recent matches</h3>
     <MatchList {matches} />
+    {#if matches.length > 0}
+      <div class="btn-container">
+        <a class="btn-view-more" href={`/matches?bot=${bot["name"]}`}>All matches</a>
+      </div>
+    {/if}
   </div>
 
   <!-- <div class="versions">
@@ -139,6 +144,21 @@
     text-decoration: none;
     color: #333;
     margin-bottom: $header-space-above-line;
+  }
+
+  $borderColor: rgba(27, 31, 36, 0.25);
+
+  .btn-container {
+    padding: 24px;
+    text-align: center;
+  }
+  .btn-view-more {
+    color: rgb(9, 105, 218);
+    font-size: 14px;
+    text-decoration: none;
+    padding: 6px 16px;
+    border: 1px solid $borderColor;
+    border-radius: 5px;
   }
 
   .versions {
