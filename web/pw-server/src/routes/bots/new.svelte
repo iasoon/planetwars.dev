@@ -16,6 +16,7 @@
   async function createBot() {
     saveErrors = [];
 
+    // TODO: how can we handle this with the new ApiClient?
     let response = await fetch("/api/bots", {
       method: "POST",
       headers: {

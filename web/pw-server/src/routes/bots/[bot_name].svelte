@@ -118,6 +118,7 @@
 </div>
 
 <style lang="scss">
+  @import "src/styles/variables.scss";
   .container {
     width: 800px;
     max-width: 80%;
@@ -146,18 +147,16 @@
     margin-bottom: $header-space-above-line;
   }
 
-  $borderColor: rgba(27, 31, 36, 0.25);
-
   .btn-container {
     padding: 24px;
     text-align: center;
   }
   .btn-view-more {
-    color: rgb(9, 105, 218);
+    color: $btn-text-color;
     font-size: 14px;
     text-decoration: none;
     padding: 6px 16px;
-    border: 1px solid $borderColor;
+    border: 1px solid $btn-border-color;
     border-radius: 5px;
   }
 

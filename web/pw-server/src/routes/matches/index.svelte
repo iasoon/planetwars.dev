@@ -70,40 +70,67 @@
     return `?${params}`;
   }
 
-  async function loadNewer() {
+  function olderMatchesLink(matches: object[]): string {
     if (matches.length == 0) {
-      return;
-    }
-    const firstTimestamp = matches[0]["timestamp"];
-    goto(pageLink({ after: firstTimestamp }));
-  }
-
-  async function loadOlder() {
-    if (matches.length == 0) {
-      return;
+      return null;
     }
     const lastTimestamp = matches[matches.length - 1]["timestamp"];
-    goto(pageLink({ before: lastTimestamp }));
+    return pageLink({ before: lastTimestamp });
+  }
+
+  function newerMatchesLink(matches: object[]): string {
+    if (matches.length == 0) {
+      return null;
+    }
+    const firstTimestamp = matches[0]["timestamp"];
+    return pageLink({ after: firstTimestamp });
   }
 </script>
 
 <div class="container">
   <MatchList {matches} />
   <div class="page-controls">
-    <button on:click={loadNewer}>newer</button>
-    <button on:click={loadOlder}>older</button>
+    <div class="btn-group">
+      <a class="btn btn-page-prev" href={newerMatchesLink(matches)}>newer</a>
+      <a class="btn btn-page-next" href={olderMatchesLink(matches)}>older</a>
+    </div>
   </div>
 </div>
 
 <style lang="scss">
+  @import "src/styles/variables.scss";
   .container {
     width: 800px;
     margin: 0 auto;
   }
+  .btn {
+    color: $btn-text-color;
+    font-size: 14px;
+    text-decoration: none;
+    padding: 6px 16px;
+    border: 1px solid $btn-border-color;
+    border-radius: 5px;
+  }
+
+  .btn-group {
+    display: flex;
+  }
+
+  .btn-group .btn:not(:last-child) {
+    border-right: none;
+  }
+
+  .btn-group .btn:first-child {
+    border-radius: 5px 0 0 5px;
+  }
+
+  .btn-group .btn:last-child {
+    border-radius: 0 5px 5px 0;
+  }
 
   .page-controls {
     display: flex;
-    justify-content: space-between;
-    margin: 12px;
+    justify-content: center;
+    margin: 24px 0;
   }
 </style>
