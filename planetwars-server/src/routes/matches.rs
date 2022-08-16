@@ -44,16 +44,25 @@ pub struct ListRecentMatchesParams {
 const MAX_NUM_RETURNED_MATCHES: usize = 100;
 const DEFAULT_NUM_RETURNED_MATCHES: usize = 50;
 
+#[derive(Serialize, Deserialize)]
+pub struct ListMatchesResponse {
+    matches: Vec<ApiMatch>,
+    has_next: bool,
+}
+
 pub async fn list_recent_matches(
     Query(params): Query<ListRecentMatchesParams>,
     conn: DatabaseConnection,
-) -> Result<Json<Vec<ApiMatch>>, StatusCode> {
-    let count = std::cmp::min(
+) -> Result<Json<ListMatchesResponse>, StatusCode> {
+    let requested_count = std::cmp::min(
         params.count.unwrap_or(DEFAULT_NUM_RETURNED_MATCHES),
         MAX_NUM_RETURNED_MATCHES,
-    ) as i64;
+    );
 
-    let matches = match params.bot {
+    // fetch one additional record to check whether a next page exists
+    let count = (requested_count + 1) as i64;
+
+    let matches_result = match params.bot {
         Some(bot_name) => {
             let bot = db::bots::find_bot_by_name(&bot_name, &conn)
                 .map_err(|_| StatusCode::BAD_REQUEST)?;
@@ -62,9 +71,23 @@ pub async fn list_recent_matches(
         None => matches::list_public_matches(count, params.before, params.after, &conn),
     };
 
-    matches
-        .map_err(|_| StatusCode::BAD_REQUEST)
-        .map(|matches| Json(matches.into_iter().map(match_data_to_api).collect()))
+    let mut matches = matches_result.map_err(|_| StatusCode::BAD_REQUEST)?;
+
+    let mut has_next = false;
+    if matches.len() > requested_count {
+        has_next = true;
+        matches.truncate(requested_count);
+    }
+
+    let api_matches = matches
+        .into_iter()
+        .map(match_data_to_api)
+        .collect();
+    
+    Ok(Json(ListMatchesResponse {
+        matches: api_matches,
+        has_next,
+    }))
 }
 
 pub fn match_data_to_api(data: matches::FullMatchData) -> ApiMatch {
