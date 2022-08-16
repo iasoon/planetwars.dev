@@ -5,7 +5,7 @@
     const apiClient = new ApiClient(fetch);
 
     try {
-      const [botData, matches] = await Promise.all([
+      const [botData, matchesPage] = await Promise.all([
         apiClient.get(`/api/bots/${params["bot_name"]}`),
         apiClient.get("/api/matches", { bot: params["bot_name"], count: "20" }),
       ]);
@@ -19,7 +19,7 @@
           bot,
           owner,
           versions,
-          matches,
+          matches: matchesPage["matches"],
         },
       };
     } catch (error) {

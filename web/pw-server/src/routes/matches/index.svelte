@@ -15,7 +15,7 @@
         bot: botName,
       };
 
-      let matches = await apiClient.get("/api/matches", removeUndefined(query));
+      let { matches, has_next } = await apiClient.get("/api/matches", removeUndefined(query));
 
       // TODO: should this be done client-side?
       if (query["after"]) {
@@ -26,6 +26,8 @@
         props: {
           matches,
           botName,
+          hasNext: has_next,
+          query,
         },
       };
     } catch (error) {
@@ -47,12 +49,13 @@
 </script>
 
 <script lang="ts">
-  import { goto } from "$app/navigation";
-
   import MatchList from "$lib/components/matches/MatchList.svelte";
 
   export let matches: object[];
   export let botName: string | null;
+  // whether a next page exists in the current iteration direction (before/after)
+  export let hasNext: boolean;
+  export let query: object;
 
   type Cursor = {
     before?: string;
@@ -71,7 +74,7 @@
   }
 
   function olderMatchesLink(matches: object[]): string {
-    if (matches.length == 0) {
+    if (matches.length == 0 || (query["before"] && !hasNext)) {
       return null;
     }
     const lastTimestamp = matches[matches.length - 1]["timestamp"];
@@ -79,7 +82,13 @@
   }
 
   function newerMatchesLink(matches: object[]): string {
-    if (matches.length == 0) {
+    if (
+      matches.length == 0 ||
+      (query["after"] && !hasNext) ||
+      // we are viewing the first page, so there should be no newer matches.
+      // alternatively, we could show a "refresh" here.
+      (!query["before"] && !query["after"])
+    ) {
       return null;
     }
     const firstTimestamp = matches[0]["timestamp"];
