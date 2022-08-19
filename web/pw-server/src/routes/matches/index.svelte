@@ -107,34 +107,9 @@
 </div>
 
 <style lang="scss">
-  @import "src/styles/variables.scss";
   .container {
     width: 800px;
     margin: 0 auto;
-  }
-  .btn {
-    color: $btn-text-color;
-    font-size: 14px;
-    text-decoration: none;
-    padding: 6px 16px;
-    border: 1px solid $btn-border-color;
-    border-radius: 5px;
-  }
-
-  .btn-group {
-    display: flex;
-  }
-
-  .btn-group .btn:not(:last-child) {
-    border-right: none;
-  }
-
-  .btn-group .btn:first-child {
-    border-radius: 5px 0 0 5px;
-  }
-
-  .btn-group .btn:last-child {
-    border-radius: 0 5px 5px 0;
   }
 
   .page-controls {

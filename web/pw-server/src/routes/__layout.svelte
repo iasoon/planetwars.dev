@@ -14,8 +14,8 @@
   <slot />
 </div>
 
-<style lang="scss">
-  @import "src/styles/variables.scss";
+<style lang="scss" global>
+  @import "src/styles/global.scss";
 
   .outer-container {
     width: 100vw;

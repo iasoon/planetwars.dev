@@ -97,7 +97,7 @@
     <MatchList {matches} />
     {#if matches.length > 0}
       <div class="btn-container">
-        <a class="btn-view-more" href={`/matches?bot=${bot["name"]}`}>All matches</a>
+        <a class="btn" href={`/matches?bot=${bot["name"]}`}>All matches</a>
       </div>
     {/if}
   </div>
@@ -118,7 +118,6 @@
 </div>
 
 <style lang="scss">
-  @import "src/styles/variables.scss";
   .container {
     width: 800px;
     max-width: 80%;
@@ -150,14 +149,6 @@
   .btn-container {
     padding: 24px;
     text-align: center;
-  }
-  .btn-view-more {
-    color: $btn-text-color;
-    font-size: 14px;
-    text-decoration: none;
-    padding: 6px 16px;
-    border: 1px solid $btn-border-color;
-    border-radius: 5px;
   }
 
   .versions {
