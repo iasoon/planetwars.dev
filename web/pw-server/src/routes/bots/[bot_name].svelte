@@ -35,6 +35,7 @@
   import dayjs from "dayjs";
   import { currentUser } from "$lib/stores/current_user";
   import MatchList from "$lib/components/matches/MatchList.svelte";
+  import LinkButton from "$lib/components/LinkButton.svelte";
 
   export let bot: object;
   export let owner: object;
@@ -97,7 +98,7 @@
     <MatchList {matches} />
     {#if matches.length > 0}
       <div class="btn-container">
-        <a class="btn" href={`/matches?bot=${bot["name"]}`}>All matches</a>
+        <LinkButton href={`/matches?bot=${bot["name"]}`}>All matches</LinkButton>
       </div>
     {/if}
   </div>

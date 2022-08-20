@@ -10,6 +10,10 @@ $btn-border-color: rgba(27, 31, 36, 0.25);
   border-radius: 5px;
 }
 
+.btn.btn-disabled {
+  color: $btn-border-color;
+}
+
 .btn-group {
   display: flex;
 }

@@ -49,6 +49,7 @@
 </script>
 
 <script lang="ts">
+  import LinkButton from "$lib/components/LinkButton.svelte";
   import MatchList from "$lib/components/matches/MatchList.svelte";
 
   export let matches: object[];
@@ -100,8 +101,8 @@
   <MatchList {matches} />
   <div class="page-controls">
     <div class="btn-group">
-      <a class="btn btn-page-prev" href={newerMatchesLink(matches)}>newer</a>
-      <a class="btn btn-page-next" href={olderMatchesLink(matches)}>older</a>
+      <LinkButton href={newerMatchesLink(matches)}>Newer</LinkButton>
+      <LinkButton href={olderMatchesLink(matches)}>Older</LinkButton>
     </div>
   </div>
 </div>
