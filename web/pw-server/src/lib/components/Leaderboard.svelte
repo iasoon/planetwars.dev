@@ -1,20 +1,5 @@
 <script lang="ts">
-  import { onMount } from "svelte";
-
-  let leaderboard = [];
-
-  onMount(async () => {
-    const res = await fetch("/api/leaderboard", {
-      headers: {
-        "Content-Type": "application/json",
-      },
-    });
-
-    if (res.ok) {
-      leaderboard = await res.json();
-      console.log(leaderboard);
-    }
-  });
+  export let leaderboard;
 
   function formatRating(entry: object): any {
     const rating = entry["rating"];

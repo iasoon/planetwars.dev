@@ -19,7 +19,6 @@
     Editor,
     MatchVisualizer,
     Rules,
-    Leaderboard,
   }
 
   let matches = [];
@@ -153,13 +152,6 @@
     >
       Rules
     </div>
-    <div
-      class="sidebar-item"
-      class:selected={viewMode === ViewMode.Leaderboard}
-      on:click={() => setViewMode(ViewMode.Leaderboard)}
-    >
-      Leaderboard
-    </div>
     <div class="sidebar-header">match history</div>
     <ul class="match-list">
       {#each matches as match}
@@ -184,8 +176,6 @@
       <EditorView {editSession} />
     {:else if viewMode === ViewMode.Rules}
       <RulesView />
-    {:else if viewMode === ViewMode.Leaderboard}
-      <Leaderboard />
     {/if}
   </div>
   <div class="sidebar-right">

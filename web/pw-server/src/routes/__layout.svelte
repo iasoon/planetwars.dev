@@ -13,6 +13,9 @@
       <div class="navbar-item">
         <a href="/editor">Editor</a>
       </div>
+      <div class="navbar-item">
+        <a href="/leaderboard">Leaderboard</a>
+      </div>
     </div>
     <div class="navbar-right">
       <UserControls />
