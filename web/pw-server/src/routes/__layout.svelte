@@ -6,10 +6,17 @@
 
 <div class="outer-container">
   <div class="navbar">
-    <div class="navbar-main">
-      <a href="/">PlanetWars</a>
+    <div class="navbar-left">
+      <div class="navbar-header">
+        <a href="/">PlanetWars</a>
+      </div>
+      <div class="navbar-item">
+        <a href="/editor">Editor</a>
+      </div>
     </div>
-    <UserControls />
+    <div class="navbar-right">
+      <UserControls />
+    </div>
   </div>
   <slot />
 </div>
@@ -34,13 +41,33 @@
     padding: 0 15px;
   }
 
-  .navbar-main {
-    margin: auto 0;
+  .navbar-left {
+    display: flex;
   }
 
-  .navbar-main a {
+  .navbar-right {
+    display: flex;
+  }
+
+  .navbar-header {
+    margin: auto 0;
+    padding-right: 24px;
+  }
+
+  .navbar-header a {
     font-size: 20px;
-    color: #eee;
+    color: #fff;
     text-decoration: none;
+  }
+  .navbar-item {
+    margin: auto 0;
+    padding: 0 8px;
+  }
+
+  .navbar-item a {
+    font-size: 14px;
+    color: #fff;
+    text-decoration: none;
+    font-weight: 600;
   }
 </style>
