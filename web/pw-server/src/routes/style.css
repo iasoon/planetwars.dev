@@ -2,3 +2,17 @@ body {
   margin: 0;
   font-family: Roboto, Helvetica, sans-serif;
 }
+
+/* generic scrollbar styling for chrome & friends */
+::-webkit-scrollbar {
+  width: 5px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #bdbdbd;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #6e6e6e;
+}
