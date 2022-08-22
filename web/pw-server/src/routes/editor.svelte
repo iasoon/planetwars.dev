@@ -18,7 +18,6 @@
   enum ViewMode {
     Editor,
     MatchVisualizer,
-    Rules,
   }
 
   let matches = [];
@@ -30,9 +29,6 @@
   let editSession: Ace.EditSession;
 
   onMount(() => {
-    if (!hasBotCode()) {
-      viewMode = ViewMode.Rules;
-    }
     init_editor();
   });
 
@@ -118,12 +114,6 @@
     viewMode = viewMode_;
   }
 
-  function selectRules() {
-    selectedMatchId = undefined;
-    selectedMatchLog = undefined;
-    viewMode = ViewMode.Rules;
-  }
-
   function formatMatchTimestamp(timestampString: string): string {
     let timestamp = DateTime.fromISO(timestampString, { zone: "utc" }).toLocal();
     if (timestamp.startOf("day").equals(DateTime.now().startOf("day"))) {
@@ -143,14 +133,7 @@
       class:selected={viewMode === ViewMode.Editor}
       on:click={() => setViewMode(ViewMode.Editor)}
     >
-      Editor
-    </div>
-    <div
-      class="rules-button sidebar-item"
-      class:selected={viewMode === ViewMode.Rules}
-      on:click={() => setViewMode(ViewMode.Rules)}
-    >
-      Rules
+      Code
     </div>
     <div class="sidebar-header">match history</div>
     <ul class="match-list">
@@ -174,8 +157,6 @@
       <Visualizer matchData={selectedMatch} matchLog={selectedMatchLog} />
     {:else if viewMode === ViewMode.Editor}
       <EditorView {editSession} />
-    {:else if viewMode === ViewMode.Rules}
-      <RulesView />
     {/if}
   </div>
   <div class="sidebar-right">
