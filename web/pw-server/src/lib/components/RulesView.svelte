@@ -1,11 +1,6 @@
 <div class="container">
   <div class="game-rules">
-    <h2 class="title">Welcome to planetwars!</h2>
-
-    <p>
-      Planetwars is a game of galactic conquest for busy people. Your goal is to program a bot that
-      will conquer the galaxy for you, while you take care of more important stuff.
-    </p>
+    <h2 class="title">How to play</h2>
     <p>
       In every game turn, your bot will receive a json-encoded line on stdin, describing the current
       state of the game. Each state will hold a set of planets, and a set of spaceship fleets
