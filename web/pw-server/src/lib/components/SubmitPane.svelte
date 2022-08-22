@@ -3,13 +3,14 @@
   import { getBotName, saveBotName } from "$lib/bot_code";
 
   import { currentUser } from "$lib/stores/current_user";
+  import { selectedOpponent } from "$lib/stores/editor_state";
+
   import { createEventDispatcher, onMount } from "svelte";
   import Select from "svelte-select";
 
   export let editSession;
 
   let availableBots: object[] = [];
-  let selectedOpponent = undefined;
   let botName: string | undefined = undefined;
   // whether to show the "save succesful" message
   let saveSuccesful = false;
@@ -27,14 +28,16 @@
 
     if (res.ok) {
       availableBots = await res.json();
-      selectedOpponent = availableBots.find((b) => b["name"] === "simplebot");
+      if (!$selectedOpponent) {
+        selectedOpponent.set(availableBots.find((b) => b["name"] === "simplebot"));
+      }
     }
   });
 
   const dispatch = createEventDispatcher();
 
   async function submitBot() {
-    const opponentName = selectedOpponent["name"];
+    const opponentName = $selectedOpponent["name"];
 
     let response = await fetch("/api/submit_bot", {
       method: "POST",
@@ -106,7 +109,7 @@
         optionIdentifier="name"
         labelIdentifier="name"
         items={availableBots}
-        bind:value={selectedOpponent}
+        bind:value={$selectedOpponent}
         isClearable={false}
       />
     </div>

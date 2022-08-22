@@ -2,25 +2,21 @@
   import Visualizer from "$lib/components/Visualizer.svelte";
   import EditorView from "$lib/components/EditorView.svelte";
   import { onMount } from "svelte";
-
   import { DateTime } from "luxon";
 
   import type { Ace } from "ace-builds";
   import ace from "ace-builds/src-noconflict/ace?client";
   import * as AcePythonMode from "ace-builds/src-noconflict/mode-python?client";
-  import { getBotCode, saveBotCode, hasBotCode } from "$lib/bot_code";
+  import { getBotCode, saveBotCode } from "$lib/bot_code";
+  import { matchHistory } from "$lib/stores/editor_state";
   import { debounce } from "$lib/utils";
   import SubmitPane from "$lib/components/SubmitPane.svelte";
   import OutputPane from "$lib/components/OutputPane.svelte";
-  import RulesView from "$lib/components/RulesView.svelte";
-  import Leaderboard from "$lib/components/Leaderboard.svelte";
 
   enum ViewMode {
     Editor,
     MatchVisualizer,
   }
-
-  let matches = [];
 
   let viewMode = ViewMode.Editor;
   let selectedMatchId: string | undefined = undefined;
@@ -47,8 +43,7 @@
 
   async function onMatchCreated(e: CustomEvent) {
     const matchData = e.detail["match"];
-    matches.unshift(matchData);
-    matches = matches;
+    matchHistory.pushMatch(matchData);
     await selectMatch(matchData["id"]);
   }
 
@@ -123,7 +118,7 @@
     }
   }
 
-  $: selectedMatch = matches.find((m) => m["id"] === selectedMatchId);
+  $: selectedMatch = $matchHistory.find((m) => m["id"] === selectedMatchId);
 </script>
 
 <div class="container">
@@ -137,7 +132,7 @@
     </div>
     <div class="sidebar-header">match history</div>
     <ul class="match-list">
-      {#each matches as match}
+      {#each $matchHistory as match}
         <li
           class="match-card sidebar-item"
           on:click={() => selectMatch(match.id)}
