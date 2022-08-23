@@ -79,11 +79,8 @@ pub async fn list_recent_matches(
         matches.truncate(requested_count);
     }
 
-    let api_matches = matches
-        .into_iter()
-        .map(match_data_to_api)
-        .collect();
-    
+    let api_matches = matches.into_iter().map(match_data_to_api).collect();
+
     Ok(Json(ListMatchesResponse {
         matches: api_matches,
         has_next,

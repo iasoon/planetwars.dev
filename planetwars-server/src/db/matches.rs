@@ -41,6 +41,7 @@ pub struct MatchBase {
     pub created_at: NaiveDateTime,
     pub winner: Option<i32>,
     pub is_public: bool,
+    pub map_id: Option<i32>,
 }
 
 #[derive(Queryable, Identifiable, Associations, Clone)]
@@ -166,14 +167,7 @@ pub fn list_bot_matches(
             bot_versions::table.on(match_players::bot_version_id.eq(bot_versions::id.nullable())),
         )
         .filter(bot_versions::bot_id.eq(bot_id))
-        .select((
-            matches::id,
-            matches::state,
-            matches::log_path,
-            matches::created_at,
-            matches::winner,
-            matches::is_public,
-        ))
+        .select(matches::all_columns)
         .into_boxed();
 
     let matches =

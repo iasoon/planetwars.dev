@@ -30,6 +30,17 @@ table! {
     use diesel::sql_types::*;
     use crate::db_types::*;
 
+    maps (id) {
+        id -> Int4,
+        name -> Text,
+        file_path -> Text,
+    }
+}
+
+table! {
+    use diesel::sql_types::*;
+    use crate::db_types::*;
+
     match_players (match_id, player_id) {
         match_id -> Int4,
         player_id -> Int4,
@@ -48,6 +59,7 @@ table! {
         created_at -> Timestamp,
         winner -> Nullable<Int4>,
         is_public -> Bool,
+        map_id -> Nullable<Int4>,
     }
 }
 
@@ -87,12 +99,14 @@ table! {
 joinable!(bots -> users (owner_id));
 joinable!(match_players -> bot_versions (bot_version_id));
 joinable!(match_players -> matches (match_id));
+joinable!(matches -> maps (map_id));
 joinable!(ratings -> bots (bot_id));
 joinable!(sessions -> users (user_id));
 
 allow_tables_to_appear_in_same_query!(
     bot_versions,
     bots,
+    maps,
     match_players,
     matches,
     ratings,
