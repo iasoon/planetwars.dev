@@ -8,10 +8,12 @@ use diesel::{
     BelongingToDsl, ExpressionMethods, JoinOnDsl, NullableExpressionMethods, QueryDsl, RunQueryDsl,
 };
 use diesel::{Connection, GroupedBy, PgConnection, QueryResult};
+use std::collections::{HashMap, HashSet};
 
-use crate::schema::{bot_versions, bots, match_players, matches};
+use crate::schema::{bot_versions, bots, maps, match_players, matches};
 
 use super::bots::{Bot, BotVersion};
+use super::maps::Map;
 
 #[derive(Insertable)]
 #[table_name = "matches"]
@@ -98,6 +100,15 @@ fn fetch_full_match_data(
     matches: Vec<MatchBase>,
     conn: &PgConnection,
 ) -> QueryResult<Vec<FullMatchData>> {
+    let map_ids: HashSet<i32> = matches.iter().filter_map(|m| m.map_id).collect();
+
+    let maps_by_id: HashMap<i32, Map> = maps::table
+        .filter(maps::id.eq_any(map_ids))
+        .load::<Map>(conn)?
+        .into_iter()
+        .map(|m| (m.id, m))
+        .collect();
+
     let match_players = MatchPlayer::belonging_to(&matches)
         .left_join(
             bot_versions::table.on(match_players::bot_version_id.eq(bot_versions::id.nullable())),
@@ -114,8 +125,11 @@ fn fetch_full_match_data(
         .into_iter()
         .zip(match_players.into_iter())
         .map(|(base, players)| FullMatchData {
-            base,
             match_players: players.into_iter().collect(),
+            map: base
+                .map_id
+                .and_then(|map_id| maps_by_id.get(&map_id).cloned()),
+            base,
         })
         .collect();
 
@@ -204,6 +218,7 @@ where
 // TODO: maybe unify this with matchdata?
 pub struct FullMatchData {
     pub base: MatchBase,
+    pub map: Option<Map>,
     pub match_players: Vec<FullMatchPlayerData>,
 }
 
@@ -232,6 +247,11 @@ pub fn find_match(id: i32, conn: &PgConnection) -> QueryResult<FullMatchData> {
     conn.transaction(|| {
         let match_base = matches::table.find(id).get_result::<MatchBase>(conn)?;
 
+        let map = match match_base.map_id {
+            None => None,
+            Some(map_id) => Some(super::maps::find_map(map_id, conn)?),
+        };
+
         let match_players = MatchPlayer::belonging_to(&match_base)
             .left_join(
                 bot_versions::table
@@ -244,6 +264,7 @@ pub fn find_match(id: i32, conn: &PgConnection) -> QueryResult<FullMatchData> {
         let res = FullMatchData {
             base: match_base,
             match_players,
+            map,
         };
 
         Ok(res)

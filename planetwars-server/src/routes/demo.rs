@@ -82,6 +82,8 @@ pub async fn submit_bot(
                 bot: Some(opponent_bot),
             },
         ],
+        // TODO!
+        map: None,
     };
 
     let api_match = super::matches::match_data_to_api(full_match_data);
