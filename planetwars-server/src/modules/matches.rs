@@ -7,6 +7,7 @@ use tokio::task::JoinHandle;
 use crate::{
     db::{
         self,
+        maps::Map,
         matches::{MatchData, MatchResult},
     },
     util::gen_alphanumeric,
@@ -18,6 +19,10 @@ pub struct RunMatch {
     players: Vec<MatchPlayer>,
     config: Arc<GlobalConfig>,
     is_public: bool,
+    // Map is mandatory for now.
+    // It would be nice to allow "anonymous" (eg. randomly generated) maps
+    // in the future, too.
+    map: Map,
 }
 
 pub enum MatchPlayer {
@@ -32,9 +37,10 @@ pub enum MatchPlayer {
 
 impl RunMatch {
     // TODO: create a MatchParams struct
-    pub fn from_players(
+    pub fn new(
         config: Arc<GlobalConfig>,
         is_public: bool,
+        map: Map,
         players: Vec<MatchPlayer>,
     ) -> Self {
         let log_file_name = format!("{}.log", gen_alphanumeric(16));
@@ -43,13 +49,14 @@ impl RunMatch {
             log_file_name,
             players,
             is_public,
+            map,
         }
     }
 
     fn into_runner_config(self) -> runner::MatchConfig {
         runner::MatchConfig {
-            map_path: PathBuf::from(&self.config.maps_directory).join("hex.json"),
-            map_name: "hex".to_string(),
+            map_path: PathBuf::from(&self.config.maps_directory).join(self.map.file_path),
+            map_name: self.map.name,
             log_path: PathBuf::from(&self.config.match_logs_directory).join(&self.log_file_name),
             players: self
                 .players
@@ -88,6 +95,7 @@ impl RunMatch {
             state: db::matches::MatchState::Playing,
             log_path: &self.log_file_name,
             is_public: self.is_public,
+            map_id: Some(self.map.id),
         };
         let new_match_players = self
             .players

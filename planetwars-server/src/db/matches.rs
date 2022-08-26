@@ -21,6 +21,7 @@ pub struct NewMatch<'a> {
     pub state: MatchState,
     pub log_path: &'a str,
     pub is_public: bool,
+    pub map_id: Option<i32>,
 }
 
 #[derive(Insertable)]

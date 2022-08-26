@@ -111,15 +111,20 @@ impl pb::client_api_service_server::ClientApiService for ClientApiServer {
             db::bots::find_bot_with_version_by_name(&match_request.opponent_name, &conn)
                 .map_err(|_| Status::not_found("opponent not found"))?;
 
+        // TODO: allow map as parameter here
+        let map = db::maps::find_map_by_name(&"hex", &conn)
+            .map_err(|_| Status::not_found("map not found"))?;
+
         let player_key = gen_alphanumeric(32);
 
         let remote_bot_spec = Box::new(RemoteBotSpec {
             player_key: player_key.clone(),
             router: self.router.clone(),
         });
-        let run_match = RunMatch::from_players(
+        let run_match = RunMatch::new(
             self.runner_config.clone(),
             false,
+            map,
             vec![
                 MatchPlayer::BotSpec {
                     spec: remote_bot_spec,

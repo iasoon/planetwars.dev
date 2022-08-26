@@ -1,4 +1,4 @@
-use diesel::{PgConnection, QueryDsl, QueryResult, RunQueryDsl};
+use diesel::prelude::*;
 
 use crate::schema::maps;
 
@@ -24,6 +24,10 @@ pub fn create_map(new_map: NewMap, conn: &PgConnection) -> QueryResult<Map> {
 
 pub fn find_map(id: i32, conn: &PgConnection) -> QueryResult<Map> {
     maps::table.find(id).get_result(conn)
+}
+
+pub fn find_map_by_name(name: &str, conn: &PgConnection) -> QueryResult<Map> {
+    maps::table.filter(maps::name.eq(name)).first(conn)
 }
 
 pub fn list_maps(conn: &PgConnection) -> QueryResult<Vec<Map>> {
