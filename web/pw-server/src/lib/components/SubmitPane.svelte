@@ -1,9 +1,11 @@
 <script lang="ts">
+  import { ApiClient } from "$lib/api_client";
+
   import { get_session_token } from "$lib/auth";
   import { getBotName, saveBotName } from "$lib/bot_code";
 
   import { currentUser } from "$lib/stores/current_user";
-  import { selectedOpponent } from "$lib/stores/editor_state";
+  import { selectedOpponent, selectedMap } from "$lib/stores/editor_state";
 
   import { createEventDispatcher, onMount } from "svelte";
   import Select from "svelte-select";
@@ -11,6 +13,8 @@
   export let editSession;
 
   let availableBots: object[] = [];
+  let maps: object[] = [];
+
   let botName: string | undefined = undefined;
   // whether to show the "save succesful" message
   let saveSuccesful = false;
@@ -19,26 +23,28 @@
 
   onMount(async () => {
     botName = getBotName();
+    const apiClient = new ApiClient();
 
-    const res = await fetch("/api/bots", {
-      headers: {
-        "Content-Type": "application/json",
-      },
-    });
+    const [_bots, _maps] = await Promise.all([
+      apiClient.get("/api/bots"),
+      apiClient.get("/api/maps"),
+    ]);
 
-    if (res.ok) {
-      availableBots = await res.json();
-      if (!$selectedOpponent) {
-        selectedOpponent.set(availableBots.find((b) => b["name"] === "simplebot"));
-      }
+    availableBots = _bots;
+    maps = _maps;
+
+    if (!$selectedOpponent) {
+      selectedOpponent.set(availableBots.find((b) => b["name"] === "simplebot"));
+    }
+
+    if (!$selectedMap) {
+      selectedMap.set(maps.find((m) => m["name"] === "hex"));
     }
   });
 
   const dispatch = createEventDispatcher();
 
   async function submitBot() {
-    const opponentName = $selectedOpponent["name"];
-
     let response = await fetch("/api/submit_bot", {
       method: "POST",
       headers: {
@@ -46,7 +52,8 @@
       },
       body: JSON.stringify({
         code: editSession.getDocument().getValue(),
-        opponent_name: opponentName,
+        opponent_name: $selectedOpponent["name"],
+        map_name: $selectedMap["name"],
       }),
     });
 
@@ -103,13 +110,23 @@
 <div class="submit-pane">
   <div class="match-form">
     <h4>Play a match</h4>
-    <div class="play-text">Select an opponent to test your bot</div>
-    <div class="opponentSelect">
+    <div class="play-text">Opponent</div>
+    <div class="opponent-select">
       <Select
         optionIdentifier="name"
         labelIdentifier="name"
         items={availableBots}
         bind:value={$selectedOpponent}
+        isClearable={false}
+      />
+    </div>
+    <span>Map</span>
+    <div class="map-select">
+      <Select
+        optionIdentifier="name"
+        labelIdentifier="name"
+        items={maps}
+        bind:value={$selectedMap}
         isClearable={false}
       />
     </div>
@@ -148,8 +165,9 @@
     margin-bottom: 0.3em;
   }
 
-  .opponentSelect {
-    margin: 20px 0;
+  .opponent-select,
+  .map-select {
+    margin: 8px 0;
   }
 
   .save-form {

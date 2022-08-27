@@ -24,3 +24,4 @@ function createMatchHistory() {
 
 export const matchHistory = createMatchHistory();
 export const selectedOpponent = writable(null);
+export const selectedMap = writable(null);
