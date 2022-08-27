@@ -12,6 +12,7 @@
   import { debounce } from "$lib/utils";
   import SubmitPane from "$lib/components/SubmitPane.svelte";
   import OutputPane from "$lib/components/OutputPane.svelte";
+  import BotName from "./bots/[bot_name].svelte";
 
   enum ViewMode {
     Editor,
@@ -138,11 +139,12 @@
           on:click={() => selectMatch(match.id)}
           class:selected={match.id === selectedMatchId}
         >
-          <span class="match-timestamp">{formatMatchTimestamp(match.timestamp)}</span>
-          <!-- hex is hardcoded for now, don't show map name -->
-          <!-- <span class="match-mapname">hex</span> -->
-          <!-- ugly temporary hardcode -->
-          <span class="match-opponent">{match["players"][1]["bot_name"]}</span>
+          <div class="match-timestamp">{formatMatchTimestamp(match.timestamp)}</div>
+          <div class="match-card-body">
+            <!-- ugly temporary hardcode -->
+            <div class="match-opponent">{match["players"][1]["bot_name"]}</div>
+            <div class="match-map">{match["map"]?.name}</div>
+          </div>
         </li>
       {/each}
     </ul>
@@ -221,14 +223,24 @@
   .match-card {
     padding: 10px 15px;
     font-size: 11pt;
+    display: flex;
   }
 
   .match-timestamp {
     color: #ccc;
   }
 
+  .match-card-body {
+    margin: 0 8px;
+  }
+
   .match-opponent {
-    padding: 0 0.5em;
+    font-weight: 600;
+    color: #eee;
+  }
+
+  .match-map {
+    color: #ccc;
   }
 
   .sidebar-header {

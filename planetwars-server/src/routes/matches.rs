@@ -15,6 +15,8 @@ use crate::{
     DatabaseConnection, GlobalConfig,
 };
 
+use super::maps::ApiMap;
+
 #[derive(Serialize, Deserialize)]
 pub struct ApiMatch {
     id: i32,
@@ -22,6 +24,7 @@ pub struct ApiMatch {
     state: MatchState,
     players: Vec<ApiMatchPlayer>,
     winner: Option<i32>,
+    map: Option<ApiMap>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -102,6 +105,7 @@ pub fn match_data_to_api(data: matches::FullMatchData) -> ApiMatch {
             })
             .collect(),
         winner: data.base.winner,
+        map: data.map.map(|m| ApiMap { name: m.name }),
     }
 }
 

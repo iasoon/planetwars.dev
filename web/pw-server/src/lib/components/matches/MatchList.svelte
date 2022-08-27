@@ -16,6 +16,7 @@
     <th />
     <th />
     <th class="col-player-2">player 2</th>
+    <th class="col-map">map</th>
   </tr>
   {#each matches as match}
     <tr class="match-table-row" on:click={() => goto(match_url(match))}>
@@ -37,6 +38,9 @@
       {/if}
       <td class="col-player-2">
         {match["players"][1]["bot_name"]}
+      </td>
+      <td class="col-map">
+        {match["map"]?.name || ""}
       </td>
     </tr>
   {/each}
@@ -82,6 +86,10 @@
   .col-score-player-2 {
     @include col-player-score;
     text-align: left;
+  }
+
+  .col-map {
+    text-align: right;
   }
 
   .matches-table {
