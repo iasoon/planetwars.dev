@@ -16,8 +16,6 @@ use tokio;
 const RANKER_INTERVAL: u64 = 60;
 const RANKER_NUM_MATCHES: i64 = 10_000;
 
-const RANKER_MAP_NAME: &str = "hex";
-
 pub async fn run_ranker(config: Arc<GlobalConfig>, db_pool: DbPool) {
     // TODO: make this configurable
     // play at most one match every n seconds
@@ -33,13 +31,18 @@ pub async fn run_ranker(config: Arc<GlobalConfig>, db_pool: DbPool) {
             // not enough bots to play a match
             continue;
         }
-        let selected_bots: Vec<(Bot, BotVersion)> = {
-            let mut rng = &mut rand::thread_rng();
-            bots.choose_multiple(&mut rng, 2).cloned().collect()
+
+        let selected_bots: Vec<(Bot, BotVersion)> = bots
+            .choose_multiple(&mut rand::thread_rng(), 2)
+            .cloned()
+            .collect();
+
+        let maps = db::maps::list_maps(&db_conn).expect("could not load map");
+        let map = match maps.choose(&mut rand::thread_rng()).cloned() {
+            None => continue, // no maps available
+            Some(map) => map,
         };
 
-        let map =
-            db::maps::find_map_by_name(RANKER_MAP_NAME, &db_conn).expect("could not load map");
         play_ranking_match(config.clone(), map, selected_bots, db_pool.clone()).await;
         recalculate_ratings(&db_conn).expect("could not recalculate ratings");
     }
