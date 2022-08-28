@@ -87,23 +87,33 @@ export class Resizer {
         this.viewbox = [...viewbox];
         this.el_box = [el.width, el.height];
 
+        // QUICK FIX:
+        // when filling the full display canvas, the turn bar will obstruct the bottom planets.
+        // to resolve this, we shift the viewbox up by 50px.
+        // This should be implemented in a cleaner way, though :(
+        let dy = 50 * viewbox[3] / el.height;
+        this.viewbox[1] -= dy;
+        this.viewbox[3] += dy;
+
         if (keep_aspect_ratio) {
             const or_width = this.viewbox[2];
             const or_height = this.viewbox[3];
 
-            const width_percentage =  this.viewbox[2] / el.width;
-            const height_percentage = this.viewbox[3] / el.height;
+            const width_percentage =  this.viewbox[2] / this.el_box[0];
+            const height_percentage = this.viewbox[3] / this.el_box[1];
+
 
             if (width_percentage < height_percentage) {
                 // width should be larger
-                this.viewbox[2] = height_percentage * el.width;
+                this.viewbox[2] = height_percentage * this.el_box[0];
             } else {
                 // height should be larger
-                this.viewbox[3] = width_percentage * el.height;
+                this.viewbox[3] = width_percentage * this.el_box[1];
             }
 
             this.viewbox[0] -= (this.viewbox[2] - or_width) / 2;
             this.viewbox[1] -= (this.viewbox[3] - or_height) / 2;
+
 
             this.scaleX = this.viewbox[2] / this.viewbox[3];
         }
