@@ -58,7 +58,7 @@ pub struct MatchOutcome {
 pub async fn run_match(config: MatchConfig) -> MatchOutcome {
     let pw_config = PwConfig {
         map_file: config.map_path,
-        max_turns: 100,
+        max_turns: 500,
     };
 
     let event_bus = Arc::new(Mutex::new(EventBus::new()));
