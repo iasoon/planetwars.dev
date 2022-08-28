@@ -110,7 +110,6 @@ export class Resizer {
 
         this.orig_viewbox = [...this.viewbox];
 
-        el.addEventListener("mouseenter", this.mouseenter.bind(this), { capture: false, passive: true});
         el.addEventListener("mouseleave", this.mouseleave.bind(this), { capture: false, passive: true});
         el.addEventListener("mousemove", this.mousemove.bind(this), { capture: false, passive: true});
         el.addEventListener("mousedown", this.mousedown.bind(this), { capture: false, passive: true});
@@ -127,15 +126,14 @@ export class Resizer {
         this.viewbox[1] = Math.min(this.viewbox[1] + this.viewbox[3], this.orig_viewbox[1] + this.orig_viewbox[3]) - this.viewbox[3];
     }
 
-    mouseenter() {
-        this.hoovering = true;
-    }
-
     mouseleave() {
         this.hoovering = false;
     }
 
     mousemove(e: MouseEvent) {
+        // when using mouseenter, hooveing will not be set to true if the mouse is already on the element when it is being created.
+        // TODO: is there a better way?
+        this.hoovering = true;
         this.mouse_pos = [e.offsetX, this.el_box[1] - e.offsetY];
 
         if (this.dragging) {
