@@ -141,6 +141,7 @@ fn fetch_full_match_data(
 pub fn list_matches(amount: i64, conn: &PgConnection) -> QueryResult<Vec<FullMatchData>> {
     conn.transaction(|| {
         let matches = matches::table
+            .filter(matches::state.eq(MatchState::Finished))
             .order_by(matches::created_at.desc())
             .limit(amount)
             .get_results::<MatchBase>(conn)?;
@@ -158,6 +159,7 @@ pub fn list_public_matches(
     conn.transaction(|| {
         // TODO: how can this common logic be abstracted?
         let query = matches::table
+            .filter(matches::state.eq(MatchState::Finished))
             .filter(matches::is_public.eq(true))
             .into_boxed();
 
@@ -175,6 +177,7 @@ pub fn list_bot_matches(
     conn: &PgConnection,
 ) -> QueryResult<Vec<FullMatchData>> {
     let query = matches::table
+        .filter(matches::state.eq(MatchState::Finished))
         .filter(matches::is_public.eq(true))
         .order_by(matches::created_at.desc())
         .inner_join(match_players::table)
