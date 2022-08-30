@@ -300,8 +300,10 @@ async fn put_upload(
     while let Some(Ok(chunk)) = stream.next().await {
         file.write_all(&chunk).await.unwrap();
     }
-    file.flush().await.unwrap();
     let range_end = last_byte_pos(&file).await.unwrap();
+    // Close the file to ensure all data has been flushed to the kernel.
+    // If we don't do this, calculating the checksum can fail.
+    std::mem::drop(file);
 
     let expected_digest = params.digest.strip_prefix("sha256:").unwrap();
     let digest = file_sha256_digest(&upload_path).unwrap();
