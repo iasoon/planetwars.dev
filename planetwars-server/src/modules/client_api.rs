@@ -111,8 +111,11 @@ impl pb::client_api_service_server::ClientApiService for ClientApiServer {
             db::bots::find_bot_with_version_by_name(&match_request.opponent_name, &conn)
                 .map_err(|_| Status::not_found("opponent not found"))?;
 
-        // TODO: allow map as parameter here
-        let map = db::maps::find_map_by_name(&"hex", &conn)
+        let map_name = match match_request.map_name.as_str() {
+            "" => "hex",
+            name => name,
+        };
+        let map = db::maps::find_map_by_name(map_name, &conn)
             .map_err(|_| Status::not_found("map not found"))?;
 
         let player_key = gen_alphanumeric(32);

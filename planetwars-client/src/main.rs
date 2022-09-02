@@ -22,6 +22,9 @@ struct PlayMatch {
     #[clap(value_parser)]
     opponent_name: String,
 
+    #[clap(value_parser, long = "map")]
+    map_name: Option<String>,
+
     #[clap(
         value_parser,
         long,
@@ -69,9 +72,13 @@ async fn main() {
 
     let channel = Channel::builder(uri).connect().await.unwrap();
 
-    let created_match = create_match(channel.clone(), play_match.opponent_name)
-        .await
-        .unwrap();
+    let created_match = create_match(
+        channel.clone(),
+        play_match.opponent_name,
+        play_match.map_name,
+    )
+    .await
+    .unwrap();
     run_player(bot_config, created_match.player_key, channel).await;
     println!(
         "Match completed. Watch the replay at {}",
@@ -83,10 +90,14 @@ async fn main() {
 async fn create_match(
     channel: Channel,
     opponent_name: String,
+    map_name: Option<String>,
 ) -> Result<pb::CreateMatchResponse, Status> {
     let mut client = ClientApiServiceClient::new(channel);
     let res = client
-        .create_match(Request::new(pb::CreateMatchRequest { opponent_name }))
+        .create_match(Request::new(pb::CreateMatchRequest {
+            opponent_name,
+            map_name: map_name.unwrap_or_default(),
+        }))
         .await;
     res.map(|response| response.into_inner())
 }
