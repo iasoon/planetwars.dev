@@ -17,7 +17,7 @@
         <a href="/leaderboard">Leaderboard</a>
       </div>
       <div class="navbar-item">
-        <a href="/docs">How to play</a>
+        <a href="/docs/rules">How to play</a>
       </div>
     </div>
     <div class="navbar-right">
