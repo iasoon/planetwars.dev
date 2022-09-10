@@ -91,6 +91,25 @@
       Publish a new version by pushing a docker container to
       <code>registry.planetwars.dev/{bot["name"]}:latest</code>, or using the web editor.
     </div>
+
+    <div class="versions">
+      <h3>Versions</h3>
+      <ul class="version-list">
+        {#each versions.slice(0, 10) as version}
+          <li class="bot-version">
+            {dayjs(version["created_at"]).format("YYYY-MM-DD HH:mm")}
+            {#if version["container_digest"]}
+              <span class="container-digest">{version["container_digest"]}</span>
+            {:else}
+              <a href={`/code/${version["id"]}`}>view code</a>
+            {/if}
+          </li>
+        {/each}
+      </ul>
+      {#if versions.length == 0}
+        This bot does not have any versions yet.
+      {/if}
+    </div>
   {/if}
 
   <div class="matches">
@@ -102,20 +121,6 @@
       </div>
     {/if}
   </div>
-
-  <!-- <div class="versions">
-    <h4>Versions</h4>
-    <ul class="version-list">
-      {#each versions as version}
-        <li>
-          {dayjs(version["created_at"]).format("YYYY-MM-DD HH:mm")}
-        </li>
-      {/each}
-    </ul>
-    {#if versions.length == 0}
-      This bot does not have any versions yet.
-    {/if}
-  </div> -->
 </div>
 
 <style lang="scss">
@@ -154,5 +159,15 @@
 
   .versions {
     margin: 30px 0;
+  }
+
+  .version-list {
+    padding: 0;
+  }
+
+  .bot-version {
+    display: flex;
+    justify-content: space-between;
+    padding: 4px 24px;
   }
 </style>
