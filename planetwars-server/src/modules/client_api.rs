@@ -104,16 +104,7 @@ impl pb::client_api_service_server::ClientApiService for ClientApiServer {
 
         let client_messages = req.into_inner();
 
-        enum ConnState {
-            Connected {
-                server_messages: ServerMessages,
-            },
-            Awaiting {
-                rx: oneshot::Receiver<ServerMessages>,
-            },
-        }
-
-        let conn_state = {
+        let server_messages_promise = {
             // during this block, a lack is held on the routing table
 
             let mut routing_table = self.router.routing_table.lock().unwrap();
@@ -132,26 +123,23 @@ impl pb::client_api_service_server::ClientApiService for ClientApiServer {
                         },
                     );
 
-                    ConnState::Awaiting { rx }
+                    Promise::Awaiting(rx)
                 }
                 PlayerConnectionState::ServerConnected {
                     tx,
                     server_messages,
                 } => {
                     tx.send(client_messages).unwrap();
-                    ConnState::Connected { server_messages }
+                    Promise::Resolved(server_messages)
                 }
                 PlayerConnectionState::ClientConnected { .. } => panic!("player already connected"),
             }
         };
 
-        let server_messages = match conn_state {
-            ConnState::Connected { server_messages } => server_messages,
-            ConnState::Awaiting { rx } => rx
-                .await
-                .map_err(|_| Status::internal("failed to connect player to game"))?,
-        };
-
+        let server_messages = server_messages_promise
+            .get_value()
+            .await
+            .map_err(|_| Status::internal("failed to connect player to game"))?;
         Ok(Response::new(UnboundedReceiverStream::new(server_messages)))
     }
 
@@ -230,16 +218,7 @@ impl runner::BotSpec for RemoteBotSpec {
     ) -> Box<dyn PlayerHandle> {
         let (server_msg_snd, server_msg_recv) = mpsc::unbounded_channel();
 
-        enum ConnState {
-            Connected {
-                client_messages: ClientMessages,
-            },
-            Awaiting {
-                rx: oneshot::Receiver<ClientMessages>,
-            },
-        }
-
-        let conn_state = {
+        let client_messages_promise = {
             // during this block, we hold a lock on the routing table.
 
             let mut routing_table = self.router.routing_table.lock().unwrap();
@@ -257,41 +236,32 @@ impl runner::BotSpec for RemoteBotSpec {
                             server_messages: server_msg_recv,
                         },
                     );
-                    ConnState::Awaiting { rx }
+                    Promise::Awaiting(rx)
                 }
                 PlayerConnectionState::ClientConnected {
                     tx,
                     client_messages,
                 } => {
                     tx.send(server_msg_recv).unwrap();
-                    ConnState::Connected { client_messages }
+                    Promise::Resolved(client_messages)
                 }
                 PlayerConnectionState::ServerConnected { .. } => panic!("server already connected"),
             }
         };
 
-        let maybe_client_messages = match conn_state {
-            ConnState::Connected { client_messages } => Some(client_messages),
-            ConnState::Awaiting { rx } => {
-                let fut = tokio::time::timeout(Duration::from_secs(10), rx);
-                match fut.await {
-                    Ok(Ok(client_messages)) => Some(client_messages),
-                    _ => {
-                        // ensure router cleanup
-                        self.router.take(&self.player_key);
-                        None
-                    }
-                }
-            }
-        };
+        let client_messages_future =
+            tokio::time::timeout(Duration::from_secs(10), client_messages_promise.get_value());
 
-        if let Some(client_messages) = maybe_client_messages {
+        if let Ok(Ok(client_messages)) = client_messages_future.await {
             tokio::spawn(handle_bot_messages(
                 player_id,
                 event_bus.clone(),
                 client_messages,
             ));
         }
+
+        // ensure router cleanup
+        self.router.take(&self.player_key);
 
         // If the player did not connect, the receiving half of `sender`
         // will be dropped here, resulting in a time-out for every turn.
@@ -403,4 +373,18 @@ pub async fn run_client_api(runner_config: Arc<GlobalConfig>, pool: ConnectionPo
         .serve(addr)
         .await
         .unwrap()
+}
+
+enum Promise<T> {
+    Resolved(T),
+    Awaiting(oneshot::Receiver<T>),
+}
+
+impl<T> Promise<T> {
+    async fn get_value(self) -> Result<T, oneshot::error::RecvError> {
+        match self {
+            Promise::Resolved(val) => Ok(val),
+            Promise::Awaiting(rx) => rx.await,
+        }
+    }
 }
