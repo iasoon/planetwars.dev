@@ -249,3 +249,29 @@ pub async fn upload_code_multipart(
 
     Ok(Json(code_bundle))
 }
+
+pub async fn get_code(
+    conn: DatabaseConnection,
+    user: User,
+    Path(bundle_id): Path<i32>,
+    Extension(config): Extension<Arc<GlobalConfig>>,
+) -> Result<Vec<u8>, StatusCode> {
+    let version =
+        db::bots::find_bot_version(bundle_id, &conn).map_err(|_| StatusCode::NOT_FOUND)?;
+    let bot_id = version.bot_id.ok_or(StatusCode::FORBIDDEN)?;
+    let bot = db::bots::find_bot(bot_id, &conn).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    if bot.owner_id != Some(user.id) {
+        return Err(StatusCode::FORBIDDEN);
+    }
+
+    let bundle_path = version.code_bundle_path.ok_or(StatusCode::NOT_FOUND)?;
+
+    // TODO: avoid hardcoding paths
+    let full_bundle_path = PathBuf::from(&config.bots_directory)
+        .join(&bundle_path)
+        .join("bot.py");
+    let bot_code =
+        std::fs::read(full_bundle_path).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    Ok(bot_code)
+}

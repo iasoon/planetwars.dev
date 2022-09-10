@@ -127,6 +127,7 @@ pub fn api() -> Router {
             "/bots/:bot_name/upload",
             post(routes::bots::upload_code_multipart),
         )
+        .route("/code/:version_id", get(routes::bots::get_code))
         .route("/matches", get(routes::matches::list_recent_matches))
         .route("/matches/:match_id", get(routes::matches::get_match_data))
         .route(
