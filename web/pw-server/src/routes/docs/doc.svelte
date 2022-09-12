@@ -4,7 +4,6 @@
 
 <style scoped lang="scss">
   .container {
-    width: 800px;
-    margin: 0 auto;
+    max-width: 800px;
   }
 </style>
