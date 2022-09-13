@@ -8,6 +8,7 @@
       <h2>Docs</h2>
       <div class="sidebar-nav-group">
         <TocEntry href="/docs/rules" text="Rules" />
+        <TocEntry href="/docs/local-development" text="Local development" />
       </div>
     </div>
   </div>
@@ -25,6 +26,7 @@
     display: flex;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell,
       "Open Sans", "Helvetica Neue", sans-serif;
+    flex-grow: 1;
   }
 
   .sidebar {
