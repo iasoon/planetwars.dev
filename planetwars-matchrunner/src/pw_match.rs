@@ -12,7 +12,7 @@ use std::convert::TryInto;
 
 pub use planetwars_rules::config::{Config, Map};
 
-use planetwars_rules::protocol::{self as proto, PlayerAction};
+use planetwars_rules::protocol as proto;
 use planetwars_rules::serializer as pw_serializer;
 use planetwars_rules::{PlanetWars, PwConfig};
 
@@ -44,12 +44,8 @@ impl PwMatch {
             let player_messages = self.prompt_players().await;
 
             for (player_id, turn) in player_messages {
-                let res = self.execute_action(player_id, turn);
-                if let Some(err) = action_errors(res) {
-                    let _info_str = serde_json::to_string(&err).unwrap();
-                    // TODO
-                    // println!("player {}: {}", player_id, info_str);
-                }
+                let player_action = self.execute_action(player_id, turn);
+                self.log_player_action(player_id, player_action);
             }
             self.match_state.step();
 
@@ -88,18 +84,14 @@ impl PwMatch {
             .await
     }
 
-    fn execute_action(
-        &mut self,
-        player_num: usize,
-        turn: RequestResult<Vec<u8>>,
-    ) -> proto::PlayerAction {
-        let turn = match turn {
-            Err(_timeout) => return proto::PlayerAction::Timeout,
+    fn execute_action(&mut self, player_num: usize, turn: RequestResult<Vec<u8>>) -> PlayerAction {
+        let data = match turn {
+            Err(_timeout) => return PlayerAction::Timeout,
             Ok(data) => data,
         };
 
-        let action: proto::Action = match serde_json::from_slice(&turn) {
-            Err(err) => return proto::PlayerAction::ParseError(err.to_string()),
+        let action: proto::Action = match serde_json::from_slice(&data) {
+            Err(error) => return PlayerAction::ParseError { data, error },
             Ok(action) => action,
         };
 
@@ -108,15 +100,51 @@ impl PwMatch {
             .into_iter()
             .map(|command| {
                 let res = self.match_state.execute_command(player_num, &command);
-                proto::PlayerCommand {
+                PlayerCommand {
                     command,
                     error: res.err(),
                 }
             })
             .collect();
 
-        proto::PlayerAction::Commands(commands)
+        PlayerAction::Commands(commands)
     }
+
+    fn log_player_action(&mut self, player_id: usize, player_action: PlayerAction) {
+        match player_action {
+            PlayerAction::ParseError { data, error } => {
+                // TODO: can this be handled better?
+                let command =
+                    String::from_utf8(data).unwrap_or_else(|_| "<invalid utf-8>".to_string());
+
+                self.match_ctx.log(MatchLogMessage::BadCommand {
+                    player_id: player_id as u32,
+                    command,
+                    error: error.to_string(),
+                });
+            }
+            // TODO: handle other action types
+            _ => {}
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PlayerCommand {
+    pub command: proto::Command,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error: Option<proto::CommandError>,
+}
+
+/// the action a player performed.
+// TODO: can we name this better? Is this a "play"?
+pub enum PlayerAction {
+    Timeout,
+    ParseError {
+        data: Vec<u8>,
+        error: serde_json::Error,
+    },
+    Commands(Vec<PlayerCommand>),
 }
 
 fn action_errors(action: PlayerAction) -> Option<PlayerAction> {

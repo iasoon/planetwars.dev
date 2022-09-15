@@ -13,6 +13,12 @@ pub enum MatchLogMessage {
     GameState(State),
     #[serde(rename = "stderr")]
     StdErr(StdErrMessage),
+    #[serde(rename = "bad_command")]
+    BadCommand {
+        player_id: u32,
+        command: String,
+        error: String,
+    },
 }
 
 #[derive(Serialize, Deserialize, Debug)]

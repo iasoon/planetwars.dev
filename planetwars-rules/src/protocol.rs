@@ -49,31 +49,3 @@ pub enum CommandError {
     OriginDoesNotExist,
     DestinationDoesNotExist,
 }
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PlayerCommand {
-    pub command: Command,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub error: Option<CommandError>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-#[serde(tag = "type", content = "value")]
-pub enum PlayerAction {
-    Timeout,
-    ParseError(String),
-    Commands(Vec<PlayerCommand>),
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-#[serde(tag = "type", content = "content")]
-pub enum ServerMessage {
-    /// Game state in current turn
-    GameState(State),
-    /// The action that was performed
-    PlayerAction(PlayerAction),
-    /// The game is over, and this is the concluding state.
-    FinalState(State),
-}
