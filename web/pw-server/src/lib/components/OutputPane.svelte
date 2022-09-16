@@ -1,34 +1,21 @@
 <script lang="ts">
+  import { parsePlayerLog, PlayerLog } from "$lib/log_parser";
+
   export let matchLog: string;
+  let playerLog: PlayerLog;
 
-  function getStdErr(botId: number, log?: string): string {
-    if (!log) {
-      return "";
-    }
-
-    let output = [];
-    log
-      .split("\n")
-      .slice(0, -1)
-      .forEach((line) => {
-        let message = JSON.parse(line);
-        if (message["type"] === "stderr" && message["player_id"] === botId) {
-          output.push(message["message"]);
-        }
-      });
-    return output.join("\n");
+  $: if (matchLog) {
+    playerLog = parsePlayerLog(1, matchLog);
+  } else {
+    playerLog = [];
   }
-
-  $: botStdErr = getStdErr(1, matchLog);
 </script>
 
 <div class="output">
-  {#if botStdErr.length > 0}
-    <h3 class="output-header">stderr:</h3>
-    <div class="output-text">
-      {botStdErr}
-    </div>
-  {/if}
+  <h3 class="output-header">Player log</h3>
+  <div class="output-text stderr-text">
+    {playerLog.flatMap((turn) => turn.stderr).join("\n")}
+  </div>
 </div>
 
 <style lang="scss">
@@ -41,6 +28,9 @@
 
   .output-text {
     color: #ccc;
+  }
+
+  .stderr-text {
     font-family: monospace;
     white-space: pre-wrap;
   }
