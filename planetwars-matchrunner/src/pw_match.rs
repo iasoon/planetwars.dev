@@ -40,6 +40,9 @@ impl PwMatch {
     }
 
     pub async fn run(&mut self) {
+        // log initial state
+        self.log_game_state();
+
         while !self.match_state.is_finished() {
             let player_messages = self.prompt_players().await;
 
@@ -48,10 +51,7 @@ impl PwMatch {
                 self.log_player_action(player_id, player_action);
             }
             self.match_state.step();
-
-            // Log state
-            let state = self.match_state.serialize_state();
-            self.match_ctx.log(MatchLogMessage::GameState(state));
+            self.log_game_state();
         }
     }
 
@@ -108,6 +108,11 @@ impl PwMatch {
             .collect();
 
         PlayerAction::Commands(commands)
+    }
+
+    fn log_game_state(&mut self) {
+        let state = self.match_state.serialize_state();
+        self.match_ctx.log(MatchLogMessage::GameState(state));
     }
 
     fn log_player_action(&mut self, player_id: usize, player_action: PlayerAction) {
