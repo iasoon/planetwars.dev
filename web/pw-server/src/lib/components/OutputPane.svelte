@@ -4,6 +4,8 @@
   export let matchLog: string;
   let playerLog: PlayerLog;
 
+  let showRawStderr = false;
+
   $: if (matchLog) {
     playerLog = parsePlayerLog(1, matchLog);
   } else {
@@ -13,9 +15,38 @@
 
 <div class="output">
   <h3 class="output-header">Player log</h3>
+  {#if showRawStderr}
   <div class="output-text stderr-text">
     {playerLog.flatMap((turn) => turn.stderr).join("\n")}
   </div>
+  {:else}
+  <div class="output-text">
+    {#each playerLog as logTurn, i}
+    <div class="turn">
+      <div class="turn-header">
+        <span class="turn-header-text">Turn {i}</span>
+        {#if logTurn.action?.type === "bad_command"}
+          <span class="turn-error">invalid command</span>
+        {/if}
+      </div>
+      {#if logTurn.action?.type === "bad_command"}
+      <div class="bad-command-container">
+        <div class="bad-command-text">{logTurn.action.command}</div>
+        <div class="bad-command-error">Parse error: {logTurn.action.error}</div>
+      </div>
+      {/if}
+      {#if logTurn.stderr.length > 0}
+      <div class="stderr-header">stderr</div>
+      <div class="stderr-text-box">
+        {#each logTurn.stderr as stdErrMsg}
+        <div class="stderr-text">{stdErrMsg}</div>
+        {/each}
+      </div>
+      {/if}
+    </div>
+    {/each}
+  </div>
+  {/if}
 </div>
 
 <style lang="scss">
@@ -26,13 +57,60 @@
     padding: 15px;
   }
 
+  .turn {
+    margin: 16px 4px;
+  }
+
   .output-text {
     color: #ccc;
   }
 
+  .turn-header {
+    display: flex;
+    justify-content: space-between;
+  }
+
+  .turn-header-text {
+    color: #eee;
+    font-size: 14px;
+    font-weight: 600;
+    text-transform: uppercase;
+  }
+
+  .turn-error {
+    color: red;
+  }
+
+  .bad-command-container {
+    border-left: 1px solid red;
+    margin-left: 4px;
+    padding-left: 8px;
+  }
+
+  .bad-command-text {
+    font-family: "Consolas", "Bitstream Vera Sans Mono", "Courier New", Courier, monospace;
+    padding-bottom: 4px;
+  }
+
+  .bad-command-error {
+    color: whitesmoke;
+  }
+
   .stderr-text {
-    font-family: monospace;
+    // font-family: monospace;
+    font-family: "Consolas", "Bitstream Vera Sans Mono", "Courier New", Courier, monospace;
     white-space: pre-wrap;
+  }
+
+  .stderr-header {
+    color: #eee;
+    padding-top: 4px;
+  }
+
+  .stderr-text-box {
+    border-left: 1px solid #ccc;
+    margin-left: 4px;
+    padding-left: 8px;
   }
 
   .output-header {
