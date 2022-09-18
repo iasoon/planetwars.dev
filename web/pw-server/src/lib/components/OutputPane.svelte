@@ -6,6 +6,19 @@
 
   let showRawStderr = false;
 
+  const PLURAL_MAP = {
+    dispatch: "dispatches",
+    ship: "ships",
+  };
+
+  function pluralize(num: number, word: string): string {
+    if (num == 1) {
+      return `1 ${word}`;
+    } else {
+      return `${num} ${PLURAL_MAP[word]}`;
+    }
+  }
+
   $: if (matchLog) {
     playerLog = parsePlayerLog(1, matchLog);
   } else {
@@ -16,36 +29,53 @@
 <div class="output">
   <h3 class="output-header">Player log</h3>
   {#if showRawStderr}
-  <div class="output-text stderr-text">
-    {playerLog.flatMap((turn) => turn.stderr).join("\n")}
-  </div>
-  {:else}
-  <div class="output-text">
-    {#each playerLog as logTurn, i}
-    <div class="turn">
-      <div class="turn-header">
-        <span class="turn-header-text">Turn {i}</span>
-        {#if logTurn.action?.type === "bad_command"}
-          <span class="turn-error">invalid command</span>
-        {/if}
-      </div>
-      {#if logTurn.action?.type === "bad_command"}
-      <div class="bad-command-container">
-        <div class="bad-command-text">{logTurn.action.command}</div>
-        <div class="bad-command-error">Parse error: {logTurn.action.error}</div>
-      </div>
-      {/if}
-      {#if logTurn.stderr.length > 0}
-      <div class="stderr-header">stderr</div>
-      <div class="stderr-text-box">
-        {#each logTurn.stderr as stdErrMsg}
-        <div class="stderr-text">{stdErrMsg}</div>
-        {/each}
-      </div>
-      {/if}
+    <div class="output-text stderr-text">
+      {playerLog.flatMap((turn) => turn.stderr).join("\n")}
     </div>
-    {/each}
-  </div>
+  {:else}
+    <div class="output-text">
+      {#each playerLog as logTurn, i}
+        <div class="turn">
+          <div class="turn-header">
+            <span class="turn-header-text">Turn {i}</span>
+            {#if logTurn.action?.type === "dispatches"}
+              {pluralize(logTurn.action.dispatches.length, "dispatch")}
+            {:else if logTurn.action?.type === "timeout"}
+              <span class="turn-error">timeout</span>
+            {:else if logTurn.action?.type === "bad_command"}
+              <span class="turn-error">invalid command</span>
+            {/if}
+          </div>
+          {#if logTurn.action?.type === "dispatches"}
+            <div class="dispatches-container">
+              {#each logTurn.action.dispatches as dispatch}
+                <div class="dispatch">
+                  <div class="dispatch-text">
+                    {pluralize(dispatch.ship_count, "ship")} from {dispatch.origin} to {dispatch.destination}
+                  </div>
+                  {#if dispatch.error}
+                    <span class="dispatch-error">{dispatch.error}</span>
+                  {/if}
+                </div>
+              {/each}
+            </div>
+          {:else if logTurn.action?.type === "bad_command"}
+            <div class="bad-command-container">
+              <div class="bad-command-text">{logTurn.action.command}</div>
+              <div class="bad-command-error">Parse error: {logTurn.action.error}</div>
+            </div>
+          {/if}
+          {#if logTurn.stderr.length > 0}
+            <div class="stderr-header">stderr</div>
+            <div class="stderr-text-box">
+              {#each logTurn.stderr as stdErrMsg}
+                <div class="stderr-text">{stdErrMsg}</div>
+              {/each}
+            </div>
+          {/if}
+        </div>
+      {/each}
+    </div>
   {/if}
 </div>
 
@@ -78,6 +108,15 @@
   }
 
   .turn-error {
+    color: red;
+  }
+
+  .dispatch {
+    display: flex;
+    justify-content: space-between;
+  }
+
+  .dispatch-error {
     color: red;
   }
 

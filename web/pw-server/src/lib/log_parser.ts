@@ -5,12 +5,28 @@ export type PlayerLogTurn = {
   stderr: string[];
 };
 
-type PlayerAction = BadCommand;
+type PlayerAction = Timeout | BadCommand | Dispatches;
+
+type Timeout = {
+  type: "timeout";
+};
 
 type BadCommand = {
   type: "bad_command";
   command: string;
   error: string;
+};
+
+type Dispatches = {
+  type: "dispatches";
+  dispatches: Dispatch[];
+};
+
+type Dispatch = {
+  origin: string;
+  destination: string;
+  ship_count: number;
+  error?: string;
 };
 
 function createEmptyLogTurn(): PlayerLogTurn {
@@ -43,9 +59,13 @@ export function parsePlayerLog(playerId: number, logText: string): PlayerLog {
         case "stderr": {
           let msg = logMessage["message"];
           turn.stderr.push(msg);
+          break;
         }
-        case "bad_command": {
+        case "timeout":
+        case "bad_command":
+        case "dispatches": {
           turn.action = logMessage;
+          break;
         }
       }
     }
