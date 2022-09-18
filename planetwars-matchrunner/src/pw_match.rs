@@ -117,6 +117,9 @@ impl PwMatch {
 
     fn log_player_action(&mut self, player_id: usize, player_action: PlayerAction) {
         match player_action {
+            PlayerAction::Timeout => self.match_ctx.log(MatchLogMessage::Timeout {
+                player_id: player_id as u32,
+            }),
             PlayerAction::ParseError { data, error } => {
                 // TODO: can this be handled better?
                 let command =
@@ -128,14 +131,19 @@ impl PwMatch {
                     error: error.to_string(),
                 });
             }
-            // TODO: handle other action types
-            _ => {}
+            PlayerAction::Commands(dispatches) => {
+                self.match_ctx.log(MatchLogMessage::Dispatches {
+                    player_id: player_id as u32,
+                    dispatches,
+                });
+            }
         }
     }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PlayerCommand {
+    #[serde(flatten)]
     pub command: proto::Command,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub error: Option<proto::CommandError>,

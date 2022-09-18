@@ -6,6 +6,8 @@ use tokio::{fs::File, io::AsyncWriteExt};
 use planetwars_rules::protocol::State;
 use tokio::sync::mpsc;
 
+use crate::pw_match::PlayerCommand;
+
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(tag = "type")]
 pub enum MatchLogMessage {
@@ -13,11 +15,18 @@ pub enum MatchLogMessage {
     GameState(State),
     #[serde(rename = "stderr")]
     StdErr(StdErrMessage),
+    #[serde(rename = "timeout")]
+    Timeout { player_id: u32 },
     #[serde(rename = "bad_command")]
     BadCommand {
         player_id: u32,
         command: String,
         error: String,
+    },
+    #[serde(rename = "dispatches")]
+    Dispatches {
+        player_id: u32,
+        dispatches: Vec<PlayerCommand>,
     },
 }
 
