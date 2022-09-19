@@ -72,9 +72,11 @@ CMD python simplebot.py
 Refer to https://docs.docker.com for guides on how to write your own dockerfile.
 
 In the directory that contains your `Dockerfile`, run the following command:
+
 ```bash
 docker build -t my-bot-name .
 ```
+
 If all went well, your docker daemon now holds a container tagged as `my-bot-name`.
 
 ### Publishing the bot
