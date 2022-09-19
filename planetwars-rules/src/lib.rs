@@ -84,7 +84,6 @@ impl PlanetWars {
             .ok_or(CommandError::DestinationDoesNotExist)?;
 
         if self.state.planets[origin_id].owner() != Some(player_id - 1) {
-            println!("owner was {:?}", self.state.planets[origin_id].owner());
             return Err(CommandError::OriginNotOwned);
         }
 
