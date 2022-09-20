@@ -1,0 +1,25 @@
+{
+    "planets": [
+        {
+            "name": "a",
+            "x": -3,
+            "y": 0,
+            "owner": 1,
+            "ship_count": 5
+        },
+        {
+            "name": "b",
+            "x": 0,
+            "y": 0,
+            "ship_count": 5
+        },
+        {
+            "name": "c",
+            "x": 3,
+            "y": 0,
+            "owner": 2,
+            "ship_count": 5
+        }
+    ]
+}
+    
