@@ -150,7 +150,7 @@ impl Future for Request {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum RequestError {
     Timeout,
 }

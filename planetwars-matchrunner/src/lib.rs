@@ -16,7 +16,7 @@ use match_log::{create_log_sink, MatchLogger};
 use planetwars_rules::PwConfig;
 use serde::{Deserialize, Serialize};
 
-use self::match_context::{EventBus, PlayerHandle};
+pub use self::match_context::{EventBus, PlayerHandle};
 
 pub struct MatchConfig {
     pub map_name: String,
