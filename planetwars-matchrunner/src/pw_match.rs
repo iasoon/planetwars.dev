@@ -162,21 +162,3 @@ pub enum PlayerAction {
     },
     Commands(Vec<PlayerCommand>),
 }
-
-fn action_errors(action: PlayerAction) -> Option<PlayerAction> {
-    match action {
-        PlayerAction::Commands(commands) => {
-            let failed = commands
-                .into_iter()
-                .filter(|cmd| cmd.error.is_some())
-                .collect::<Vec<_>>();
-
-            if failed.is_empty() {
-                None
-            } else {
-                Some(PlayerAction::Commands(failed))
-            }
-        }
-        e => Some(e),
-    }
-}
