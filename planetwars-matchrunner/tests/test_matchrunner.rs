@@ -70,5 +70,6 @@ async fn docker_runner_timeout() {
         .request(1, b"sup".to_vec(), Duration::from_millis(1000))
         .await;
 
-    assert_eq!(resp, Err(RequestError::Timeout))
+    assert_eq!(resp, Err(RequestError::Timeout));
+    ctx.shutdown().await;
 }

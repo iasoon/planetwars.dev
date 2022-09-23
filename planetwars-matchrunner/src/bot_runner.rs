@@ -6,14 +6,18 @@ use std::sync::Mutex;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader, Lines};
 use tokio::process;
 use tokio::sync::mpsc;
+use tokio::task::JoinHandle;
 use tokio::time::timeout;
 
 use super::match_context::EventBus;
 use super::match_context::PlayerHandle;
 use super::match_context::RequestError;
 use super::match_context::RequestMessage;
+// TODO: this is exactly the same as the docker bot handle.
+// should this abstraction be removed?
 pub struct LocalBotHandle {
     tx: mpsc::UnboundedSender<RequestMessage>,
+    join_handle: JoinHandle<()>,
 }
 
 impl PlayerHandle for LocalBotHandle {
@@ -21,6 +25,10 @@ impl PlayerHandle for LocalBotHandle {
         self.tx
             .send(r)
             .expect("failed to send message to local bot");
+    }
+
+    fn into_join_handle(self: Box<Self>) -> JoinHandle<()> {
+        self.join_handle
     }
 }
 
@@ -33,9 +41,9 @@ pub fn run_local_bot(player_id: u32, event_bus: Arc<Mutex<EventBus>>, bot: Bot) 
         player_id,
         bot,
     };
-    tokio::spawn(runner.run());
+    let join_handle = tokio::spawn(runner.run());
 
-    LocalBotHandle { tx }
+    LocalBotHandle { tx, join_handle }
 }
 
 pub struct LocalBotRunner {

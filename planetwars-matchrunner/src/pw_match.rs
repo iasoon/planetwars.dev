@@ -39,7 +39,7 @@ impl PwMatch {
         }
     }
 
-    pub async fn run(&mut self) {
+    pub async fn run(mut self) -> PlanetWars {
         // log initial state
         self.log_game_state();
 
@@ -53,6 +53,9 @@ impl PwMatch {
             self.match_state.step();
             self.log_game_state();
         }
+
+        self.match_ctx.shutdown().await;
+        self.match_state
     }
 
     async fn prompt_players(&mut self) -> Vec<(usize, RequestResult<Vec<u8>>)> {

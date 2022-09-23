@@ -7,6 +7,7 @@ use std::{
     collections::HashMap,
     sync::{Arc, Mutex},
 };
+use tokio::task::JoinHandle;
 
 use crate::match_log::{MatchLogMessage, MatchLogger};
 
@@ -71,10 +72,19 @@ impl MatchCtx {
     pub fn log(&mut self, message: MatchLogMessage) {
         self.match_logger.send(message).expect("write failed");
     }
+
+    pub async fn shutdown(self) {
+        let join_handles = self
+            .players
+            .into_iter()
+            .map(|(_player_id, player_data)| player_data.handle.into_join_handle());
+        futures::future::join_all(join_handles).await;
+    }
 }
 
 pub trait PlayerHandle: Send {
     fn send_request(&mut self, r: RequestMessage);
+    fn into_join_handle(self: Box<Self>) -> JoinHandle<()>;
 }
 
 struct PlayerData {

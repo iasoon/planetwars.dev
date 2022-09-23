@@ -9,6 +9,7 @@ use bytes::Bytes;
 use futures::{Stream, StreamExt};
 use tokio::io::{AsyncWrite, AsyncWriteExt};
 use tokio::sync::mpsc;
+use tokio::task::JoinHandle;
 use tokio::time::timeout;
 
 use crate::match_context::{EventBus, PlayerHandle, RequestError, RequestMessage};
@@ -42,8 +43,7 @@ impl BotSpec for DockerBotSpec {
         match_logger: MatchLogger,
     ) -> Box<dyn PlayerHandle> {
         let process = spawn_docker_process(self).await.unwrap();
-        let (handle, runner) = create_docker_bot(process, player_id, event_bus, match_logger);
-        tokio::spawn(runner.run());
+        let handle = run_docker_bot(process, player_id, event_bus, match_logger);
         return Box::new(handle);
     }
 }
@@ -155,14 +155,13 @@ impl ContainerProcess {
     }
 }
 
-fn create_docker_bot(
+fn run_docker_bot(
     process: ContainerProcess,
     player_id: u32,
     event_bus: Arc<Mutex<EventBus>>,
     match_logger: MatchLogger,
-) -> (DockerBotHandle, DockerBotRunner) {
+) -> DockerBotHandle {
     let (tx, rx) = mpsc::unbounded_channel();
-    let bot_handle = DockerBotHandle { tx };
     let bot_runner = DockerBotRunner {
         process,
         player_id,
@@ -170,11 +169,15 @@ fn create_docker_bot(
         match_logger,
         rx,
     };
-    (bot_handle, bot_runner)
+
+    let join_handle = tokio::spawn(bot_runner.run());
+
+    DockerBotHandle { tx, join_handle }
 }
 
 pub struct DockerBotHandle {
     tx: mpsc::UnboundedSender<RequestMessage>,
+    join_handle: JoinHandle<()>,
 }
 
 impl PlayerHandle for DockerBotHandle {
@@ -182,6 +185,10 @@ impl PlayerHandle for DockerBotHandle {
         self.tx
             .send(r)
             .expect("failed to send message to local bot");
+    }
+
+    fn into_join_handle(self: Box<Self>) -> JoinHandle<()> {
+        self.join_handle
     }
 }
 
