@@ -163,6 +163,7 @@ impl Future for Request {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum RequestError {
     Timeout,
+    BotTerminated,
 }
 
 pub type RequestResult<T> = Result<T, RequestError>;

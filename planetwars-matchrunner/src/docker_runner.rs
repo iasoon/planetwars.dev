@@ -207,8 +207,9 @@ impl DockerBotRunner {
             let result = timeout(request.timeout, resp_fut).await;
             let request_response = match result {
                 Ok(Ok(response)) => Ok(response.to_vec()),
-                // this one happens when a bot output stream ends, map this to Timeout for now
-                Ok(Err(_read_error)) => Err(RequestError::Timeout),
+                // Read failed.
+                // TODO: better logging for errors
+                Ok(Err(_read_error)) => Err(RequestError::BotTerminated),
                 Err(_elapsed) => Err(RequestError::Timeout),
             };
             let request_id = (self.player_id, request.request_id);

@@ -56,23 +56,20 @@ async fn match_does_run() {
     tokio::time::sleep(Duration::from_secs(1)).await
 }
 
-async fn match_ctx_from_bot_spec<B: BotSpec>(bot_spec: B) -> MatchCtx {
-    let event_bus = Arc::new(Mutex::new(EventBus::new()));
-    let (logger, _rx) = mpsc::unbounded_channel();
-
-    let player_handle = bot_spec.run_bot(1, event_bus.clone(), logger.clone()).await;
-    let mut players = HashMap::new();
-    players.insert(1, player_handle);
-    MatchCtx::new(event_bus, players, logger)
-}
-
 /// creates a simple match ctx which only holds a single bot
 async fn with_bot_match_ctx<B, F>(bot_spec: B, func: F)
 where
     F: FnOnce(&mut MatchCtx) -> Pin<Box<dyn '_ + Future<Output = ()>>>,
     B: BotSpec,
 {
-    let mut ctx = match_ctx_from_bot_spec(bot_spec).await;
+    let event_bus = Arc::new(Mutex::new(EventBus::new()));
+    let (logger, _rx) = mpsc::unbounded_channel();
+
+    let player_handle = bot_spec.run_bot(1, event_bus.clone(), logger.clone()).await;
+    let mut players = HashMap::new();
+    players.insert(1, player_handle);
+    let mut ctx = MatchCtx::new(event_bus, players, logger);
+
     func(&mut ctx).await;
     ctx.shutdown().await;
 }
@@ -103,6 +100,22 @@ async fn docker_runner_timeout() {
                 .await;
 
             assert_eq!(resp, Err(RequestError::Timeout));
+        }
+        .boxed()
+    })
+    .await;
+}
+
+#[tokio::test]
+async fn docker_runner_crash() {
+    let bot_spec = simple_python_docker_bot_spec("./bots", "crash_bot.py");
+    with_bot_match_ctx(bot_spec, |ctx| {
+        async move {
+            let resp = ctx
+                .request(1, b"sup".to_vec(), Duration::from_millis(200))
+                .await;
+
+            assert_eq!(resp, Err(RequestError::BotTerminated));
         }
         .boxed()
     })
