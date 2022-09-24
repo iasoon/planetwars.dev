@@ -78,6 +78,22 @@ where
 }
 
 #[tokio::test]
+async fn docker_runner_success() {
+    let bot_spec = simple_python_docker_bot_spec("./bots", "echo_bot.py");
+    with_bot_match_ctx(bot_spec, |ctx| {
+        async move {
+            let resp = ctx
+                .request(1, b"sup".to_vec(), Duration::from_millis(200))
+                .await;
+
+            assert_eq!(resp, Ok(b"sup\n".to_vec()));
+        }
+        .boxed()
+    })
+    .await;
+}
+
+#[tokio::test]
 async fn docker_runner_timeout() {
     let bot_spec = simple_python_docker_bot_spec("./bots", "timeout_bot.py");
     with_bot_match_ctx(bot_spec, |ctx| {
