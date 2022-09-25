@@ -15,6 +15,8 @@ pub enum MatchLogMessage {
     GameState(State),
     #[serde(rename = "stderr")]
     StdErr(StdErrMessage),
+    #[serde(rename = "bot_terminated")]
+    BotTerminated { player_id: u32 },
     #[serde(rename = "timeout")]
     Timeout { player_id: u32 },
     #[serde(rename = "bad_command")]

@@ -1,3 +1,4 @@
+use crate::match_context::RequestError;
 use crate::match_log::MatchLogMessage;
 
 use super::match_context::{MatchCtx, RequestResult};
@@ -89,7 +90,8 @@ impl PwMatch {
 
     fn execute_action(&mut self, player_num: usize, turn: RequestResult<Vec<u8>>) -> PlayerAction {
         let data = match turn {
-            Err(_timeout) => return PlayerAction::Timeout,
+            Err(RequestError::Timeout) => return PlayerAction::Timeout,
+            Err(RequestError::BotTerminated) => return PlayerAction::Terminated,
             Ok(data) => data,
         };
 
@@ -123,6 +125,7 @@ impl PwMatch {
             PlayerAction::Timeout => self.match_ctx.log(MatchLogMessage::Timeout {
                 player_id: player_id as u32,
             }),
+            PlayerAction::Terminated => (), // TODO: should something be logged here?
             PlayerAction::ParseError { data, error } => {
                 // TODO: can this be handled better?
                 let command =
@@ -156,6 +159,7 @@ pub struct PlayerCommand {
 // TODO: can we name this better? Is this a "play"?
 pub enum PlayerAction {
     Timeout,
+    Terminated,
     ParseError {
         data: Vec<u8>,
         error: serde_json::Error,
