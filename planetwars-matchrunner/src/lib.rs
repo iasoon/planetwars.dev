@@ -14,7 +14,6 @@ use futures::{stream::FuturesOrdered, StreamExt};
 use match_context::MatchCtx;
 use match_log::{create_log_sink, MatchLogger};
 use planetwars_rules::PwConfig;
-use serde::{Deserialize, Serialize};
 
 pub use self::match_context::{EventBus, PlayerHandle};
 
@@ -23,18 +22,6 @@ pub struct MatchConfig {
     pub map_path: PathBuf,
     pub log_path: PathBuf,
     pub players: Vec<MatchPlayer>,
-}
-
-#[derive(Serialize, Deserialize)]
-pub struct MatchMeta {
-    pub map_name: String,
-    pub timestamp: chrono::DateTime<chrono::Local>,
-    pub players: Vec<PlayerInfo>,
-}
-
-#[derive(Serialize, Deserialize)]
-pub struct PlayerInfo {
-    pub name: String,
 }
 
 pub struct MatchPlayer {
@@ -53,6 +40,12 @@ pub trait BotSpec: Send + Sync {
 
 pub struct MatchOutcome {
     pub winner: Option<usize>,
+    pub player_outcomes: Vec<PlayerOutcome>,
+}
+
+pub struct PlayerOutcome {
+    pub had_errors: bool,
+    pub crashed: bool,
 }
 
 pub async fn run_match(config: MatchConfig) -> MatchOutcome {
@@ -86,36 +79,31 @@ pub async fn run_match(config: MatchConfig) -> MatchOutcome {
 
     let match_ctx = MatchCtx::new(event_bus, players, match_logger);
 
-    // TODO: is this still needed?
-    // assemble the math meta struct
-    // let match_meta = MatchMeta {
-    //     map_name: config.map_name.clone(),
-    //     timestamp: chrono::Local::now(),
-    //     players: config
-    //         .players
-    //         .iter()
-    //         .map(|bot| PlayerInfo {
-    //             name: bot.name.clone(),
-    //         })
-    //         .collect(),
-    // };
-    // write!(
-    //     log_file,
-    //     "{}\n",
-    //     serde_json::to_string(&match_meta).unwrap()
-    // )
-    // .unwrap();
+    let mut match_instance = pw_match::PwMatch::create(match_ctx, pw_config);
+    match_instance.run().await;
+    match_instance.match_ctx.shutdown().await;
 
-    let final_state = pw_match::PwMatch::create(match_ctx, pw_config).run().await;
-
-    let survivors = final_state.state().living_players();
+    let survivors = match_instance.match_state.state().living_players();
     let winner = if survivors.len() == 1 {
         Some(survivors[0])
     } else {
         None
     };
 
-    MatchOutcome { winner }
+    let player_outcomes = (1..=config.players.len())
+        .map(|player_id| {
+            let player_status = &match_instance.player_status[&player_id];
+            PlayerOutcome {
+                had_errors: player_status.had_command_errors,
+                crashed: player_status.terminated,
+            }
+        })
+        .collect();
+
+    MatchOutcome {
+        winner,
+        player_outcomes,
+    }
 }
 
 // writing this as a closure causes lifetime inference errors

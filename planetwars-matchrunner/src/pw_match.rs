@@ -9,6 +9,7 @@ use tokio::time::Duration;
 
 use serde_json;
 
+use std::collections::HashMap;
 use std::convert::TryInto;
 
 pub use planetwars_rules::config::{Config, Map};
@@ -17,30 +18,43 @@ use planetwars_rules::protocol as proto;
 use planetwars_rules::serializer as pw_serializer;
 use planetwars_rules::{PlanetWars, PwConfig};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct MatchConfig {
-    pub map_name: String,
-    pub max_turns: usize,
-}
-
 pub struct PwMatch {
     pub match_ctx: MatchCtx,
     pub match_state: PlanetWars,
+    pub player_status: HashMap<usize, PlayerStatus>,
+}
+
+pub struct PlayerStatus {
+    pub had_command_errors: bool,
+    pub terminated: bool,
 }
 
 impl PwMatch {
     pub fn create(match_ctx: MatchCtx, config: PwConfig) -> Self {
         // TODO: this is kind of hacked together at the moment
         let match_state = PlanetWars::create(config, match_ctx.players().len());
+        let player_status = match_ctx
+            .players()
+            .into_iter()
+            .map(|player_id| {
+                (
+                    player_id as usize,
+                    PlayerStatus {
+                        had_command_errors: false,
+                        terminated: false,
+                    },
+                )
+            })
+            .collect();
 
         PwMatch {
             match_state,
             match_ctx,
+            player_status,
         }
     }
 
-    pub async fn run(mut self) -> PlanetWars {
+    pub async fn run(&mut self) {
         // log initial state
         self.log_game_state();
 
@@ -49,14 +63,12 @@ impl PwMatch {
 
             for (player_id, turn) in player_messages {
                 let player_action = self.execute_action(player_id, turn);
+                self.update_player_status(player_id, &player_action);
                 self.log_player_action(player_id, player_action);
             }
             self.match_state.step();
             self.log_game_state();
         }
-
-        self.match_ctx.shutdown().await;
-        self.match_state
     }
 
     async fn prompt_players(&mut self) -> Vec<(usize, RequestResult<Vec<u8>>)> {
@@ -142,6 +154,26 @@ impl PwMatch {
                     player_id: player_id as u32,
                     dispatches,
                 });
+            }
+        }
+    }
+
+    fn update_player_status(&mut self, player_id: usize, player_action: &PlayerAction) {
+        let player_status = self.player_status.get_mut(&player_id).unwrap();
+        match player_action {
+            PlayerAction::Commands(dispatches) => {
+                if dispatches.iter().any(|d| d.error.is_some()) {
+                    player_status.had_command_errors = true;
+                }
+            }
+            PlayerAction::ParseError { .. } => {
+                player_status.had_command_errors = true;
+            }
+            PlayerAction::Timeout => {
+                player_status.had_command_errors = true;
+            }
+            PlayerAction::Terminated => {
+                player_status.terminated = true;
             }
         }
     }
