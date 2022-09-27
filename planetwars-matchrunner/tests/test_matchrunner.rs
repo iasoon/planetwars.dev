@@ -35,7 +35,7 @@ async fn match_does_run() {
     let log_file = tempfile::NamedTempFile::new().unwrap();
 
     let config = MatchConfig {
-        map_name: "hex".to_string(),
+        map_name: "abc".to_string(),
         map_path: PathBuf::from("maps/abc.json"),
         log_path: PathBuf::from(log_file.path()),
         players: vec![
@@ -52,8 +52,35 @@ async fn match_does_run() {
 
     let line_count = std::io::BufReader::new(log_file.as_file()).lines().count();
     assert!(line_count > 0);
+}
 
-    tokio::time::sleep(Duration::from_secs(1)).await
+#[tokio::test]
+async fn player_results() {
+    let log_file = tempfile::NamedTempFile::new().unwrap();
+
+    let config = MatchConfig {
+        map_name: "abc".to_string(),
+        map_path: PathBuf::from("maps/abc.json"),
+        log_path: PathBuf::from(log_file.path()),
+        players: vec![
+            MatchPlayer {
+                bot_spec: Box::new(simple_python_docker_bot_spec(
+                    "./bots/simplebot",
+                    "simplebot.py",
+                )),
+            },
+            MatchPlayer {
+                bot_spec: Box::new(simple_python_docker_bot_spec("./bots", "crash_bot.py")),
+            },
+        ],
+    };
+
+    let outcome = run_match(config).await;
+    assert_eq!(outcome.player_outcomes.len(), 2);
+    assert!(!outcome.player_outcomes[0].crashed);
+    assert!(!outcome.player_outcomes[0].had_errors);
+    assert!(outcome.player_outcomes[1].crashed);
+    assert!(!outcome.player_outcomes[1].had_errors);
 }
 
 /// creates a simple match ctx which only holds a single bot
