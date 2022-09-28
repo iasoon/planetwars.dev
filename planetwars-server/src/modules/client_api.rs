@@ -13,6 +13,7 @@ use std::time::Duration;
 use runner::match_context::{EventBus, PlayerHandle, RequestError, RequestMessage};
 use runner::match_log::MatchLogger;
 use tokio::sync::{mpsc, oneshot};
+use tokio::task::JoinHandle;
 use tokio_stream::wrappers::UnboundedReceiverStream;
 use tonic;
 use tonic::transport::Server;
@@ -252,13 +253,18 @@ impl runner::BotSpec for RemoteBotSpec {
         let client_messages_future =
             tokio::time::timeout(Duration::from_secs(10), client_messages_promise.get_value());
 
-        if let Ok(Ok(client_messages)) = client_messages_future.await {
+        let join_handle = if let Ok(Ok(client_messages)) = client_messages_future.await {
             tokio::spawn(handle_bot_messages(
                 player_id,
                 event_bus.clone(),
                 client_messages,
-            ));
-        }
+            ))
+        } else {
+            // since we don't have a mechanism for bot failure yet,
+            // this hack will have to do for now.
+            // TODO: FIXME
+            tokio::spawn(futures::future::ready(()))
+        };
 
         // ensure router cleanup
         self.router.take(&self.player_key);
@@ -271,6 +277,7 @@ impl runner::BotSpec for RemoteBotSpec {
             sender: server_msg_snd,
             player_id,
             event_bus,
+            join_handle,
         })
     }
 }
@@ -299,6 +306,7 @@ struct RemoteBotHandle {
     sender: mpsc::UnboundedSender<Result<pb::PlayerApiServerMessage, Status>>,
     player_id: u32,
     event_bus: Arc<Mutex<EventBus>>,
+    join_handle: JoinHandle<()>,
 }
 
 impl PlayerHandle for RemoteBotHandle {
@@ -334,6 +342,10 @@ impl PlayerHandle for RemoteBotHandle {
                     .resolve_request((self.player_id, r.request_id), Err(RequestError::Timeout));
             }
         }
+    }
+
+    fn into_join_handle(self: Box<Self>) -> JoinHandle<()> {
+        self.join_handle
     }
 }
 
