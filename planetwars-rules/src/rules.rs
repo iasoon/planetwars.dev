@@ -17,7 +17,7 @@ pub struct Player {
     pub alive: bool,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct Fleet {
     pub owner: Option<usize>,
     pub ship_count: u64,
@@ -188,5 +188,86 @@ impl Planet {
         let dx = self.x - other.x;
         let dy = self.y - other.y;
         (dx.powi(2) + dy.powi(2)).sqrt().ceil() as u64
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn get_test_planet() -> Planet {
+        Planet {
+            id: 0,
+            name: "test_planet".to_string(),
+            x: 0.0,
+            y: 0.0,
+            fleets: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn test_planet_basic_combat() {
+        let mut p = get_test_planet();
+        p.orbit(Fleet {
+            owner: Some(0),
+            ship_count: 3,
+        });
+
+        p.orbit(Fleet {
+            owner: Some(1),
+            ship_count: 2,
+        });
+
+        p.resolve_combat();
+
+        assert_eq!(p.fleets.len(), 1);
+        assert_eq!(p.owner(), Some(0));
+        assert_eq!(p.ship_count(), 1);
+    }
+
+    #[test]
+    fn test_planet_combat_threeway() {
+        let mut p = get_test_planet();
+        p.orbit(Fleet {
+            owner: Some(0),
+            ship_count: 5,
+        });
+        p.orbit(Fleet {
+            owner: Some(1),
+            ship_count: 10,
+        });
+        p.orbit(Fleet {
+            owner: Some(2),
+            ship_count: 12,
+        });
+
+        p.resolve_combat();
+
+        assert_eq!(p.fleets.len(), 1);
+        assert_eq!(p.owner(), Some(2));
+        assert_eq!(p.ship_count(), 2);
+    }
+
+    #[test]
+    fn test_planet_combat_threeway_tie() {
+        let mut p = get_test_planet();
+        p.orbit(Fleet {
+            owner: Some(0),
+            ship_count: 5,
+        });
+        p.orbit(Fleet {
+            owner: Some(1),
+            ship_count: 10,
+        });
+        p.orbit(Fleet {
+            owner: Some(2),
+            ship_count: 10,
+        });
+
+        p.resolve_combat();
+
+        assert_eq!(p.fleets.len(), 0);
+        assert_eq!(p.owner(), None);
+        assert_eq!(p.ship_count(), 0);
     }
 }
