@@ -79,14 +79,20 @@ between its origin and destination planet.
 Each turn, one additional ship will be constructed on each player-owned planet.
 Neutral planets do not construct ships.
 
-Ships will only battle on planets. Combat resolution is simple: every ship destroys one enemy
-ship, last man standing gets to keep the planet. When no player has ships remaining, the planet will turn neutral.
+After arriving at a planet, fleets belonging to the same player will merge.  
+When multiple players are present on the planet, their fleets will enter combat after merging.
+
+The largest fleet will win the fight, losing an amount of ships equal to the size of the second-largest fleet.
+Its owner will now occupy the planet, and all other fleets will be destroyed.
+
+When players tie for the largest fleet, all fleets are destroyed, and the planet will end up neutral.
 
 A turn progresses as follows:
 
 1. Construct ships
 2. Dispatch expeditions
-3. Arrivals & combat resolution
+3. Arrivals
+4. Combat
 
 It is not allowed for players to abandon a planet - at least one ship should remain at all times.
 Note that you are still allowed to dispatch the full ship count you observe in the game state,
