@@ -49,4 +49,6 @@ shlex = "1.1"
 tonic-build = "0.7.2"
 
 [dev-dependencies]
-parking_lot = "0.11"
+tower = { version = "0.4", features = ["util"] }
+parking_lot = "0.12"
+tempfile = "3"

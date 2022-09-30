@@ -112,7 +112,8 @@ fn init_directories(config: &GlobalConfig) -> std::io::Result<()> {
     Ok(())
 }
 
-pub fn api() -> Router {
+// just the routes, without connecting state
+fn api() -> Router {
     Router::new()
         .route("/register", post(routes::users::register))
         .route("/login", post(routes::users::login))
@@ -138,6 +139,14 @@ pub fn api() -> Router {
         .route("/leaderboard", get(routes::bots::get_ranking))
         .route("/submit_bot", post(routes::demo::submit_bot))
         .route("/save_bot", post(routes::bots::save_bot))
+}
+
+// full service
+pub fn create_pw_api(global_config: Arc<GlobalConfig>, db_pool: DbPool) -> Router {
+    Router::new()
+        .nest("/api", api())
+        .layer(Extension(db_pool))
+        .layer(Extension(global_config))
 }
 
 pub fn get_config() -> Result<GlobalConfig, ConfigError> {
@@ -175,16 +184,14 @@ pub async fn run_app() {
     tokio::spawn(run_registry(global_config.clone(), db_pool.clone()));
     tokio::spawn(run_client_api(global_config.clone(), db_pool.clone()));
 
-    let api_service = Router::new()
-        .nest("/api", api())
-        .layer(Extension(db_pool))
-        .layer(Extension(global_config))
-        .into_make_service();
-
     // TODO: put in config
     let addr = SocketAddr::from(([127, 0, 0, 1], 9000));
 
-    axum::Server::bind(&addr).serve(api_service).await.unwrap();
+    let pw_api_service = create_pw_api(global_config, db_pool).into_make_service();
+    axum::Server::bind(&addr)
+        .serve(pw_api_service)
+        .await
+        .unwrap();
 }
 
 // we can also write a custom extractor that grabs a connection from the pool
