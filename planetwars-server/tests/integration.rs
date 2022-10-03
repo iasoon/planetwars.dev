@@ -2,6 +2,7 @@ use axum::{
     body::Body,
     http::{self, Request, StatusCode},
 };
+use diesel::{PgConnection, RunQueryDsl};
 use planetwars_server::{create_db_pool, create_pw_api, GlobalConfig};
 use serde_json::{self, json, Value as JsonValue};
 use std::{io, path::Path, sync::Arc};
@@ -19,7 +20,23 @@ fn create_subdir<P: AsRef<Path>>(base_path: &Path, p: P) -> io::Result<String> {
     Ok(dir_path_string)
 }
 
-#[tokio::test]
+fn clear_database(conn: &PgConnection) {
+    diesel::sql_query(
+        "TRUNCATE TABLE
+        bots,
+        bot_versions,
+        maps,
+        matches,
+        match_players,
+        ratings,
+        sessions,
+        users",
+    )
+    .execute(conn)
+    .expect("failed to clear database");
+}
+
+#[tokio::test(flavor = "multi_thread")]
 async fn test_application() -> io::Result<()> {
     let _db_guard = DB_LOCK.lock();
     let data_dir = TempDir::new().expect("failed to create temp dir");
@@ -36,6 +53,10 @@ async fn test_application() -> io::Result<()> {
         ranker_enabled: false,
     });
     let db_pool = create_db_pool(&config).await;
+    {
+        let db_conn = db_pool.get().await.expect("failed to get db connection");
+        clear_database(&db_conn);
+    }
     let app = create_pw_api(config, db_pool);
 
     let response = app
