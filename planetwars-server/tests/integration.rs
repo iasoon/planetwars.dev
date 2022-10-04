@@ -3,7 +3,7 @@ use axum::{
     http::{self, Request, StatusCode},
 };
 use diesel::{PgConnection, RunQueryDsl};
-use planetwars_server::{create_db_pool, create_pw_api, db, modules, GlobalConfig};
+use planetwars_server::{create_db_pool, create_pw_api, db, modules, DbPool, GlobalConfig};
 use serde_json::{self, json, Value as JsonValue};
 use std::{
     io,
@@ -41,57 +41,104 @@ fn clear_database(conn: &PgConnection) {
     .expect("failed to clear database");
 }
 
-#[tokio::test(flavor = "multi_thread")]
-async fn test_application() -> io::Result<()> {
-    let _db_guard = DB_LOCK.lock();
-    let data_dir = TempDir::new().expect("failed to create temp dir");
-    let config = Arc::new(GlobalConfig {
-        database_url: "postgresql://planetwars:planetwars@localhost/planetwars-test".to_string(),
-        python_runner_image: "python:3.10-slim-buster".to_string(),
-        container_registry_url: "localhost:9001".to_string(),
-        root_url: "localhost:3000".to_string(),
-        bots_directory: create_subdir(data_dir.path(), "bots")?,
-        match_logs_directory: create_subdir(data_dir.path(), "matches")?,
-        maps_directory: create_subdir(data_dir.path(), "maps")?,
-        registry_directory: create_subdir(data_dir.path(), "registry")?,
-        registry_admin_password: "secret_admin_password".to_string(),
-        ranker_enabled: false,
-    });
-    let db_pool = create_db_pool(&config).await;
-    {
-        let db_conn = db_pool.get().await.expect("failed to get db connection");
-        clear_database(&db_conn);
+/// Setup a simple text fixture, having simplebot and the hex map.
+/// This is enough to run a simple match.
+fn setup_simple_fixture(db_conn: &PgConnection, config: &GlobalConfig) {
+    let bot = db::bots::create_bot(
+        &db::bots::NewBot {
+            owner_id: None,
+            name: "simplebot",
+        },
+        &db_conn,
+    )
+    .expect("could not create simplebot");
 
-        let bot = db::bots::create_bot(
-            &db::bots::NewBot {
-                owner_id: None,
-                name: "simplebot",
-            },
-            &db_conn,
-        )
-        .expect("could not create simplebot");
+    let simplebot_code = std::fs::read_to_string("../simplebot/simplebot.py")
+        .expect("could not read simplebot code");
+    let _bot_version =
+        modules::bots::save_code_string(&simplebot_code, Some(bot.id), &db_conn, &config)
+            .expect("could not save bot version");
 
-        let simplebot_code = std::fs::read_to_string("../simplebot/simplebot.py")
-            .expect("could not read simplebot code");
-        let _bot_version =
-            modules::bots::save_code_string(&simplebot_code, Some(bot.id), &db_conn, &config)
-                .expect("could not save bot version");
+    std::fs::copy(
+        "../maps/hex.json",
+        PathBuf::from(&config.maps_directory).join("hex.json"),
+    )
+    .expect("could not copy map");
+    db::maps::create_map(
+        db::maps::NewMap {
+            name: "hex",
+            file_path: "hex.json",
+        },
+        &db_conn,
+    )
+    .expect("could not save map");
+}
 
-        std::fs::copy(
-            "../maps/hex.json",
-            PathBuf::from(&config.maps_directory).join("hex.json"),
-        )
-        .expect("could not copy map");
-        db::maps::create_map(
-            db::maps::NewMap {
-                name: "hex",
-                file_path: "hex.json",
-            },
-            &db_conn,
-        )
-        .expect("could not save map");
+struct TestApp<'a> {
+    // exclusive connection to the test database
+    #[allow(dead_code)]
+    db_guard: parking_lot::MutexGuard<'a, ()>,
+    db_pool: DbPool,
+
+    // temporary data directory
+    #[allow(dead_code)]
+    data_dir: TempDir,
+
+    config: Arc<GlobalConfig>,
+}
+
+impl<'a> TestApp<'a> {
+    async fn create() -> io::Result<TestApp<'a>> {
+        let data_dir = TempDir::new().expect("failed to create temp dir");
+
+        let config = Arc::new(GlobalConfig {
+            database_url: "postgresql://planetwars:planetwars@localhost/planetwars-test"
+                .to_string(),
+            python_runner_image: "python:3.10-slim-buster".to_string(),
+            container_registry_url: "localhost:9001".to_string(),
+            root_url: "localhost:3000".to_string(),
+            bots_directory: create_subdir(data_dir.path(), "bots")?,
+            match_logs_directory: create_subdir(data_dir.path(), "matches")?,
+            maps_directory: create_subdir(data_dir.path(), "maps")?,
+            registry_directory: create_subdir(data_dir.path(), "registry")?,
+            registry_admin_password: "secret_admin_password".to_string(),
+            ranker_enabled: false,
+        });
+        let db_guard = DB_LOCK.lock();
+        let db_pool = create_db_pool(&config).await;
+
+        Ok(TestApp {
+            db_guard,
+            config,
+            data_dir,
+            db_pool,
+        })
     }
-    let mut app = create_pw_api(config, db_pool);
+
+    async fn with_db_conn<F, R>(&self, function: F) -> R
+    where
+        F: FnOnce(&PgConnection) -> R,
+    {
+        let db_conn = self
+            .db_pool
+            .get()
+            .await
+            .expect("could not get db connection");
+        function(&db_conn)
+    }
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_submit_bot() -> io::Result<()> {
+    let test_app = TestApp::create().await.unwrap();
+    test_app
+        .with_db_conn(|db_conn| {
+            clear_database(db_conn);
+            setup_simple_fixture(db_conn, &test_app.config);
+        })
+        .await;
+
+    let mut app = create_pw_api(test_app.config, test_app.db_pool);
 
     let simplebot_code = std::fs::read_to_string("../simplebot/simplebot.py")
         .expect("could not read simplebot code");
