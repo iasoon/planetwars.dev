@@ -3,11 +3,16 @@ use axum::{
     http::{self, Request, StatusCode},
 };
 use diesel::{PgConnection, RunQueryDsl};
-use planetwars_server::{create_db_pool, create_pw_api, GlobalConfig};
+use planetwars_server::{create_db_pool, create_pw_api, db, modules, GlobalConfig};
 use serde_json::{self, json, Value as JsonValue};
-use std::{io, path::Path, sync::Arc};
+use std::{
+    io,
+    path::{Path, PathBuf},
+    sync::Arc,
+    time::Duration,
+};
 use tempfile::TempDir;
-use tower::ServiceExt;
+use tower::Service;
 
 // Used to serialize tests that access the database.
 // TODO: see to what degree we could support transactional testing.
@@ -56,15 +61,51 @@ async fn test_application() -> io::Result<()> {
     {
         let db_conn = db_pool.get().await.expect("failed to get db connection");
         clear_database(&db_conn);
-    }
-    let app = create_pw_api(config, db_pool);
 
+        let bot = db::bots::create_bot(
+            &db::bots::NewBot {
+                owner_id: None,
+                name: "simplebot",
+            },
+            &db_conn,
+        )
+        .expect("could not create simplebot");
+
+        let simplebot_code = std::fs::read_to_string("../simplebot/simplebot.py")
+            .expect("could not read simplebot code");
+        let _bot_version =
+            modules::bots::save_code_string(&simplebot_code, Some(bot.id), &db_conn, &config)
+                .expect("could not save bot version");
+
+        std::fs::copy(
+            "../maps/hex.json",
+            PathBuf::from(&config.maps_directory).join("hex.json"),
+        )
+        .expect("could not copy map");
+        db::maps::create_map(
+            db::maps::NewMap {
+                name: "hex",
+                file_path: "hex.json",
+            },
+            &db_conn,
+        )
+        .expect("could not save map");
+    }
+    let mut app = create_pw_api(config, db_pool);
+
+    let simplebot_code = std::fs::read_to_string("../simplebot/simplebot.py")
+        .expect("could not read simplebot code");
+
+    let payload = json!({
+        "code": simplebot_code,
+    });
     let response = app
-        .oneshot(
+        .call(
             Request::builder()
-                .method(http::Method::GET)
-                .uri("/api/bots")
-                .body(Body::empty())
+                .method(http::Method::POST)
+                .header("Content-Type", "application/json")
+                .uri("/api/submit_bot")
+                .body(serde_json::to_vec(&payload).unwrap().into())
                 .unwrap(),
         )
         .await
@@ -73,6 +114,33 @@ async fn test_application() -> io::Result<()> {
     assert_eq!(response.status(), StatusCode::OK);
     let body = hyper::body::to_bytes(response.into_body()).await.unwrap();
     let resp: JsonValue = serde_json::from_slice(&body).unwrap();
-    assert_eq!(resp, json!([]));
-    Ok(())
+
+    let match_id = &resp["match"]["id"];
+    let mut num_tries = 0;
+    loop {
+        num_tries += 1;
+        assert!(num_tries <= 100, "time limit exceeded");
+        tokio::time::sleep(Duration::from_millis(100)).await;
+
+        let response = app
+            .call(
+                Request::builder()
+                    .method(http::Method::GET)
+                    .header("Content-Type", "application/json")
+                    .uri(format!("/api/matches/{}", match_id))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = hyper::body::to_bytes(response.into_body()).await.unwrap();
+        let resp: JsonValue = serde_json::from_slice(&body).unwrap();
+        match resp["state"].as_str() {
+            Some("Playing") => (),             // continue,
+            Some("Finished") => return Ok(()), // success
+            value => panic!("got unexpected match state {:?}", value),
+        }
+    }
 }
