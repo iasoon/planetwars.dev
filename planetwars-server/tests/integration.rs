@@ -1,6 +1,7 @@
 use axum::{
     body::Body,
     http::{self, Request, StatusCode},
+    Router,
 };
 use diesel::{PgConnection, RunQueryDsl};
 use planetwars_server::{create_db_pool, create_pw_api, db, modules, DbPool, GlobalConfig};
@@ -9,6 +10,7 @@ use std::{
     io,
     path::{Path, PathBuf},
     sync::Arc,
+    task::Poll,
     time::Duration,
 };
 use tempfile::TempDir;
@@ -128,6 +130,44 @@ impl<'a> TestApp<'a> {
     }
 }
 
+async fn poll_match(app: &mut Router, match_id: &str) -> io::Result<Poll<JsonValue>> {
+    let response = app
+        .call(
+            Request::builder()
+                .method(http::Method::GET)
+                .header("Content-Type", "application/json")
+                .uri(format!("/api/matches/{}", match_id))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = hyper::body::to_bytes(response.into_body()).await.unwrap();
+    let resp: JsonValue = serde_json::from_slice(&body).unwrap();
+
+    match resp["state"].as_str() {
+        Some("Playing") => Ok(Poll::Pending),
+        Some("Finished") => Ok(Poll::Ready(resp)),
+        // TODO: replace with err
+        value => panic!("got unexpected match state {:?}", value),
+    }
+}
+
+async fn poll_match_until_complete(app: &mut Router, match_id: &str) -> io::Result<JsonValue> {
+    let poll_interval = Duration::from_millis(100);
+    let mut interval = tokio::time::interval(poll_interval);
+    loop {
+        interval.tick().await;
+        match poll_match(app, match_id).await {
+            Ok(Poll::Ready(result)) => return Ok(result),
+            Ok(Poll::Pending) => (),
+            Err(err) => return Err(err),
+        }
+    }
+}
+
 #[tokio::test(flavor = "multi_thread")]
 async fn test_submit_bot() -> io::Result<()> {
     let test_app = TestApp::create().await.unwrap();
@@ -162,32 +202,13 @@ async fn test_submit_bot() -> io::Result<()> {
     let body = hyper::body::to_bytes(response.into_body()).await.unwrap();
     let resp: JsonValue = serde_json::from_slice(&body).unwrap();
 
-    let match_id = &resp["match"]["id"];
-    let mut num_tries = 0;
-    loop {
-        num_tries += 1;
-        assert!(num_tries <= 100, "time limit exceeded");
-        tokio::time::sleep(Duration::from_millis(100)).await;
-
-        let response = app
-            .call(
-                Request::builder()
-                    .method(http::Method::GET)
-                    .header("Content-Type", "application/json")
-                    .uri(format!("/api/matches/{}", match_id))
-                    .body(Body::empty())
-                    .unwrap(),
-            )
-            .await
-            .unwrap();
-
-        assert_eq!(response.status(), StatusCode::OK);
-        let body = hyper::body::to_bytes(response.into_body()).await.unwrap();
-        let resp: JsonValue = serde_json::from_slice(&body).unwrap();
-        match resp["state"].as_str() {
-            Some("Playing") => (),             // continue,
-            Some("Finished") => return Ok(()), // success
-            value => panic!("got unexpected match state {:?}", value),
-        }
-    }
+    let match_id = &resp["match"]["id"].as_i64().unwrap();
+    let _match_result = tokio::time::timeout(
+        Duration::from_secs(10),
+        poll_match_until_complete(&mut app, &match_id.to_string()),
+    )
+    .await
+    .expect("fetching match result timed out")
+    .expect("failed to get match result");
+    Ok(())
 }
