@@ -212,3 +212,105 @@ async fn test_submit_bot() -> io::Result<()> {
     .expect("failed to get match result");
     Ok(())
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_sign_up_and_create_bot() -> io::Result<()> {
+    let test_app = TestApp::create().await.unwrap();
+    test_app
+        .with_db_conn(|db_conn| {
+            clear_database(db_conn);
+            setup_simple_fixture(db_conn, &test_app.config);
+        })
+        .await;
+
+    let mut app = create_pw_api(test_app.config, test_app.db_pool);
+
+    // Registration
+    let credentials = json!({
+        "username": "piepkonijn",
+        "password": "123geheim",
+    });
+    let response = app
+        .call(
+            Request::builder()
+                .method(http::Method::POST)
+                .header("Content-Type", "application/json")
+                .uri("/api/register")
+                .body(serde_json::to_vec(&credentials).unwrap().into())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+
+    // Login
+    let response = app
+        .call(
+            Request::builder()
+                .method(http::Method::POST)
+                .header("Content-Type", "application/json")
+                .uri("/api/login")
+                .body(serde_json::to_vec(&credentials).unwrap().into())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let session_token = response.headers()["Token"].to_str().unwrap().clone();
+
+    // save bot
+    let simplebot_code = std::fs::read_to_string("../simplebot/simplebot.py")
+        .expect("could not read simplebot code");
+
+    let payload = json!({
+        "bot_name": "testbot",
+        "code": simplebot_code,
+    });
+
+    let response = app
+        .call(
+            Request::builder()
+                .method(http::Method::POST)
+                .header("Content-Type", "application/json")
+                .header("Authorization", format!("Bearer {}", session_token))
+                .uri("/api/save_bot")
+                .body(serde_json::to_vec(&payload).unwrap().into())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+
+    // launch a match against the new bot
+    let payload = json!({
+        "code": simplebot_code,
+        // TODO: how can we test that this bot is acutally being selected?
+        "opponent_name": "testbot",
+    });
+    let response = app
+        .call(
+            Request::builder()
+                .method(http::Method::POST)
+                .header("Content-Type", "application/json")
+                .uri("/api/submit_bot")
+                .body(serde_json::to_vec(&payload).unwrap().into())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = hyper::body::to_bytes(response.into_body()).await.unwrap();
+    let resp: JsonValue = serde_json::from_slice(&body).unwrap();
+
+    let match_id = &resp["match"]["id"].as_i64().unwrap();
+    let _match_result = tokio::time::timeout(
+        Duration::from_secs(10),
+        poll_match_until_complete(&mut app, &match_id.to_string()),
+    )
+    .await
+    .expect("fetching match result timed out")
+    .expect("failed to get match result");
+
+    Ok(())
+}
