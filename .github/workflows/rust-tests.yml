@@ -23,9 +23,20 @@ jobs:
       - name: Setup tests
         run: |
           docker pull python:3.10-slim-buster
+      
+      - name: Cargo cache
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Test
         run: |
           cd planetwars-matchrunner
           cargo check
-          cargo test --all
+          cargo test
