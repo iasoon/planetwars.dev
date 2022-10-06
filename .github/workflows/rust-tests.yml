@@ -5,6 +5,15 @@ on: [push]
 jobs:
   test-rust:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres
+        env:
+          POSTGRES_DB: "planetwars-test"
+          POSTGRES_USER: "planetwars"
+          POSTGRES_PASSWORD: "planetwars"
+        ports:
+        - 5432:5432
     steps:
       - uses: actions/checkout@v2
 
@@ -19,11 +28,7 @@ jobs:
           cargo --version --verbose
           rustc --version
           cargo clippy --version
-      
-      - name: Setup tests
-        run: |
-          docker pull python:3.10-slim-buster
-      
+
       - name: Cargo cache
         uses: actions/cache@v3
         with:
@@ -34,9 +39,17 @@ jobs:
             ~/.cargo/git/db/
             target/
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+        
+      - name: Setup tests
+        run: |
+          docker pull python:3.10-slim-buster
+          cargo install diesel_cli --version ^1.4
+          cd planetwars-server
+          diesel migration run --locked-schema
+        env:
+          DATABASE_URL: postgresql://planetwars:planetwars@localhost/planetwars-test
 
       - name: Test
         run: |
-          cd planetwars-matchrunner
           cargo check
           cargo test
