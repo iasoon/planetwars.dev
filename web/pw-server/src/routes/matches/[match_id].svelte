@@ -4,14 +4,10 @@
     try {
       const matchId = params["match_id"];
       const apiClient = new ApiClient(fetch);
-      const [matchData, matchLog] = await Promise.all([
-        apiClient.get(`/api/matches/${matchId}`),
-        apiClient.getText(`/api/matches/${matchId}/log`),
-      ]);
+      const matchData = await apiClient.get(`/api/matches/${matchId}`);
       return {
         props: {
-          matchData: matchData,
-          matchLog: matchLog,
+          matchData,
         },
       };
     } catch (error) {
@@ -24,9 +20,16 @@
 </script>
 
 <script lang="ts">
+  import { onMount } from "svelte";
   import Visualizer from "$lib/components/Visualizer.svelte";
-  export let matchLog: string;
+
+  export let matchLog: string | undefined;
   export let matchData: object;
+
+  onMount(async () => {
+    const apiClient = new ApiClient();
+    matchLog = await apiClient.getText(`/api/matches/${matchData["id"]}/log`);
+  });
 </script>
 
 <div class="container">
