@@ -29,6 +29,7 @@ use axum::{
     routing::{get, post},
     Router,
 };
+use tower_http::compression::CompressionLayer;
 
 type ConnectionPool = bb8::Pool<DieselConnectionManager<PgConnection>>;
 
@@ -147,6 +148,7 @@ pub fn create_pw_api(global_config: Arc<GlobalConfig>, db_pool: DbPool) -> Route
         .nest("/api", api())
         .layer(Extension(db_pool))
         .layer(Extension(global_config))
+        .layer(CompressionLayer::new())
 }
 
 pub fn get_config() -> Result<GlobalConfig, ConfigError> {
