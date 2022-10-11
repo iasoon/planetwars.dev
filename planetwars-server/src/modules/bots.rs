@@ -24,7 +24,7 @@ pub fn save_code_string(
         container_digest: None,
     };
     let version = db::bots::create_bot_version(&new_code_bundle, conn)?;
-    // Leave this coupled for now - this is how the behaviour was bevore.
+    // Leave this coupled for now - this is how the behaviour was before.
     // It would be cleaner to separate version setting and bot selection, though.
     if let Some(bot_id) = bot_id {
         db::bots::set_active_version(bot_id, Some(version.id), conn)?;

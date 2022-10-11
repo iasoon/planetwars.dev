@@ -4,6 +4,7 @@ use diesel::associations::BelongsTo;
 use diesel::pg::Pg;
 use diesel::query_builder::BoxedSelectStatement;
 use diesel::query_source::{AppearsInFromClause, Once};
+use diesel::sql_types::*;
 use diesel::{
     BelongingToDsl, ExpressionMethods, JoinOnDsl, NullableExpressionMethods, QueryDsl, RunQueryDsl,
 };
@@ -293,4 +294,56 @@ pub fn save_match_result(id: i32, result: MatchResult, conn: &PgConnection) -> Q
         ))
         .execute(conn)?;
     Ok(())
+}
+
+#[derive(QueryableByName)]
+pub struct BotStatsRecord {
+    #[sql_type = "Text"]
+    pub opponent: String,
+    #[sql_type = "Text"]
+    pub map: String,
+    #[sql_type = "Nullable<Bool>"]
+    pub win: Option<bool>,
+    #[sql_type = "Int8"]
+    pub count: i64,
+}
+
+pub fn fetch_bot_stats(bot_name: &str, db_conn: &PgConnection) -> QueryResult<Vec<BotStatsRecord>> {
+    diesel::sql_query(
+        "
+SELECT opponent, map, win, COUNT(*) as count
+FROM (
+    SELECT
+        opponent_bot.name as opponent,
+        maps.name as map,
+        (matches.winner = bot_player.player_id) as win
+    FROM matches
+    JOIN maps
+        ON matches.map_id = maps.id
+    JOIN match_players bot_player
+        ON bot_player.match_id = matches.id
+    JOIN bot_versions bot_version
+        ON bot_version.id = bot_player.bot_version_id
+    JOIN bots bot
+        ON bot.id = bot_version.bot_id
+    JOIN match_players opponent_player
+        ON opponent_player.match_id = matches.id
+        AND opponent_player.player_id = 1 - bot_player.player_id
+    JOIN bot_versions opponent_version
+        ON opponent_version.id = opponent_player.bot_version_id
+    LEFT OUTER JOIN bots opponent_bot
+        ON opponent_version.bot_id = opponent_bot.id
+    WHERE
+        matches.state = 'finished'
+        AND matches.is_public
+        AND bot.name = $1
+    ORDER BY
+        matches.created_at DESC 
+    LIMIT 10000
+) bot_matches
+GROUP BY opponent, map, win
+HAVING opponent IS NOT NULL",
+    )
+    .bind::<Text, _>(bot_name)
+    .load(db_conn)
 }

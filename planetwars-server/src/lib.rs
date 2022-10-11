@@ -125,6 +125,7 @@ fn api() -> Router {
             get(routes::bots::list_bots).post(routes::bots::create_bot),
         )
         .route("/bots/:bot_name", get(routes::bots::get_bot))
+        .route("/bots/:bot_name/stats", get(routes::bots::get_bot_stats))
         .route(
             "/bots/:bot_name/upload",
             post(routes::bots::upload_code_multipart),

@@ -7,6 +7,7 @@ use rand::distributions::Alphanumeric;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 use serde_json::{self, json, value::Value as JsonValue};
+use std::collections::HashMap;
 use std::io::Cursor;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -274,4 +275,42 @@ pub async fn get_code(
     let bot_code =
         std::fs::read(full_bundle_path).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     Ok(bot_code)
+}
+
+#[derive(Default, Serialize, Deserialize)]
+pub struct MatchupStats {
+    win: i64,
+    loss: i64,
+    tie: i64,
+}
+
+impl MatchupStats {
+    fn update(&mut self, win: Option<bool>, count: i64) {
+        match win {
+            Some(true) => self.win += count,
+            Some(false) => self.loss += count,
+            None => self.tie += count,
+        }
+    }
+}
+
+type BotStats = HashMap<String, HashMap<String, MatchupStats>>;
+
+pub async fn get_bot_stats(
+    conn: DatabaseConnection,
+    Path(bot_name): Path<String>,
+) -> Result<Json<BotStats>, StatusCode> {
+    let stats_records = db::matches::fetch_bot_stats(&bot_name, &conn)
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let mut bot_stats: BotStats = HashMap::new();
+    for record in stats_records {
+        bot_stats
+            .entry(record.opponent)
+            .or_default()
+            .entry(record.map)
+            .or_default()
+            .update(record.win, record.count);
+    }
+
+    Ok(Json(bot_stats))
 }
