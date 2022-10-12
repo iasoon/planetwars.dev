@@ -23,13 +23,13 @@ where
     type Rejection = (StatusCode, String);
 
     async fn from_request(req: &mut RequestParts<B>) -> Result<Self, Self::Rejection> {
-        let conn = DatabaseConnection::from_request(req).await?;
+        let mut conn = DatabaseConnection::from_request(req).await?;
 
         let TypedHeader(Authorization(bearer)) = AuthorizationHeader::from_request(req)
             .await
             .map_err(|_| (StatusCode::UNAUTHORIZED, "".to_string()))?;
 
-        let (_session, user) = sessions::find_user_by_session(bearer.token(), &conn)
+        let (_session, user) = sessions::find_user_by_session(bearer.token(), &mut conn)
             .map_err(|_| (StatusCode::UNAUTHORIZED, "".to_string()))?;
 
         Ok(user)
@@ -66,7 +66,7 @@ pub enum RegistrationError {
 }
 
 impl RegistrationParams {
-    fn validate(&self, conn: &DatabaseConnection) -> Result<(), RegistrationError> {
+    fn validate(&self, conn: &mut DatabaseConnection) -> Result<(), RegistrationError> {
         let mut errors = Vec::new();
 
         // TODO: do we want to support cased usernames?
@@ -95,7 +95,7 @@ impl RegistrationParams {
             errors.push("that username is not allowed".to_string());
         }
 
-        if users::find_user_by_name(&self.username, &conn).is_ok() {
+        if users::find_user_by_name(&self.username, conn).is_ok() {
             errors.push("username is already taken".to_string());
         }
 
@@ -137,16 +137,16 @@ impl IntoResponse for RegistrationError {
 }
 
 pub async fn register(
-    conn: DatabaseConnection,
+    mut conn: DatabaseConnection,
     params: Json<RegistrationParams>,
 ) -> Result<Json<UserData>, RegistrationError> {
-    params.validate(&conn)?;
+    params.validate(&mut conn)?;
 
     let credentials = Credentials {
         username: &params.username,
         password: &params.password,
     };
-    let user = users::create_user(&credentials, &conn)?;
+    let user = users::create_user(&credentials, &mut conn)?;
     Ok(Json(user.into()))
 }
 
@@ -156,18 +156,18 @@ pub struct LoginParams {
     pub password: String,
 }
 
-pub async fn login(conn: DatabaseConnection, params: Json<LoginParams>) -> Response {
+pub async fn login(mut conn: DatabaseConnection, params: Json<LoginParams>) -> Response {
     let credentials = Credentials {
         username: &params.username,
         password: &params.password,
     };
     // TODO: handle failures
-    let authenticated = users::authenticate_user(&credentials, &conn);
+    let authenticated = users::authenticate_user(&credentials, &mut conn);
 
     match authenticated {
         None => StatusCode::FORBIDDEN.into_response(),
         Some(user) => {
-            let session = sessions::create_session(&user, &conn);
+            let session = sessions::create_session(&user, &mut conn);
             let user_data: UserData = user.into();
             let headers = [("Token", &session.token)];
 

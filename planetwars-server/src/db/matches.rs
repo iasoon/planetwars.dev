@@ -1,9 +1,6 @@
 pub use crate::db_types::MatchState;
 use chrono::NaiveDateTime;
 use diesel::associations::BelongsTo;
-use diesel::pg::Pg;
-use diesel::query_builder::BoxedSelectStatement;
-use diesel::query_source::{AppearsInFromClause, Once};
 use diesel::sql_types::*;
 use diesel::{
     BelongingToDsl, ExpressionMethods, JoinOnDsl, NullableExpressionMethods, QueryDsl, RunQueryDsl,
@@ -18,7 +15,7 @@ use super::bots::{Bot, BotVersion};
 use super::maps::Map;
 
 #[derive(Insertable)]
-#[table_name = "matches"]
+#[diesel(table_name = matches)]
 pub struct NewMatch<'a> {
     pub state: MatchState,
     pub log_path: &'a str,
@@ -27,7 +24,7 @@ pub struct NewMatch<'a> {
 }
 
 #[derive(Insertable)]
-#[table_name = "match_players"]
+#[diesel(table_name = match_players)]
 pub struct NewMatchPlayer {
     /// id of the match this player is in
     pub match_id: i32,
@@ -38,7 +35,7 @@ pub struct NewMatchPlayer {
 }
 
 #[derive(Queryable, Identifiable)]
-#[table_name = "matches"]
+#[diesel(table_name = matches)]
 pub struct MatchBase {
     pub id: i32,
     pub state: MatchState,
@@ -50,8 +47,8 @@ pub struct MatchBase {
 }
 
 #[derive(Queryable, Identifiable, Associations, Clone)]
-#[primary_key(match_id, player_id)]
-#[belongs_to(MatchBase, foreign_key = "match_id")]
+#[diesel(primary_key(match_id, player_id))]
+#[diesel(belongs_to(MatchBase, foreign_key = match_id))]
 pub struct MatchPlayer {
     pub match_id: i32,
     pub player_id: i32,
@@ -65,9 +62,9 @@ pub struct MatchPlayerData {
 pub fn create_match(
     new_match_base: &NewMatch,
     new_match_players: &[MatchPlayerData],
-    conn: &PgConnection,
+    conn: &mut PgConnection,
 ) -> QueryResult<MatchData> {
-    conn.transaction(|| {
+    conn.transaction(|conn| {
         let match_base = diesel::insert_into(matches::table)
             .values(new_match_base)
             .get_result::<MatchBase>(conn)?;
@@ -101,7 +98,7 @@ pub struct MatchData {
 /// Add player information to MatchBase instances
 fn fetch_full_match_data(
     matches: Vec<MatchBase>,
-    conn: &PgConnection,
+    conn: &mut PgConnection,
 ) -> QueryResult<Vec<FullMatchData>> {
     let map_ids: HashSet<i32> = matches.iter().filter_map(|m| m.map_id).collect();
 
@@ -140,8 +137,8 @@ fn fetch_full_match_data(
 }
 
 // TODO: this method should disappear
-pub fn list_matches(amount: i64, conn: &PgConnection) -> QueryResult<Vec<FullMatchData>> {
-    conn.transaction(|| {
+pub fn list_matches(amount: i64, conn: &mut PgConnection) -> QueryResult<Vec<FullMatchData>> {
+    conn.transaction(|conn| {
         let matches = matches::table
             .filter(matches::state.eq(MatchState::Finished))
             .order_by(matches::created_at.desc())
@@ -164,17 +161,32 @@ pub fn list_public_matches(
     amount: i64,
     before: Option<NaiveDateTime>,
     after: Option<NaiveDateTime>,
-    conn: &PgConnection,
+    conn: &mut PgConnection,
 ) -> QueryResult<Vec<FullMatchData>> {
-    conn.transaction(|| {
+    conn.transaction(|conn| {
         // TODO: how can this common logic be abstracted?
-        let query = matches::table
+        let mut query = matches::table
             .filter(matches::state.eq(MatchState::Finished))
             .filter(matches::is_public.eq(true))
             .into_boxed();
 
-        let matches =
-            select_matches_page(query, amount, before, after).get_results::<MatchBase>(conn)?;
+        // TODO: how to remove this duplication?
+        query = match (before, after) {
+            (None, None) => query.order_by(matches::created_at.desc()),
+            (Some(before), None) => query
+                .filter(matches::created_at.lt(before))
+                .order_by(matches::created_at.desc()),
+            (None, Some(after)) => query
+                .filter(matches::created_at.gt(after))
+                .order_by(matches::created_at.asc()),
+            (Some(before), Some(after)) => query
+                .filter(matches::created_at.lt(before))
+                .filter(matches::created_at.gt(after))
+                .order_by(matches::created_at.desc()),
+        };
+        query = query.limit(amount);
+
+        let matches = query.get_results::<MatchBase>(conn)?;
         fetch_full_match_data(matches, conn)
     })
 }
@@ -185,7 +197,7 @@ pub fn list_bot_matches(
     amount: i64,
     before: Option<NaiveDateTime>,
     after: Option<NaiveDateTime>,
-    conn: &PgConnection,
+    conn: &mut PgConnection,
 ) -> QueryResult<Vec<FullMatchData>> {
     let mut query = matches::table
         .filter(matches::state.eq(MatchState::Finished))
@@ -211,22 +223,8 @@ pub fn list_bot_matches(
         };
     }
 
-    let matches =
-        select_matches_page(query, amount, before, after).get_results::<MatchBase>(conn)?;
-    fetch_full_match_data(matches, conn)
-}
-
-fn select_matches_page<QS>(
-    query: BoxedSelectStatement<'static, matches::SqlType, QS, Pg>,
-    amount: i64,
-    before: Option<NaiveDateTime>,
-    after: Option<NaiveDateTime>,
-) -> BoxedSelectStatement<'static, matches::SqlType, QS, Pg>
-where
-    QS: AppearsInFromClause<matches::table, Count = Once>,
-{
-    // TODO: this is not nice. Replace this with proper cursor logic.
-    match (before, after) {
+    // TODO: how to remove this duplication?
+    query = match (before, after) {
         (None, None) => query.order_by(matches::created_at.desc()),
         (Some(before), None) => query
             .filter(matches::created_at.lt(before))
@@ -238,8 +236,11 @@ where
             .filter(matches::created_at.lt(before))
             .filter(matches::created_at.gt(after))
             .order_by(matches::created_at.desc()),
-    }
-    .limit(amount)
+    };
+    query = query.limit(amount);
+
+    let matches = query.get_results::<MatchBase>(conn)?;
+    fetch_full_match_data(matches, conn)
 }
 
 // TODO: maybe unify this with matchdata?
@@ -270,8 +271,8 @@ impl BelongsTo<MatchBase> for FullMatchPlayerData {
     }
 }
 
-pub fn find_match(id: i32, conn: &PgConnection) -> QueryResult<FullMatchData> {
-    conn.transaction(|| {
+pub fn find_match(id: i32, conn: &mut PgConnection) -> QueryResult<FullMatchData> {
+    conn.transaction(|conn| {
         let match_base = matches::table.find(id).get_result::<MatchBase>(conn)?;
 
         let map = match match_base.map_id {
@@ -298,7 +299,7 @@ pub fn find_match(id: i32, conn: &PgConnection) -> QueryResult<FullMatchData> {
     })
 }
 
-pub fn find_match_base(id: i32, conn: &PgConnection) -> QueryResult<MatchBase> {
+pub fn find_match_base(id: i32, conn: &mut PgConnection) -> QueryResult<MatchBase> {
     matches::table.find(id).get_result::<MatchBase>(conn)
 }
 
@@ -306,7 +307,7 @@ pub enum MatchResult {
     Finished { winner: Option<i32> },
 }
 
-pub fn save_match_result(id: i32, result: MatchResult, conn: &PgConnection) -> QueryResult<()> {
+pub fn save_match_result(id: i32, result: MatchResult, conn: &mut PgConnection) -> QueryResult<()> {
     let MatchResult::Finished { winner } = result;
 
     diesel::update(matches::table.find(id))
@@ -320,17 +321,20 @@ pub fn save_match_result(id: i32, result: MatchResult, conn: &PgConnection) -> Q
 
 #[derive(QueryableByName)]
 pub struct BotStatsRecord {
-    #[sql_type = "Text"]
+    #[diesel(sql_type = Text)]
     pub opponent: String,
-    #[sql_type = "Text"]
+    #[diesel(sql_type = Text)]
     pub map: String,
-    #[sql_type = "Nullable<Bool>"]
+    #[diesel(sql_type = Nullable<Bool>)]
     pub win: Option<bool>,
-    #[sql_type = "Int8"]
+    #[diesel(sql_type = Int8)]
     pub count: i64,
 }
 
-pub fn fetch_bot_stats(bot_name: &str, db_conn: &PgConnection) -> QueryResult<Vec<BotStatsRecord>> {
+pub fn fetch_bot_stats(
+    bot_name: &str,
+    db_conn: &mut PgConnection,
+) -> QueryResult<Vec<BotStatsRecord>> {
     diesel::sql_query(
         "
 SELECT opponent, map, win, COUNT(*) as count

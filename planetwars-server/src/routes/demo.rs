@@ -35,7 +35,7 @@ pub async fn submit_bot(
     Extension(pool): Extension<ConnectionPool>,
     Extension(config): Extension<Arc<GlobalConfig>>,
 ) -> Result<Json<SubmitBotResponse>, StatusCode> {
-    let conn = pool.get().await.expect("could not get database connection");
+    let mut conn = pool.get().await.expect("could not get database connection");
 
     let opponent_name = params
         .opponent_name
@@ -46,12 +46,13 @@ pub async fn submit_bot(
         .unwrap_or_else(|| DEFAULT_MAP_NAME.to_string());
 
     let (opponent_bot, opponent_bot_version) =
-        db::bots::find_bot_with_version_by_name(&opponent_name, &conn)
+        db::bots::find_bot_with_version_by_name(&opponent_name, &mut conn)
             .map_err(|_| StatusCode::BAD_REQUEST)?;
 
-    let map = db::maps::find_map_by_name(&map_name, &conn).map_err(|_| StatusCode::BAD_REQUEST)?;
+    let map =
+        db::maps::find_map_by_name(&map_name, &mut conn).map_err(|_| StatusCode::BAD_REQUEST)?;
 
-    let player_bot_version = save_code_string(&params.code, None, &conn, &config)
+    let player_bot_version = save_code_string(&params.code, None, &mut conn, &config)
         // TODO: can we recover from this?
         .expect("could not save bot code");
 

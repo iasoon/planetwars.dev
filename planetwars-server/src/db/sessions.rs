@@ -6,7 +6,7 @@ use diesel::{insert_into, prelude::*, Insertable, RunQueryDsl};
 use rand::{self, Rng};
 
 #[derive(Insertable)]
-#[table_name = "sessions"]
+#[diesel(table_name = sessions)]
 struct NewSession {
     token: String,
     user_id: i32,
@@ -19,7 +19,7 @@ pub struct Session {
     pub token: String,
 }
 
-pub fn create_session(user: &User, conn: &PgConnection) -> Session {
+pub fn create_session(user: &User, conn: &mut PgConnection) -> Session {
     let new_session = NewSession {
         token: gen_session_token(),
         user_id: user.id,
@@ -31,7 +31,7 @@ pub fn create_session(user: &User, conn: &PgConnection) -> Session {
         .unwrap()
 }
 
-pub fn find_user_by_session(token: &str, conn: &PgConnection) -> QueryResult<(Session, User)> {
+pub fn find_user_by_session(token: &str, conn: &mut PgConnection) -> QueryResult<(Session, User)> {
     sessions::table
         .inner_join(users::table)
         .filter(sessions::token.eq(&token))

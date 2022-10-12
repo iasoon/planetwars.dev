@@ -112,8 +112,8 @@ where
                 Err(RegistryAuthError::InvalidCredentials)
             }
         } else {
-            let db_conn = DatabaseConnection::from_request(req).await.unwrap();
-            let user = authenticate_user(&credentials, &db_conn)
+            let mut db_conn = DatabaseConnection::from_request(req).await.unwrap();
+            let user = authenticate_user(&credentials, &mut db_conn)
                 .ok_or(RegistryAuthError::InvalidCredentials)?;
 
             Ok(RegistryAuth::User(user))
@@ -159,12 +159,12 @@ pub struct RegistryError {
 }
 
 async fn check_blob_exists(
-    db_conn: DatabaseConnection,
+    mut db_conn: DatabaseConnection,
     auth: RegistryAuth,
     Path((repository_name, raw_digest)): Path<(String, String)>,
     Extension(config): Extension<Arc<GlobalConfig>>,
 ) -> Result<impl IntoResponse, StatusCode> {
-    check_access(&repository_name, &auth, &db_conn)?;
+    check_access(&repository_name, &auth, &mut db_conn)?;
 
     let digest = raw_digest.strip_prefix("sha256:").unwrap();
     let blob_path = PathBuf::from(&config.registry_directory)
@@ -179,12 +179,12 @@ async fn check_blob_exists(
 }
 
 async fn get_blob(
-    db_conn: DatabaseConnection,
+    mut db_conn: DatabaseConnection,
     auth: RegistryAuth,
     Path((repository_name, raw_digest)): Path<(String, String)>,
     Extension(config): Extension<Arc<GlobalConfig>>,
 ) -> Result<impl IntoResponse, StatusCode> {
-    check_access(&repository_name, &auth, &db_conn)?;
+    check_access(&repository_name, &auth, &mut db_conn)?;
 
     let digest = raw_digest.strip_prefix("sha256:").unwrap();
     let blob_path = PathBuf::from(&config.registry_directory)
@@ -200,12 +200,12 @@ async fn get_blob(
 }
 
 async fn create_upload(
-    db_conn: DatabaseConnection,
+    mut db_conn: DatabaseConnection,
     auth: RegistryAuth,
     Path(repository_name): Path<String>,
     Extension(config): Extension<Arc<GlobalConfig>>,
 ) -> Result<impl IntoResponse, StatusCode> {
-    check_access(&repository_name, &auth, &db_conn)?;
+    check_access(&repository_name, &auth, &mut db_conn)?;
 
     let uuid = gen_alphanumeric(16);
     tokio::fs::File::create(
@@ -229,13 +229,13 @@ async fn create_upload(
 }
 
 async fn patch_upload(
-    db_conn: DatabaseConnection,
+    mut db_conn: DatabaseConnection,
     auth: RegistryAuth,
     Path((repository_name, uuid)): Path<(String, String)>,
     mut stream: BodyStream,
     Extension(config): Extension<Arc<GlobalConfig>>,
 ) -> Result<impl IntoResponse, StatusCode> {
-    check_access(&repository_name, &auth, &db_conn)?;
+    check_access(&repository_name, &auth, &mut db_conn)?;
 
     // TODO: support content range header in request
     let upload_path = PathBuf::from(&config.registry_directory)
@@ -275,14 +275,14 @@ struct UploadParams {
 }
 
 async fn put_upload(
-    db_conn: DatabaseConnection,
+    mut db_conn: DatabaseConnection,
     auth: RegistryAuth,
     Path((repository_name, uuid)): Path<(String, String)>,
     Query(params): Query<UploadParams>,
     mut stream: BodyStream,
     Extension(config): Extension<Arc<GlobalConfig>>,
 ) -> Result<impl IntoResponse, StatusCode> {
-    check_access(&repository_name, &auth, &db_conn)?;
+    check_access(&repository_name, &auth, &mut db_conn)?;
 
     let upload_path = PathBuf::from(&config.registry_directory)
         .join("uploads")
@@ -332,12 +332,12 @@ async fn put_upload(
 }
 
 async fn get_manifest(
-    db_conn: DatabaseConnection,
+    mut db_conn: DatabaseConnection,
     auth: RegistryAuth,
     Path((repository_name, reference)): Path<(String, String)>,
     Extension(config): Extension<Arc<GlobalConfig>>,
 ) -> Result<impl IntoResponse, StatusCode> {
-    check_access(&repository_name, &auth, &db_conn)?;
+    check_access(&repository_name, &auth, &mut db_conn)?;
 
     let manifest_path = PathBuf::from(&config.registry_directory)
         .join("manifests")
@@ -357,13 +357,13 @@ async fn get_manifest(
 }
 
 async fn put_manifest(
-    db_conn: DatabaseConnection,
+    mut db_conn: DatabaseConnection,
     auth: RegistryAuth,
     Path((repository_name, reference)): Path<(String, String)>,
     mut stream: BodyStream,
     Extension(config): Extension<Arc<GlobalConfig>>,
 ) -> Result<impl IntoResponse, StatusCode> {
-    let bot = check_access(&repository_name, &auth, &db_conn)?;
+    let bot = check_access(&repository_name, &auth, &mut db_conn)?;
 
     let repository_dir = PathBuf::from(&config.registry_directory)
         .join("manifests")
@@ -399,9 +399,9 @@ async fn put_manifest(
         code_bundle_path: None,
         container_digest: Some(&content_digest),
     };
-    let version =
-        db::bots::create_bot_version(&new_version, &db_conn).expect("could not save bot version");
-    db::bots::set_active_version(bot.id, Some(version.id), &db_conn)
+    let version = db::bots::create_bot_version(&new_version, &mut db_conn)
+        .expect("could not save bot version");
+    db::bots::set_active_version(bot.id, Some(version.id), &mut db_conn)
         .expect("could not update bot version");
 
     Ok(Response::builder()
@@ -421,7 +421,7 @@ async fn put_manifest(
 fn check_access(
     repository_name: &str,
     auth: &RegistryAuth,
-    db_conn: &DatabaseConnection,
+    db_conn: &mut DatabaseConnection,
 ) -> Result<db::bots::Bot, StatusCode> {
     use diesel::OptionalExtension;
 

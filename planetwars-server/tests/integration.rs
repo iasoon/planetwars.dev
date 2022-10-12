@@ -27,7 +27,7 @@ fn create_subdir<P: AsRef<Path>>(base_path: &Path, p: P) -> io::Result<String> {
     Ok(dir_path_string)
 }
 
-fn clear_database(conn: &PgConnection) {
+fn clear_database(conn: &mut PgConnection) {
     diesel::sql_query(
         "TRUNCATE TABLE
         bots,
@@ -45,20 +45,20 @@ fn clear_database(conn: &PgConnection) {
 
 /// Setup a simple text fixture, having simplebot and the hex map.
 /// This is enough to run a simple match.
-fn setup_simple_fixture(db_conn: &PgConnection, config: &GlobalConfig) {
+fn setup_simple_fixture(db_conn: &mut PgConnection, config: &GlobalConfig) {
     let bot = db::bots::create_bot(
         &db::bots::NewBot {
             owner_id: None,
             name: "simplebot",
         },
-        &db_conn,
+        db_conn,
     )
     .expect("could not create simplebot");
 
     let simplebot_code = std::fs::read_to_string("../simplebot/simplebot.py")
         .expect("could not read simplebot code");
     let _bot_version =
-        modules::bots::save_code_string(&simplebot_code, Some(bot.id), &db_conn, &config)
+        modules::bots::save_code_string(&simplebot_code, Some(bot.id), db_conn, &config)
             .expect("could not save bot version");
 
     std::fs::copy(
@@ -71,7 +71,7 @@ fn setup_simple_fixture(db_conn: &PgConnection, config: &GlobalConfig) {
             name: "hex",
             file_path: "hex.json",
         },
-        &db_conn,
+        db_conn,
     )
     .expect("could not save map");
 }
@@ -119,14 +119,14 @@ impl<'a> TestApp<'a> {
 
     async fn with_db_conn<F, R>(&self, function: F) -> R
     where
-        F: FnOnce(&PgConnection) -> R,
+        F: FnOnce(&mut PgConnection) -> R,
     {
-        let db_conn = self
+        let mut db_conn = self
             .db_pool
             .get()
             .await
             .expect("could not get db connection");
-        function(&db_conn)
+        function(&mut db_conn)
     }
 }
 

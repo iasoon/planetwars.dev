@@ -10,7 +10,7 @@ pub struct Rating {
     pub rating: f64,
 }
 
-pub fn get_rating(bot_id: i32, db_conn: &PgConnection) -> QueryResult<Option<f64>> {
+pub fn get_rating(bot_id: i32, db_conn: &mut PgConnection) -> QueryResult<Option<f64>> {
     ratings::table
         .filter(ratings::bot_id.eq(bot_id))
         .select(ratings::rating)
@@ -18,7 +18,7 @@ pub fn get_rating(bot_id: i32, db_conn: &PgConnection) -> QueryResult<Option<f64
         .optional()
 }
 
-pub fn set_rating(bot_id: i32, rating: f64, db_conn: &PgConnection) -> QueryResult<usize> {
+pub fn set_rating(bot_id: i32, rating: f64, db_conn: &mut PgConnection) -> QueryResult<usize> {
     diesel::insert_into(ratings::table)
         .values(Rating { bot_id, rating })
         .on_conflict(ratings::bot_id)
@@ -40,7 +40,7 @@ pub struct RankedBot {
     pub rating: f64,
 }
 
-pub fn get_bot_ranking(db_conn: &PgConnection) -> QueryResult<Vec<RankedBot>> {
+pub fn get_bot_ranking(db_conn: &mut PgConnection) -> QueryResult<Vec<RankedBot>> {
     bots::table
         .left_join(users::table)
         .inner_join(ratings::table)

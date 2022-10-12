@@ -9,7 +9,7 @@ use crate::{db, util::gen_alphanumeric, GlobalConfig};
 pub fn save_code_string(
     bot_code: &str,
     bot_id: Option<i32>,
-    conn: &PgConnection,
+    conn: &mut PgConnection,
     config: &GlobalConfig,
 ) -> QueryResult<db::bots::BotVersion> {
     let bundle_name = gen_alphanumeric(16);

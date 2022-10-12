@@ -80,8 +80,8 @@ impl RunMatch {
         let match_data = {
             // TODO: it would be nice to get an already-open connection here when possible.
             // Maybe we need an additional abstraction, bundling a connection and connection pool?
-            let db_conn = conn_pool.get().await.expect("could not get a connection");
-            self.store_in_database(&db_conn)?
+            let mut db_conn = conn_pool.get().await.expect("could not get a connection");
+            self.store_in_database(&mut db_conn)?
         };
 
         let runner_config = self.into_runner_config();
@@ -90,7 +90,7 @@ impl RunMatch {
         Ok((match_data, handle))
     }
 
-    fn store_in_database(&self, db_conn: &PgConnection) -> QueryResult<MatchData> {
+    fn store_in_database(&self, db_conn: &mut PgConnection) -> QueryResult<MatchData> {
         let new_match_data = db::matches::NewMatch {
             state: db::matches::MatchState::Playing,
             log_path: &self.log_file_name,
@@ -167,7 +167,7 @@ async fn run_match_task(
     let outcome = runner::run_match(match_config).await;
 
     // update match state in database
-    let conn = connection_pool
+    let mut conn = connection_pool
         .get()
         .await
         .expect("could not get database connection");
@@ -176,7 +176,8 @@ async fn run_match_task(
         winner: outcome.winner.map(|w| (w - 1) as i32), // player numbers in matchrunner start at 1
     };
 
-    db::matches::save_match_result(match_id, result, &conn).expect("could not save match result");
+    db::matches::save_match_result(match_id, result, &mut conn)
+        .expect("could not save match result");
 
     outcome
 }

@@ -3,7 +3,7 @@ use diesel::prelude::*;
 use crate::schema::maps;
 
 #[derive(Insertable)]
-#[table_name = "maps"]
+#[diesel(table_name = maps)]
 pub struct NewMap<'a> {
     pub name: &'a str,
     pub file_path: &'a str,
@@ -16,20 +16,20 @@ pub struct Map {
     pub file_path: String,
 }
 
-pub fn create_map(new_map: NewMap, conn: &PgConnection) -> QueryResult<Map> {
+pub fn create_map(new_map: NewMap, conn: &mut PgConnection) -> QueryResult<Map> {
     diesel::insert_into(maps::table)
         .values(new_map)
         .get_result(conn)
 }
 
-pub fn find_map(id: i32, conn: &PgConnection) -> QueryResult<Map> {
+pub fn find_map(id: i32, conn: &mut PgConnection) -> QueryResult<Map> {
     maps::table.find(id).get_result(conn)
 }
 
-pub fn find_map_by_name(name: &str, conn: &PgConnection) -> QueryResult<Map> {
+pub fn find_map_by_name(name: &str, conn: &mut PgConnection) -> QueryResult<Map> {
     maps::table.filter(maps::name.eq(name)).first(conn)
 }
 
-pub fn list_maps(conn: &PgConnection) -> QueryResult<Vec<Map>> {
+pub fn list_maps(conn: &mut PgConnection) -> QueryResult<Vec<Map>> {
     maps::table.get_results(conn)
 }

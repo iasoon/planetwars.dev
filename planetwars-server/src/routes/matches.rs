@@ -56,7 +56,7 @@ pub struct ListMatchesResponse {
 
 pub async fn list_recent_matches(
     Query(params): Query<ListRecentMatchesParams>,
-    conn: DatabaseConnection,
+    mut conn: DatabaseConnection,
 ) -> Result<Json<ListMatchesResponse>, StatusCode> {
     let requested_count = std::cmp::min(
         params.count.unwrap_or(DEFAULT_NUM_RETURNED_MATCHES),
@@ -68,7 +68,7 @@ pub async fn list_recent_matches(
 
     let matches_result = match params.bot {
         Some(bot_name) => {
-            let bot = db::bots::find_bot_by_name(&bot_name, &conn)
+            let bot = db::bots::find_bot_by_name(&bot_name, &mut conn)
                 .map_err(|_| StatusCode::BAD_REQUEST)?;
             matches::list_bot_matches(
                 bot.id,
@@ -76,10 +76,10 @@ pub async fn list_recent_matches(
                 count,
                 params.before,
                 params.after,
-                &conn,
+                &mut conn,
             )
         }
-        None => matches::list_public_matches(count, params.before, params.after, &conn),
+        None => matches::list_public_matches(count, params.before, params.after, &mut conn),
     };
 
     let mut matches = matches_result.map_err(|_| StatusCode::BAD_REQUEST)?;
@@ -119,9 +119,9 @@ pub fn match_data_to_api(data: matches::FullMatchData) -> ApiMatch {
 
 pub async fn get_match_data(
     Path(match_id): Path<i32>,
-    conn: DatabaseConnection,
+    mut conn: DatabaseConnection,
 ) -> Result<Json<ApiMatch>, StatusCode> {
-    let match_data = matches::find_match(match_id, &conn)
+    let match_data = matches::find_match(match_id, &mut conn)
         .map_err(|_| StatusCode::NOT_FOUND)
         .map(match_data_to_api)?;
     Ok(Json(match_data))
@@ -129,11 +129,11 @@ pub async fn get_match_data(
 
 pub async fn get_match_log(
     Path(match_id): Path<i32>,
-    conn: DatabaseConnection,
+    mut conn: DatabaseConnection,
     Extension(config): Extension<Arc<GlobalConfig>>,
 ) -> Result<Vec<u8>, StatusCode> {
     let match_base =
-        matches::find_match_base(match_id, &conn).map_err(|_| StatusCode::NOT_FOUND)?;
+        matches::find_match_base(match_id, &mut conn).map_err(|_| StatusCode::NOT_FOUND)?;
     let log_path = PathBuf::from(&config.match_logs_directory).join(&match_base.log_path);
     let log_contents = std::fs::read(log_path).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     Ok(log_contents)

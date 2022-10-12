@@ -11,7 +11,7 @@ pub struct Credentials<'a> {
 }
 
 #[derive(Insertable)]
-#[table_name = "users"]
+#[diesel(table_name = users)]
 pub struct NewUser<'a> {
     pub username: &'a str,
     pub password_hash: &'a [u8],
@@ -50,7 +50,7 @@ pub fn hash_password(password: &str) -> (Vec<u8>, [u8; 32]) {
     (hash, salt)
 }
 
-pub fn create_user(credentials: &Credentials, conn: &PgConnection) -> QueryResult<User> {
+pub fn create_user(credentials: &Credentials, conn: &mut PgConnection) -> QueryResult<User> {
     let (hash, salt) = hash_password(&credentials.password);
 
     let new_user = NewUser {
@@ -63,19 +63,19 @@ pub fn create_user(credentials: &Credentials, conn: &PgConnection) -> QueryResul
         .get_result::<User>(conn)
 }
 
-pub fn find_user(user_id: i32, db_conn: &PgConnection) -> QueryResult<User> {
+pub fn find_user(user_id: i32, db_conn: &mut PgConnection) -> QueryResult<User> {
     users::table
         .filter(users::id.eq(user_id))
         .first::<User>(db_conn)
 }
 
-pub fn find_user_by_name(username: &str, db_conn: &PgConnection) -> QueryResult<User> {
+pub fn find_user_by_name(username: &str, db_conn: &mut PgConnection) -> QueryResult<User> {
     users::table
         .filter(users::username.eq(username))
         .first::<User>(db_conn)
 }
 
-pub fn set_user_password(credentials: Credentials, db_conn: &PgConnection) -> QueryResult<()> {
+pub fn set_user_password(credentials: Credentials, db_conn: &mut PgConnection) -> QueryResult<()> {
     let (hash, salt) = hash_password(&credentials.password);
 
     let n_changes = diesel::update(users::table.filter(users::username.eq(&credentials.username)))
@@ -91,7 +91,7 @@ pub fn set_user_password(credentials: Credentials, db_conn: &PgConnection) -> Qu
     }
 }
 
-pub fn authenticate_user(credentials: &Credentials, db_conn: &PgConnection) -> Option<User> {
+pub fn authenticate_user(credentials: &Credentials, db_conn: &mut PgConnection) -> Option<User> {
     find_user_by_name(credentials.username, db_conn)
         .optional()
         .unwrap()

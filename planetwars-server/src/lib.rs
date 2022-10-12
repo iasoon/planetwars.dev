@@ -8,7 +8,7 @@ pub mod routes;
 pub mod schema;
 pub mod util;
 
-use std::ops::Deref;
+use std::ops::{Deref, DerefMut};
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::{fs, net::SocketAddr};
@@ -70,9 +70,9 @@ pub struct GlobalConfig {
 const SIMPLEBOT_PATH: &str = "../simplebot/simplebot.py";
 
 pub async fn seed_simplebot(config: &GlobalConfig, pool: &ConnectionPool) {
-    let conn = pool.get().await.expect("could not get database connection");
+    let mut conn = pool.get().await.expect("could not get database connection");
     // This transaction is expected to fail when simplebot already exists.
-    let _res = conn.transaction::<(), diesel::result::Error, _>(|| {
+    let _res = conn.transaction::<(), diesel::result::Error, _>(|conn| {
         use db::bots::NewBot;
 
         let new_bot = NewBot {
@@ -80,12 +80,12 @@ pub async fn seed_simplebot(config: &GlobalConfig, pool: &ConnectionPool) {
             owner_id: None,
         };
 
-        let simplebot = db::bots::create_bot(&new_bot, &conn)?;
+        let simplebot = db::bots::create_bot(&new_bot, conn)?;
 
         let simplebot_code =
             std::fs::read_to_string(SIMPLEBOT_PATH).expect("could not read simplebot code");
 
-        modules::bots::save_code_string(&simplebot_code, Some(simplebot.id), &conn, config)?;
+        modules::bots::save_code_string(&simplebot_code, Some(simplebot.id), conn, config)?;
 
         println!("initialized simplebot");
 
@@ -206,6 +206,12 @@ impl Deref for DatabaseConnection {
 
     fn deref(&self) -> &Self::Target {
         &self.0
+    }
+}
+
+impl DerefMut for DatabaseConnection {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
     }
 }
 

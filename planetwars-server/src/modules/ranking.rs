@@ -20,13 +20,14 @@ pub async fn run_ranker(config: Arc<GlobalConfig>, db_pool: DbPool) {
     // TODO: make this configurable
     // play at most one match every n seconds
     let mut interval = tokio::time::interval(Duration::from_secs(RANKER_INTERVAL));
-    let db_conn = db_pool
+    let mut db_conn = db_pool
         .get()
         .await
         .expect("could not get database connection");
     loop {
         interval.tick().await;
-        let bots = db::bots::all_active_bots_with_version(&db_conn).expect("could not load bots");
+        let bots =
+            db::bots::all_active_bots_with_version(&mut db_conn).expect("could not load bots");
         if bots.len() < 2 {
             // not enough bots to play a match
             continue;
@@ -37,14 +38,14 @@ pub async fn run_ranker(config: Arc<GlobalConfig>, db_pool: DbPool) {
             .cloned()
             .collect();
 
-        let maps = db::maps::list_maps(&db_conn).expect("could not load map");
+        let maps = db::maps::list_maps(&mut db_conn).expect("could not load map");
         let map = match maps.choose(&mut rand::thread_rng()).cloned() {
             None => continue, // no maps available
             Some(map) => map,
         };
 
         play_ranking_match(config.clone(), map, selected_bots, db_pool.clone()).await;
-        recalculate_ratings(&db_conn).expect("could not recalculate ratings");
+        recalculate_ratings(&mut db_conn).expect("could not recalculate ratings");
     }
 }
 
@@ -71,7 +72,7 @@ async fn play_ranking_match(
     let _outcome = handle.await;
 }
 
-fn recalculate_ratings(db_conn: &PgConnection) -> QueryResult<()> {
+fn recalculate_ratings(db_conn: &mut PgConnection) -> QueryResult<()> {
     let start = Instant::now();
     let match_stats = fetch_match_stats(db_conn)?;
     let ratings = estimate_ratings_from_stats(match_stats);
@@ -91,7 +92,7 @@ struct MatchStats {
     num_matches: usize,
 }
 
-fn fetch_match_stats(db_conn: &PgConnection) -> QueryResult<HashMap<(i32, i32), MatchStats>> {
+fn fetch_match_stats(db_conn: &mut PgConnection) -> QueryResult<HashMap<(i32, i32), MatchStats>> {
     let matches = db::matches::list_matches(RANKER_NUM_MATCHES, db_conn)?;
 
     let mut match_stats = HashMap::<(i32, i32), MatchStats>::new();

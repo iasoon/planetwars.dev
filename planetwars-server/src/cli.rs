@@ -38,12 +38,12 @@ impl SetPassword {
         let global_config = get_config().unwrap();
         let pool = create_db_pool(&global_config).await;
 
-        let conn = pool.get().await.expect("could not get database connection");
+        let mut conn = pool.get().await.expect("could not get database connection");
         let credentials = db::users::Credentials {
             username: &self.username,
             password: &self.new_password,
         };
-        db::users::set_user_password(credentials, &conn).expect("could not set password");
+        db::users::set_user_password(credentials, &mut conn).expect("could not set password");
     }
 }
 

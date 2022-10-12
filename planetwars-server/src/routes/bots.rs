@@ -100,10 +100,10 @@ pub fn validate_bot_name(bot_name: &str) -> Result<(), SaveBotError> {
 pub async fn save_bot(
     Json(params): Json<SaveBotParams>,
     user: User,
-    conn: DatabaseConnection,
+    mut conn: DatabaseConnection,
     Extension(config): Extension<Arc<GlobalConfig>>,
 ) -> Result<Json<Bot>, SaveBotError> {
-    let res = bots::find_bot_by_name(&params.bot_name, &conn)
+    let res = bots::find_bot_by_name(&params.bot_name, &mut conn)
         .optional()
         .expect("could not run query");
 
@@ -122,10 +122,10 @@ pub async fn save_bot(
                 name: &params.bot_name,
             };
 
-            bots::create_bot(&new_bot, &conn).expect("could not create bot")
+            bots::create_bot(&new_bot, &mut conn).expect("could not create bot")
         }
     };
-    let _code_bundle = save_code_string(&params.code, Some(bot.id), &conn, &config)
+    let _code_bundle = save_code_string(&params.code, Some(bot.id), &mut conn, &config)
         .expect("failed to save code bundle");
     Ok(Json(bot))
 }
@@ -137,12 +137,12 @@ pub struct BotParams {
 
 // TODO: can we unify this with save_bot?
 pub async fn create_bot(
-    conn: DatabaseConnection,
+    mut conn: DatabaseConnection,
     user: User,
     params: Json<BotParams>,
 ) -> Result<(StatusCode, Json<Bot>), SaveBotError> {
     validate_bot_name(&params.name)?;
-    let existing_bot = bots::find_bot_by_name(&params.name, &conn)
+    let existing_bot = bots::find_bot_by_name(&params.name, &mut conn)
         .optional()
         .expect("could not run query");
     if existing_bot.is_some() {
@@ -152,26 +152,27 @@ pub async fn create_bot(
         owner_id: Some(user.id),
         name: &params.name,
     };
-    let bot = bots::create_bot(&bot_params, &conn).unwrap();
+    let bot = bots::create_bot(&bot_params, &mut conn).unwrap();
     Ok((StatusCode::CREATED, Json(bot)))
 }
 
 // TODO: handle errors
 pub async fn get_bot(
-    conn: DatabaseConnection,
+    mut conn: DatabaseConnection,
     Path(bot_name): Path<String>,
 ) -> Result<Json<JsonValue>, StatusCode> {
-    let bot = db::bots::find_bot_by_name(&bot_name, &conn).map_err(|_| StatusCode::NOT_FOUND)?;
+    let bot =
+        db::bots::find_bot_by_name(&bot_name, &mut conn).map_err(|_| StatusCode::NOT_FOUND)?;
     let owner: Option<UserData> = match bot.owner_id {
         Some(user_id) => {
-            let user = db::users::find_user(user_id, &conn)
+            let user = db::users::find_user(user_id, &mut conn)
                 .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
             Some(user.into())
         }
         None => None,
     };
-    let versions =
-        bots::find_bot_versions(bot.id, &conn).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let versions = bots::find_bot_versions(bot.id, &mut conn)
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     Ok(Json(json!({
         "bot": bot,
         "owner": owner,
@@ -180,32 +181,32 @@ pub async fn get_bot(
 }
 
 pub async fn get_user_bots(
-    conn: DatabaseConnection,
+    mut conn: DatabaseConnection,
     Path(user_name): Path<String>,
 ) -> Result<Json<Vec<Bot>>, StatusCode> {
     let user =
-        db::users::find_user_by_name(&user_name, &conn).map_err(|_| StatusCode::NOT_FOUND)?;
-    db::bots::find_bots_by_owner(user.id, &conn)
+        db::users::find_user_by_name(&user_name, &mut conn).map_err(|_| StatusCode::NOT_FOUND)?;
+    db::bots::find_bots_by_owner(user.id, &mut conn)
         .map(Json)
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
 }
 
 /// List all active bots
-pub async fn list_bots(conn: DatabaseConnection) -> Result<Json<Vec<Bot>>, StatusCode> {
-    bots::find_active_bots(&conn)
+pub async fn list_bots(mut conn: DatabaseConnection) -> Result<Json<Vec<Bot>>, StatusCode> {
+    bots::find_active_bots(&mut conn)
         .map(Json)
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
 }
 
-pub async fn get_ranking(conn: DatabaseConnection) -> Result<Json<Vec<RankedBot>>, StatusCode> {
-    ratings::get_bot_ranking(&conn)
+pub async fn get_ranking(mut conn: DatabaseConnection) -> Result<Json<Vec<RankedBot>>, StatusCode> {
+    ratings::get_bot_ranking(&mut conn)
         .map(Json)
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
 }
 
 // TODO: currently this only implements the happy flow
 pub async fn upload_code_multipart(
-    conn: DatabaseConnection,
+    mut conn: DatabaseConnection,
     user: User,
     Path(bot_name): Path<String>,
     mut multipart: Multipart,
@@ -213,7 +214,7 @@ pub async fn upload_code_multipart(
 ) -> Result<Json<BotVersion>, StatusCode> {
     let bots_dir = PathBuf::from(&config.bots_directory);
 
-    let bot = bots::find_bot_by_name(&bot_name, &conn).map_err(|_| StatusCode::NOT_FOUND)?;
+    let bot = bots::find_bot_by_name(&bot_name, &mut conn).map_err(|_| StatusCode::NOT_FOUND)?;
 
     if Some(user.id) != bot.owner_id {
         return Err(StatusCode::FORBIDDEN);
@@ -246,21 +247,22 @@ pub async fn upload_code_multipart(
         container_digest: None,
     };
     let code_bundle =
-        bots::create_bot_version(&bot_version, &conn).expect("Failed to create code bundle");
+        bots::create_bot_version(&bot_version, &mut conn).expect("Failed to create code bundle");
 
     Ok(Json(code_bundle))
 }
 
 pub async fn get_code(
-    conn: DatabaseConnection,
+    mut conn: DatabaseConnection,
     user: User,
     Path(bundle_id): Path<i32>,
     Extension(config): Extension<Arc<GlobalConfig>>,
 ) -> Result<Vec<u8>, StatusCode> {
     let version =
-        db::bots::find_bot_version(bundle_id, &conn).map_err(|_| StatusCode::NOT_FOUND)?;
+        db::bots::find_bot_version(bundle_id, &mut conn).map_err(|_| StatusCode::NOT_FOUND)?;
     let bot_id = version.bot_id.ok_or(StatusCode::FORBIDDEN)?;
-    let bot = db::bots::find_bot(bot_id, &conn).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let bot =
+        db::bots::find_bot(bot_id, &mut conn).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     if bot.owner_id != Some(user.id) {
         return Err(StatusCode::FORBIDDEN);
@@ -297,10 +299,10 @@ impl MatchupStats {
 type BotStats = HashMap<String, HashMap<String, MatchupStats>>;
 
 pub async fn get_bot_stats(
-    conn: DatabaseConnection,
+    mut conn: DatabaseConnection,
     Path(bot_name): Path<String>,
 ) -> Result<Json<BotStats>, StatusCode> {
-    let stats_records = db::matches::fetch_bot_stats(&bot_name, &conn)
+    let stats_records = db::matches::fetch_bot_stats(&bot_name, &mut conn)
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     let mut bot_stats: BotStats = HashMap::new();
     for record in stats_records {

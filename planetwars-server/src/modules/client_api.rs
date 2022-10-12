@@ -149,19 +149,19 @@ impl pb::client_api_service_server::ClientApiService for ClientApiServer {
         req: Request<pb::CreateMatchRequest>,
     ) -> Result<Response<pb::CreateMatchResponse>, Status> {
         // TODO: unify with matchrunner module
-        let conn = self.conn_pool.get().await.unwrap();
+        let mut conn = self.conn_pool.get().await.unwrap();
 
         let match_request = req.get_ref();
 
         let (opponent_bot, opponent_bot_version) =
-            db::bots::find_bot_with_version_by_name(&match_request.opponent_name, &conn)
+            db::bots::find_bot_with_version_by_name(&match_request.opponent_name, &mut conn)
                 .map_err(|_| Status::not_found("opponent not found"))?;
 
         let map_name = match match_request.map_name.as_str() {
             "" => "hex",
             name => name,
         };
-        let map = db::maps::find_map_by_name(map_name, &conn)
+        let map = db::maps::find_map_by_name(map_name, &mut conn)
             .map_err(|_| Status::not_found("map not found"))?;
 
         let player_key = gen_alphanumeric(32);
