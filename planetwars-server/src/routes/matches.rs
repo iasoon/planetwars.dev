@@ -10,7 +10,7 @@ use std::{path::PathBuf, sync::Arc};
 use crate::{
     db::{
         self,
-        matches::{self, MatchState},
+        matches::{self, BotMatchOutcome, MatchState},
     },
     DatabaseConnection, GlobalConfig,
 };
@@ -42,6 +42,7 @@ pub struct ListRecentMatchesParams {
     after: Option<NaiveDateTime>,
 
     bot: Option<String>,
+    outcome: Option<BotMatchOutcome>,
 }
 
 const MAX_NUM_RETURNED_MATCHES: usize = 100;
@@ -69,7 +70,14 @@ pub async fn list_recent_matches(
         Some(bot_name) => {
             let bot = db::bots::find_bot_by_name(&bot_name, &conn)
                 .map_err(|_| StatusCode::BAD_REQUEST)?;
-            matches::list_bot_matches(bot.id, count, params.before, params.after, &conn)
+            matches::list_bot_matches(
+                bot.id,
+                params.outcome,
+                count,
+                params.before,
+                params.after,
+                &conn,
+            )
         }
         None => matches::list_public_matches(count, params.before, params.after, &conn),
     };

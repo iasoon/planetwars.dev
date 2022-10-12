@@ -9,6 +9,7 @@ use diesel::{
     BelongingToDsl, ExpressionMethods, JoinOnDsl, NullableExpressionMethods, QueryDsl, RunQueryDsl,
 };
 use diesel::{Connection, GroupedBy, PgConnection, QueryResult};
+use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 
 use crate::schema::{bot_versions, bots, maps, match_players, matches};
@@ -151,6 +152,14 @@ pub fn list_matches(amount: i64, conn: &PgConnection) -> QueryResult<Vec<FullMat
     })
 }
 
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum BotMatchOutcome {
+    Win,
+    Loss,
+    Tie,
+}
+
 pub fn list_public_matches(
     amount: i64,
     before: Option<NaiveDateTime>,
@@ -172,12 +181,13 @@ pub fn list_public_matches(
 
 pub fn list_bot_matches(
     bot_id: i32,
+    outcome: Option<BotMatchOutcome>,
     amount: i64,
     before: Option<NaiveDateTime>,
     after: Option<NaiveDateTime>,
     conn: &PgConnection,
 ) -> QueryResult<Vec<FullMatchData>> {
-    let query = matches::table
+    let mut query = matches::table
         .filter(matches::state.eq(MatchState::Finished))
         .filter(matches::is_public.eq(true))
         .order_by(matches::created_at.desc())
@@ -188,6 +198,18 @@ pub fn list_bot_matches(
         .filter(bot_versions::bot_id.eq(bot_id))
         .select(matches::all_columns)
         .into_boxed();
+
+    if let Some(outcome) = outcome {
+        query = match outcome {
+            BotMatchOutcome::Win => {
+                query.filter(matches::winner.eq(match_players::player_id.nullable()))
+            }
+            BotMatchOutcome::Loss => {
+                query.filter(matches::winner.ne(match_players::player_id.nullable()))
+            }
+            BotMatchOutcome::Tie => query.filter(matches::winner.is_null()),
+        };
+    }
 
     let matches =
         select_matches_page(query, amount, before, after).get_results::<MatchBase>(conn)?;
