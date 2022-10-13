@@ -1,6 +1,7 @@
 pub use crate::db_types::MatchState;
 use chrono::NaiveDateTime;
 use diesel::associations::BelongsTo;
+use diesel::pg::Pg;
 use diesel::sql_types::*;
 use diesel::{
     BelongingToDsl, ExpressionMethods, JoinOnDsl, NullableExpressionMethods, QueryDsl, RunQueryDsl,
@@ -164,28 +165,7 @@ pub fn list_public_matches(
     conn: &mut PgConnection,
 ) -> QueryResult<Vec<FullMatchData>> {
     conn.transaction(|conn| {
-        // TODO: how can this common logic be abstracted?
-        let mut query = matches::table
-            .filter(matches::state.eq(MatchState::Finished))
-            .filter(matches::is_public.eq(true))
-            .into_boxed();
-
-        // TODO: how to remove this duplication?
-        query = match (before, after) {
-            (None, None) => query.order_by(matches::created_at.desc()),
-            (Some(before), None) => query
-                .filter(matches::created_at.lt(before))
-                .order_by(matches::created_at.desc()),
-            (None, Some(after)) => query
-                .filter(matches::created_at.gt(after))
-                .order_by(matches::created_at.asc()),
-            (Some(before), Some(after)) => query
-                .filter(matches::created_at.lt(before))
-                .filter(matches::created_at.gt(after))
-                .order_by(matches::created_at.desc()),
-        };
-        query = query.limit(amount);
-
+        let query = finished_public_matches_query(before, after).limit(amount);
         let matches = query.get_results::<MatchBase>(conn)?;
         fetch_full_match_data(matches, conn)
     })
@@ -199,17 +179,13 @@ pub fn list_bot_matches(
     after: Option<NaiveDateTime>,
     conn: &mut PgConnection,
 ) -> QueryResult<Vec<FullMatchData>> {
-    let mut query = matches::table
-        .filter(matches::state.eq(MatchState::Finished))
-        .filter(matches::is_public.eq(true))
-        .order_by(matches::created_at.desc())
+    let mut query = finished_public_matches_query(before, after)
         .inner_join(match_players::table)
         .inner_join(
             bot_versions::table.on(match_players::bot_version_id.eq(bot_versions::id.nullable())),
         )
         .filter(bot_versions::bot_id.eq(bot_id))
-        .select(matches::all_columns)
-        .into_boxed();
+        .select(matches::all_columns);
 
     if let Some(outcome) = outcome {
         query = match outcome {
@@ -223,8 +199,22 @@ pub fn list_bot_matches(
         };
     }
 
-    // TODO: how to remove this duplication?
-    query = match (before, after) {
+    query = query.limit(amount);
+
+    let matches = query.get_results::<MatchBase>(conn)?;
+    fetch_full_match_data(matches, conn)
+}
+
+fn finished_public_matches_query(
+    before: Option<NaiveDateTime>,
+    after: Option<NaiveDateTime>,
+) -> matches::BoxedQuery<'static, Pg> {
+    let query = matches::table
+        .filter(matches::state.eq(MatchState::Finished))
+        .filter(matches::is_public.eq(true))
+        .into_boxed();
+
+    match (before, after) {
         (None, None) => query.order_by(matches::created_at.desc()),
         (Some(before), None) => query
             .filter(matches::created_at.lt(before))
@@ -236,11 +226,7 @@ pub fn list_bot_matches(
             .filter(matches::created_at.lt(before))
             .filter(matches::created_at.gt(after))
             .order_by(matches::created_at.desc()),
-    };
-    query = query.limit(amount);
-
-    let matches = query.get_results::<MatchBase>(conn)?;
-    fetch_full_match_data(matches, conn)
+    }
 }
 
 // TODO: maybe unify this with matchdata?
