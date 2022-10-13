@@ -55,6 +55,7 @@ pub struct MatchPlayer {
     pub match_id: i32,
     pub player_id: i32,
     pub code_bundle_id: Option<i32>,
+    pub had_errors: Option<bool>,
 }
 
 pub struct MatchPlayerData {
@@ -190,7 +191,7 @@ pub fn list_bot_matches(
         amount,
     };
 
-    let matches = lbm.get_results::<MatchBase>(conn)?;
+    let matches = lbm.get_results(conn)?;
     fetch_full_match_data(matches, conn)
 }
 
@@ -292,6 +293,24 @@ pub fn save_match_result(id: i32, result: MatchResult, conn: &mut PgConnection) 
         ))
         .execute(conn)?;
     Ok(())
+}
+
+pub fn set_player_had_errors(
+    match_id: i32,
+    player_id: i32,
+    had_errors: bool,
+    conn: &mut PgConnection,
+) -> QueryResult<()> {
+    let num_modified = diesel::update(match_players::table)
+        .filter(match_players::match_id.eq(match_id))
+        .filter(match_players::player_id.eq(player_id))
+        .set(match_players::had_errors.eq(had_errors))
+        .execute(conn)?;
+    if num_modified == 0 {
+        Err(diesel::result::Error::NotFound)
+    } else {
+        Ok(())
+    }
 }
 
 #[derive(QueryableByName)]

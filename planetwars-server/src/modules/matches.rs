@@ -1,4 +1,4 @@
-use diesel::{PgConnection, QueryResult};
+use diesel::{Connection, PgConnection, QueryResult};
 use planetwars_matchrunner::{self as runner, docker_runner::DockerBotSpec, BotSpec, MatchConfig};
 use runner::MatchOutcome;
 use std::{path::PathBuf, sync::Arc};
@@ -176,8 +176,14 @@ async fn run_match_task(
         winner: outcome.winner.map(|w| (w - 1) as i32), // player numbers in matchrunner start at 1
     };
 
-    db::matches::save_match_result(match_id, result, &mut conn)
-        .expect("could not save match result");
+    conn.transaction(|conn| {
+        for (player_id, player_outcome) in outcome.player_outcomes.iter().enumerate() {
+            let had_errors = player_outcome.had_errors || player_outcome.crashed;
+            db::matches::set_player_had_errors(match_id, player_id as i32, had_errors, conn)?;
+        }
+        db::matches::save_match_result(match_id, result, conn)
+    })
+    .expect("could not save match result");
 
     outcome
 }

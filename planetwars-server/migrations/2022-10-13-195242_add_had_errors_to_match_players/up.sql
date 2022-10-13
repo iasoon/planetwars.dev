@@ -1,0 +1,1 @@
+ALTER TABLE match_players ADD COLUMN had_errors boolean;

@@ -53,6 +53,7 @@ diesel::table! {
         match_id -> Int4,
         player_id -> Int4,
         bot_version_id -> Nullable<Int4>,
+        had_errors -> Nullable<Bool>,
     }
 }
 
