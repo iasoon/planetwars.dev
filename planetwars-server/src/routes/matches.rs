@@ -42,6 +42,7 @@ pub struct ListRecentMatchesParams {
     after: Option<NaiveDateTime>,
 
     bot: Option<String>,
+    opponent: Option<String>,
     outcome: Option<BotMatchOutcome>,
 }
 
@@ -70,8 +71,18 @@ pub async fn list_recent_matches(
         Some(bot_name) => {
             let bot = db::bots::find_bot_by_name(&bot_name, &mut conn)
                 .map_err(|_| StatusCode::BAD_REQUEST)?;
+
+            let opponent_id = if let Some(opponent_name) = params.opponent {
+                let opponent = db::bots::find_bot_by_name(&opponent_name, &mut conn)
+                    .map_err(|_| StatusCode::BAD_REQUEST)?;
+                Some(opponent.id)
+            } else {
+                None
+            };
+
             matches::list_bot_matches(
                 bot.id,
+                opponent_id,
                 params.outcome,
                 count,
                 params.before,
@@ -82,7 +93,7 @@ pub async fn list_recent_matches(
         None => matches::list_public_matches(count, params.before, params.after, &mut conn),
     };
 
-    let mut matches = matches_result.map_err(|_| StatusCode::BAD_REQUEST)?;
+    let mut matches = matches_result.expect("failed to get matches"); //.map_err(|_| StatusCode::BAD_REQUEST)?;
 
     let mut has_next = false;
     if matches.len() > requested_count {

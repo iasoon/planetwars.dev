@@ -14,6 +14,7 @@ use crate::schema::{bot_versions, bots, maps, match_players, matches};
 
 use super::bots::{Bot, BotVersion};
 use super::maps::Map;
+use super::match_queries::ListBotMatches;
 
 #[derive(Insertable)]
 #[diesel(table_name = matches)]
@@ -173,35 +174,23 @@ pub fn list_public_matches(
 
 pub fn list_bot_matches(
     bot_id: i32,
+    opponent_id: Option<i32>,
     outcome: Option<BotMatchOutcome>,
     amount: i64,
     before: Option<NaiveDateTime>,
     after: Option<NaiveDateTime>,
     conn: &mut PgConnection,
 ) -> QueryResult<Vec<FullMatchData>> {
-    let mut query = finished_public_matches_query(before, after)
-        .inner_join(match_players::table)
-        .inner_join(
-            bot_versions::table.on(match_players::bot_version_id.eq(bot_versions::id.nullable())),
-        )
-        .filter(bot_versions::bot_id.eq(bot_id))
-        .select(matches::all_columns);
+    let lbm = ListBotMatches {
+        bot_id,
+        opponent_id,
+        outcome,
+        before,
+        after,
+        amount,
+    };
 
-    if let Some(outcome) = outcome {
-        query = match outcome {
-            BotMatchOutcome::Win => {
-                query.filter(matches::winner.eq(match_players::player_id.nullable()))
-            }
-            BotMatchOutcome::Loss => {
-                query.filter(matches::winner.ne(match_players::player_id.nullable()))
-            }
-            BotMatchOutcome::Tie => query.filter(matches::winner.is_null()),
-        };
-    }
-
-    query = query.limit(amount);
-
-    let matches = query.get_results::<MatchBase>(conn)?;
+    let matches = lbm.get_results::<MatchBase>(conn)?;
     fetch_full_match_data(matches, conn)
 }
 
