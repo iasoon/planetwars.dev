@@ -44,12 +44,12 @@ pub async fn run_ranker(config: Arc<GlobalConfig>, db_pool: DbPool) {
             Some(map) => map,
         };
 
-        play_ranking_match(config.clone(), map, selected_bots, db_pool.clone()).await;
+        play_ranked_match(config.clone(), map, selected_bots, db_pool.clone()).await;
         recalculate_ratings(&mut db_conn).expect("could not recalculate ratings");
     }
 }
 
-async fn play_ranking_match(
+pub async fn play_ranked_match(
     config: Arc<GlobalConfig>,
     map: Map,
     selected_bots: Vec<(Bot, BotVersion)>,

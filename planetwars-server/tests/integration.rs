@@ -128,6 +128,21 @@ impl<'a> TestApp<'a> {
             .expect("could not get db connection");
         function(&mut db_conn)
     }
+
+    async fn play_public_match(&self, bot_names: &[&str], map_name: &str) {
+        let mut conn = self.db_pool.get().await.unwrap();
+        let map = db::maps::find_map_by_name(map_name, &mut conn).unwrap();
+
+        let mut bots = Vec::new();
+        for bot_name in bot_names.iter() {
+            let (bot, bot_version) =
+                db::bots::find_bot_with_version_by_name(bot_name, &mut conn).unwrap();
+            bots.push((bot, bot_version));
+        }
+
+        modules::ranking::play_ranked_match(self.config.clone(), map, bots, self.db_pool.clone())
+            .await;
+    }
 }
 
 async fn poll_match(app: &mut Router, match_id: &str) -> io::Result<Poll<JsonValue>> {
@@ -311,6 +326,68 @@ async fn test_sign_up_and_create_bot() -> io::Result<()> {
     .await
     .expect("fetching match result timed out")
     .expect("failed to get match result");
+
+    Ok(())
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_list_matches_with_errors() -> io::Result<()> {
+    let test_app = TestApp::create().await.unwrap();
+    test_app
+        .with_db_conn(|db_conn| {
+            clear_database(db_conn);
+            setup_simple_fixture(db_conn, &test_app.config);
+
+            let bot = db::bots::create_bot(
+                &db::bots::NewBot {
+                    owner_id: None,
+                    name: "testbot",
+                },
+                db_conn,
+            )
+            .expect("could not create bot");
+
+            let failing_code = "import sys; sys.exit(1)";
+
+            let _bot_version = modules::bots::save_code_string(
+                failing_code,
+                Some(bot.id),
+                db_conn,
+                &test_app.config,
+            )
+            .expect("could not save bot version");
+        })
+        .await;
+
+    test_app
+        .play_public_match(&["simplebot", "testbot"], "hex")
+        .await;
+
+    let mut app = create_pw_api(test_app.config, test_app.db_pool);
+
+    let response = app
+        .call(
+            Request::builder()
+                .method(http::Method::GET)
+                .header("Content-Type", "application/json")
+                .uri(format!("/api/matches?bot=testbot"))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = hyper::body::to_bytes(response.into_body()).await.unwrap();
+    let resp: JsonValue = serde_json::from_slice(&body).unwrap();
+
+    let matches = resp["matches"].as_array().unwrap();
+    assert_eq!(matches.len(), 1);
+    assert_eq!(
+        matches[0]["players"][0]["had_errors"].as_bool(),
+        Some(false)
+    );
+    assert_eq!(matches[0]["players"][1]["had_errors"].as_bool(), Some(true));
 
     Ok(())
 }

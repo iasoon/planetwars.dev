@@ -32,6 +32,7 @@ pub struct ApiMatchPlayer {
     bot_version_id: Option<i32>,
     bot_id: Option<i32>,
     bot_name: Option<String>,
+    had_errors: Option<bool>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -117,10 +118,11 @@ pub fn match_data_to_api(data: matches::FullMatchData) -> ApiMatch {
         players: data
             .match_players
             .iter()
-            .map(|_p| ApiMatchPlayer {
-                bot_version_id: _p.bot_version.as_ref().map(|cb| cb.id),
-                bot_id: _p.bot.as_ref().map(|b| b.id),
-                bot_name: _p.bot.as_ref().map(|b| b.name.clone()),
+            .map(|p| ApiMatchPlayer {
+                bot_version_id: p.bot_version.as_ref().map(|cb| cb.id),
+                bot_id: p.bot.as_ref().map(|b| b.id),
+                bot_name: p.bot.as_ref().map(|b| b.name.clone()),
+                had_errors: p.base.had_errors,
             })
             .collect(),
         winner: data.base.winner,
