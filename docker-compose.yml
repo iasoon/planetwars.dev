@@ -1,0 +1,11 @@
+version: "3"
+
+services:
+  db:
+    image: "postgres:14"
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: planetwars
+      POSTGRES_USER: planetwars
+      POSTGRES_PASSWORD: planetwars
