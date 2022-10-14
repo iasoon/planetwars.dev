@@ -177,6 +177,7 @@ pub fn list_bot_matches(
     bot_id: i32,
     opponent_id: Option<i32>,
     outcome: Option<BotMatchOutcome>,
+    had_errors: Option<bool>,
     amount: i64,
     before: Option<NaiveDateTime>,
     after: Option<NaiveDateTime>,
@@ -184,8 +185,9 @@ pub fn list_bot_matches(
 ) -> QueryResult<Vec<FullMatchData>> {
     let lbm = ListBotMatches {
         bot_id,
-        opponent_id,
         outcome,
+        had_errors,
+        opponent_id,
         before,
         after,
         amount,

@@ -389,5 +389,25 @@ async fn test_list_matches_with_errors() -> io::Result<()> {
     );
     assert_eq!(matches[0]["players"][1]["had_errors"].as_bool(), Some(true));
 
+    // test had_errors filter
+    // TODO: maybe write a dedicated test for all list_matches options
+    let response = app
+        .call(
+            Request::builder()
+                .method(http::Method::GET)
+                .header("Content-Type", "application/json")
+                .uri(format!("/api/matches?bot=testbot&had_errors=false"))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = hyper::body::to_bytes(response.into_body()).await.unwrap();
+    let resp: JsonValue = serde_json::from_slice(&body).unwrap();
+
+    let matches = resp["matches"].as_array().unwrap();
+    assert_eq!(matches.len(), 0);
     Ok(())
 }

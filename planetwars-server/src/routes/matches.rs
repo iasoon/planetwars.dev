@@ -44,6 +44,7 @@ pub struct ListRecentMatchesParams {
 
     bot: Option<String>,
     opponent: Option<String>,
+    had_errors: Option<bool>,
     outcome: Option<BotMatchOutcome>,
 }
 
@@ -85,6 +86,7 @@ pub async fn list_recent_matches(
                 bot.id,
                 opponent_id,
                 params.outcome,
+                params.had_errors,
                 count,
                 params.before,
                 params.after,

@@ -8,9 +8,12 @@ use diesel::{PgConnection, QueryResult, RunQueryDsl};
 
 pub struct ListBotMatches {
     pub bot_id: i32,
-    pub opponent_id: Option<i32>,
+    pub had_errors: Option<bool>,
     pub outcome: Option<BotMatchOutcome>,
 
+    pub opponent_id: Option<i32>,
+
+    // pagination options
     pub before: Option<NaiveDateTime>,
     pub after: Option<NaiveDateTime>,
     pub amount: i64,
@@ -29,6 +32,12 @@ impl QueryFragment<Pg> for ListBotMatches {
             "WHERE bot_id = "
         ));
         out.push_bind_param::<Integer, _>(&self.bot_id)?;
+
+        if let Some(had_errors) = self.had_errors.as_ref() {
+            out.push_sql(" AND match_players.had_errors = ");
+            out.push_bind_param::<Bool, _>(had_errors)?;
+        }
+
         out.push_sql(") main_player ON matches.id = main_player.match_id");
 
         if let Some(opponent_id) = self.opponent_id.as_ref() {
@@ -40,6 +49,7 @@ impl QueryFragment<Pg> for ListBotMatches {
                 "WHERE bot_id = "
             ));
             out.push_bind_param::<Integer, _>(opponent_id)?;
+
             out.push_sql(") other_player ON matches.id = other_player.match_id");
         }
 
