@@ -2,23 +2,12 @@
   import { onDestroy, onMount } from "svelte";
   import * as visualizer from "pw-visualizer";
   import init_wasm_module from "planetwars-rs";
+  import { PLAYER_COLORS } from "$lib/constants";
 
   export let matchLog = null;
   export let matchData: object; // match object as returned by api
 
   let initialized = false;
-
-  const PLAYER_COLORS = [
-    "#ff8000",
-    "#0080ff",
-    "#ff6693",
-    "#3fcb55",
-    "#cbc33f",
-    "#cf40e9",
-    "#ff3f0d",
-    "#1beef0",
-    "#0dc5ff",
-  ];
 
   onMount(async () => {
     await init_wasm_module();

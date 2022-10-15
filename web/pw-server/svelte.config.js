@@ -12,13 +12,13 @@ const config = {
   preprocess: [
     sveltePreprocess(),
     mdsvex({
-      extensions: ['.md'],
+      extensions: [".md"],
       layout: {
-        docs: 'src/routes/docs/doc.svelte',
-      }
+        docs: "src/routes/docs/doc.svelte",
+      },
     }),
   ],
-  extensions: ['.svelte', '.md'],
+  extensions: [".svelte", ".md"],
   kit: {
     adapter: adapter(),
 

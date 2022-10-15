@@ -12,7 +12,6 @@
   import { debounce } from "$lib/utils";
   import SubmitPane from "$lib/components/SubmitPane.svelte";
   import OutputPane from "$lib/components/OutputPane.svelte";
-  import BotName from "./bots/[bot_name].svelte";
 
   enum ViewMode {
     Editor,
