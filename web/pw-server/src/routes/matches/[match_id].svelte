@@ -25,6 +25,7 @@
   import PlayerLog from "$lib/components/PlayerLog.svelte";
   import Select from "svelte-select";
   import { PLAYER_COLORS } from "$lib/constants";
+  import { currentUser } from "$lib/stores/current_user";
 
   export let matchLog: string | undefined;
   export let matchData: object;
@@ -42,20 +43,38 @@
     playerId: index + 1, // stoopid player number + 1
     label: player["bot_name"],
   }));
+
+  // TODO: refactor match logs so that users can no longer get match logs for other players.
+  function currentUserCanSeeStdErr(matchPlayer: object): boolean {
+    if (!matchPlayer["owner_id"]) {
+      return true;
+    }
+
+    console.log(matchPlayer, $currentUser);
+    return matchPlayer["owner_id"] === $currentUser?.["user_id"];
+  }
+
+  $: showStdErr =
+    !!selectedPlayer && currentUserCanSeeStdErr(matchData["players"][selectedPlayer["value"]]);
 </script>
 
 <div class="container">
   <Visualizer {matchLog} {matchData} />
   <div class="output-pane">
     <div class="player-select">
-      <Select items={matchPlayerSelectItems} clearable={false} bind:value={selectedPlayer}>
+      <Select
+        items={matchPlayerSelectItems}
+        clearable={false}
+        searchable={false}
+        bind:value={selectedPlayer}
+      >
         <div slot="item" let:item>
           <span style:color={item.color}>{item.label}</span>
         </div>
       </Select>
     </div>
     <div class="player-log">
-      <PlayerLog {matchLog} playerId={selectedPlayer?.playerId} />
+      <PlayerLog {matchLog} playerId={selectedPlayer?.playerId} {showStdErr} />
     </div>
   </div>
 </div>

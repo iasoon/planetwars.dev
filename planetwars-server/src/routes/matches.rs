@@ -32,6 +32,7 @@ pub struct ApiMatchPlayer {
     bot_version_id: Option<i32>,
     bot_id: Option<i32>,
     bot_name: Option<String>,
+    owner_id: Option<i32>,
     had_errors: Option<bool>,
 }
 
@@ -124,6 +125,7 @@ pub fn match_data_to_api(data: matches::FullMatchData) -> ApiMatch {
                 bot_version_id: p.bot_version.as_ref().map(|cb| cb.id),
                 bot_id: p.bot.as_ref().map(|b| b.id),
                 bot_name: p.bot.as_ref().map(|b| b.name.clone()),
+                owner_id: p.bot.as_ref().and_then(|b| b.owner_id),
                 had_errors: p.base.had_errors,
             })
             .collect(),
