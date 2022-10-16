@@ -35,46 +35,61 @@
     matchLog = await apiClient.getText(`/api/matches/${matchData["id"]}/log`);
   });
 
-  let selectedPlayer;
-
-  $: matchPlayerSelectItems = matchData["players"].map((player: any, index: number) => ({
-    color: PLAYER_COLORS[index],
-    value: index,
-    playerId: index + 1, // stoopid player number + 1
-    label: player["bot_name"],
-  }));
+  $: playersWithVisibleLog = matchData["players"]
+    .map((player: any, index: number) => ({
+      color: PLAYER_COLORS[index],
+      value: index,
+      playerId: index + 1, // stoopid player number + 1
+      displayName: player["bot_name"] || "player",
+      matchPlayer: player,
+    }))
+    .filter((item) => canSeePlayerLog($currentUser, item.matchPlayer));
 
   // TODO: refactor match logs so that users can no longer get match logs for other players.
-  function currentUserCanSeeStdErr(matchPlayer: object): boolean {
+  function canSeePlayerLog(user: object | null, matchPlayer: object): boolean {
     if (!matchPlayer["owner_id"]) {
       return true;
     }
 
-    console.log(matchPlayer, $currentUser);
-    return matchPlayer["owner_id"] === $currentUser?.["user_id"];
+    return matchPlayer["owner_id"] === user?.["user_id"];
   }
 
-  $: showStdErr =
-    !!selectedPlayer && currentUserCanSeeStdErr(matchData["players"][selectedPlayer["value"]]);
+  // using the same value here causes svelte to freeze
+  let dropdownSelectedPlayer: any;
+  let selectedPlayer: any;
+  $: if (playersWithVisibleLog.length == 1) {
+    selectedPlayer = playersWithVisibleLog[0];
+  } else {
+    selectedPlayer = dropdownSelectedPlayer;
+  }
 </script>
 
 <div class="container">
   <Visualizer {matchLog} {matchData} />
   <div class="output-pane">
     <div class="player-select">
-      <Select
-        items={matchPlayerSelectItems}
-        clearable={false}
-        searchable={false}
-        bind:value={selectedPlayer}
-      >
-        <div slot="item" let:item>
-          <span style:color={item.color}>{item.label}</span>
-        </div>
-      </Select>
+      {#if playersWithVisibleLog.length == 1}
+        <h3 class="player-log-header">
+          player log for
+          <span style:color={selectedPlayer["color"]}>{selectedPlayer.displayName}</span>
+        </h3>
+      {:else}
+        <Select
+          items={playersWithVisibleLog}
+          label="displayName"
+          clearable={false}
+          searchable={false}
+          bind:value={dropdownSelectedPlayer}
+          placeholder="Select player to see logs"
+        >
+          <div slot="item" let:item>
+            <span style:color={item.color}>{item.displayName}</span>
+          </div>
+        </Select>
+      {/if}
     </div>
     <div class="player-log">
-      <PlayerLog {matchLog} playerId={selectedPlayer?.playerId} {showStdErr} />
+      <PlayerLog {matchLog} playerId={selectedPlayer?.["playerId"]} />
     </div>
   </div>
 </div>
@@ -90,7 +105,11 @@
   }
 
   .player-select {
-    padding: 20px;
+    padding: 0 20px;
+  }
+
+  .player-log-header {
+    color: #eee;
   }
 
   .player-log {
