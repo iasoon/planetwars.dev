@@ -5,8 +5,10 @@
     const apiClient = new ApiClient(fetch);
 
     try {
-      const [botData, matchesPage] = await Promise.all([
-        apiClient.get(`/api/bots/${params["bot_name"]}`),
+      const bot_name = params["bot_name"];
+      const [botData, botStats, matchesPage] = await Promise.all([
+        apiClient.get(`/api/bots/${bot_name}`),
+        apiClient.get(`/api/bots/${bot_name}/stats`),
         apiClient.get("/api/matches", { bot: params["bot_name"], count: "20" }),
       ]);
 
@@ -19,6 +21,7 @@
           bot,
           owner,
           versions,
+          botStats,
           matches: matchesPage["matches"],
         },
       };
@@ -41,7 +44,7 @@
   export let owner: object;
   export let versions: object[];
   export let matches: object[];
-
+  export let botStats: object;
   // function last_updated() {
   //   versions.sort()
   // }
