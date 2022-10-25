@@ -66,32 +66,34 @@
 
 <div class="container">
   <Visualizer {matchLog} {matchData} />
-  <div class="output-pane">
-    <div class="player-select">
-      {#if playersWithVisibleLog.length == 1}
-        <h3 class="player-log-header">
-          player log for
-          <span style:color={selectedPlayer["color"]}>{selectedPlayer.displayName}</span>
-        </h3>
-      {:else}
-        <Select
-          items={playersWithVisibleLog}
-          label="displayName"
-          clearable={false}
-          searchable={false}
-          bind:value={dropdownSelectedPlayer}
-          placeholder="Select player to see logs"
-        >
-          <div slot="item" let:item>
-            <span style:color={item.color}>{item.displayName}</span>
-          </div>
-        </Select>
-      {/if}
+  {#if playersWithVisibleLog.length > 0}
+    <div class="output-pane">
+      <div class="player-select">
+        {#if playersWithVisibleLog.length == 1}
+          <h3 class="player-log-header">
+            player log for
+            <span style:color={selectedPlayer["color"]}>{selectedPlayer.displayName}</span>
+          </h3>
+        {:else}
+          <Select
+            items={playersWithVisibleLog}
+            label="displayName"
+            clearable={false}
+            searchable={false}
+            bind:value={dropdownSelectedPlayer}
+            placeholder="Select player to see logs"
+          >
+            <div slot="item" let:item>
+              <span style:color={item.color}>{item.displayName}</span>
+            </div>
+          </Select>
+        {/if}
+      </div>
+      <div class="player-log">
+        <PlayerLog {matchLog} playerId={selectedPlayer?.["playerId"]} />
+      </div>
     </div>
-    <div class="player-log">
-      <PlayerLog {matchLog} playerId={selectedPlayer?.["playerId"]} />
-    </div>
-  </div>
+  {/if}
 </div>
 
 <style lang="scss">

@@ -8,11 +8,18 @@
       const apiClient = new ApiClient(fetch);
       const botName = url.searchParams.get("bot");
 
+      let searchParams = removeUndefined({
+        bot: url.searchParams.get("bot"),
+        opponent: url.searchParams.get("opponent"),
+        outcome: url.searchParams.get("outcome"),
+        had_errors: url.searchParams.get("had_errors"),
+      });
+
       let query = {
         count: PAGE_SIZE,
         before: url.searchParams.get("before"),
         after: url.searchParams.get("after"),
-        bot: botName,
+        ...searchParams,
       };
 
       let { matches, has_next } = await apiClient.get("/api/matches", removeUndefined(query));
@@ -28,6 +35,7 @@
           botName,
           hasNext: has_next,
           query,
+          searchParams,
         },
       };
     } catch (error) {
@@ -57,6 +65,7 @@
   // whether a next page exists in the current iteration direction (before/after)
   export let hasNext: boolean;
   export let query: object;
+  export let searchParams: object;
 
   type Cursor = {
     before?: string;
@@ -65,6 +74,7 @@
 
   function pageLink(cursor: Cursor) {
     let paramsObj = {
+      ...searchParams,
       ...cursor,
     };
     if (botName) {
