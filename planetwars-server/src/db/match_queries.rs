@@ -40,6 +40,7 @@ impl QueryFragment<Pg> for ListBotMatches {
 
         out.push_sql(") main_player ON matches.id = main_player.match_id");
 
+        // TODO: this won't work properly for matches with > 2 players
         if let Some(opponent_id) = self.opponent_id.as_ref() {
             out.push_sql(" JOIN (");
             out.push_sql(concat!(
@@ -70,11 +71,14 @@ impl QueryFragment<Pg> for ListBotMatches {
         if let Some(before) = self.before.as_ref() {
             out.push_sql(" AND matches.created_at < ");
             out.push_bind_param::<Timestamp, _>(before)?;
-            out.push_sql(" ORDER BY matches.created_at DESC");
         } else if let Some(after) = self.after.as_ref() {
             out.push_sql(" AND matches.created_at > ");
             out.push_bind_param::<Timestamp, _>(after)?;
-            out.push_sql(" ORDER BY matches.created_at ASC");
+        }
+        if self.after.is_some() {
+            out.push_sql(" ORDER BY matches.created_at ASC")
+        } else {
+            out.push_sql(" ORDER BY matches.created_at DESC")
         }
         out.push_sql(" LIMIT ");
         out.push_bind_param::<BigInt, _>(&self.amount)?;
