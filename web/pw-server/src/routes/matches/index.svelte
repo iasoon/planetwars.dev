@@ -85,7 +85,8 @@
   }
 
   function olderMatchesLink(matches: object[]): string {
-    if (matches.length == 0 || (query["before"] && !hasNext)) {
+    // sort order is time DESC unless "before" is set
+    if (matches.length == 0 || (!query["after"] && !hasNext)) {
       return null;
     }
     const lastTimestamp = matches[matches.length - 1]["timestamp"];
