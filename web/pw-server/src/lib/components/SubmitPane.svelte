@@ -113,8 +113,8 @@
     <div class="play-text">Opponent</div>
     <div class="opponent-select">
       <Select
-        optionIdentifier="name"
-        labelIdentifier="name"
+        itemId="name"
+        label="name"
         items={availableBots}
         bind:value={$selectedOpponent}
         isClearable={false}
@@ -123,8 +123,8 @@
     <span>Map</span>
     <div class="map-select">
       <Select
-        optionIdentifier="name"
-        labelIdentifier="name"
+        itemId="name"
+        label="name"
         items={maps}
         bind:value={$selectedMap}
         isClearable={false}
