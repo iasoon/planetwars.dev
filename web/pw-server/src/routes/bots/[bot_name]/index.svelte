@@ -6,10 +6,11 @@
 
     try {
       const bot_name = params["bot_name"];
-      const [botData, botStats, matchesPage] = await Promise.all([
+      const [botData, botStats, matchesPage, errorMatchesPage] = await Promise.all([
         apiClient.get(`/api/bots/${bot_name}`),
         apiClient.get(`/api/bots/${bot_name}/stats`),
         apiClient.get("/api/matches", { bot: params["bot_name"], count: "20" }),
+        apiClient.get("/api/matches", { bot: params["bot_name"], count: "10", had_errors: true }),
       ]);
 
       const { bot, owner, versions } = botData;
@@ -23,6 +24,7 @@
           versions,
           botStats,
           matches: matchesPage["matches"],
+          errorMatches: errorMatchesPage["matches"],
         },
       };
     } catch (error) {
@@ -44,31 +46,7 @@
   export let owner: object;
   export let versions: object[];
   export let matches: object[];
-  export let botStats: object;
-  // function last_updated() {
-  //   versions.sort()
-  // }
-
-  // let files;
-
-  // async function submitCode() {
-  //   console.log("click");
-  //   const token = get_session_token();
-
-  //   const formData = new FormData();
-  //   formData.append("File", files[0]);
-
-  //   const res = await fetch(`/api/bots/${bot["id"]}/upload`, {
-  //     method: "POST",
-  //     headers: {
-  //       // the content type header will be set by the browser
-  //       Authorization: `Bearer ${token}`,
-  //     },
-  //     body: formData,
-  //   });
-
-  //   console.log(res.statusText);
-  // }
+  export let errorMatches: object[];
 </script>
 
 <!-- 
@@ -113,6 +91,20 @@
         This bot does not have any versions yet.
       {/if}
     </div>
+
+    <div class="matches">
+      <h3>Matches with errors</h3>
+      <MatchList matches={errorMatches} />
+      {#if errorMatches.length > 0}
+        <div class="btn-container">
+          <LinkButton href={`/matches?bot=${bot["name"]}&had_errors=true`}>View all</LinkButton>
+        </div>
+      {:else}
+        <div class="table-placeholder">
+          Nothing here yet
+        </div>
+      {/if}
+    </div>
   {/if}
 
   <div class="matches">
@@ -121,6 +113,10 @@
     {#if matches.length > 0}
       <div class="btn-container">
         <LinkButton href={`/matches?bot=${bot["name"]}`}>All matches</LinkButton>
+      </div>
+    {:else}
+      <div class="table-placeholder">
+        No matches played yet
       </div>
     {/if}
   </div>
@@ -131,6 +127,7 @@
     width: 800px;
     max-width: 80%;
     margin: 50px auto;
+    padding-bottom: 24px;
   }
 
   .header {
@@ -157,6 +154,11 @@
 
   .btn-container {
     padding: 24px;
+    text-align: center;
+  }
+
+  .table-placeholder {
+    padding: 12px;
     text-align: center;
   }
 
