@@ -117,7 +117,7 @@
         label="name"
         items={availableBots}
         bind:value={$selectedOpponent}
-        isClearable={false}
+        clearable={false}
       />
     </div>
     <span>Map</span>
@@ -127,7 +127,7 @@
         label="name"
         items={maps}
         bind:value={$selectedMap}
-        isClearable={false}
+        clearable={false}
       />
     </div>
     <button class="submit-button play-button" on:click={submitBot}>Play</button>

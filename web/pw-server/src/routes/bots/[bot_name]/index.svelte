@@ -10,7 +10,7 @@
         apiClient.get(`/api/bots/${bot_name}`),
         apiClient.get(`/api/bots/${bot_name}/stats`),
         apiClient.get("/api/matches", { bot: params["bot_name"], count: "20" }),
-        apiClient.get("/api/matches", { bot: params["bot_name"], count: "10", had_errors: true }),
+        apiClient.get("/api/matches", { bot: params["bot_name"], count: "10", had_errors: "true" }),
       ]);
 
       const { bot, owner, versions } = botData;
