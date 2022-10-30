@@ -176,6 +176,7 @@ pub fn list_public_matches(
 pub fn list_bot_matches(
     bot_id: i32,
     opponent_id: Option<i32>,
+    map_id: Option<i32>,
     outcome: Option<BotMatchOutcome>,
     had_errors: Option<bool>,
     amount: i64,
@@ -188,6 +189,7 @@ pub fn list_bot_matches(
         outcome,
         had_errors,
         opponent_id,
+        map_id,
         before,
         after,
         amount,

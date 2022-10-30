@@ -45,6 +45,7 @@ pub struct ListRecentMatchesParams {
 
     bot: Option<String>,
     opponent: Option<String>,
+    map: Option<String>,
     had_errors: Option<bool>,
     outcome: Option<BotMatchOutcome>,
 }
@@ -72,6 +73,7 @@ pub async fn list_recent_matches(
 
     let matches_result = match params.bot {
         Some(bot_name) => {
+            // TODO: do we prefer BAD_REQUEST for invalid parameters, or do we want to return an empty response?
             let bot = db::bots::find_bot_by_name(&bot_name, &mut conn)
                 .map_err(|_| StatusCode::BAD_REQUEST)?;
 
@@ -83,9 +85,18 @@ pub async fn list_recent_matches(
                 None
             };
 
+            let map_id = if let Some(ref map_name) = params.map {
+                let map = db::maps::find_map_by_name(map_name, &mut conn)
+                    .map_err(|_| StatusCode::BAD_REQUEST)?;
+                Some(map.id)
+            } else {
+                None
+            };
+
             matches::list_bot_matches(
                 bot.id,
                 opponent_id,
+                map_id,
                 params.outcome,
                 params.had_errors,
                 count,

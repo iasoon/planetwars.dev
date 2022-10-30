@@ -12,6 +12,7 @@ pub struct ListBotMatches {
     pub outcome: Option<BotMatchOutcome>,
 
     pub opponent_id: Option<i32>,
+    pub map_id: Option<i32>,
 
     // pagination options
     pub before: Option<NaiveDateTime>,
@@ -55,6 +56,10 @@ impl QueryFragment<Pg> for ListBotMatches {
         }
 
         out.push_sql(" WHERE matches.state = 'finished' AND matches.is_public = true");
+        if let Some(map_id) = self.map_id.as_ref() {
+            out.push_sql(" AND matches.map_id = ");
+            out.push_bind_param::<Integer, _>(map_id)?;
+        }
         if let Some(outcome) = self.outcome.as_ref() {
             match outcome {
                 BotMatchOutcome::Win => {
