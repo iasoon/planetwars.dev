@@ -65,9 +65,9 @@ Example command:
     }
   ]
 }
+```
 
 You can dispatch as many expeditions as you like.
-```
 
 ## Rules
 

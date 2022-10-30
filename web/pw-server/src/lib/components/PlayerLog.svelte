@@ -3,6 +3,7 @@
 
   export let matchLog: string;
   export let playerId: number;
+  export let showStdErr: boolean = true;
 
   let playerLog: PlayerLog;
 
@@ -66,7 +67,7 @@
               <div class="bad-command-error">Parse error: {logTurn.action.error}</div>
             </div>
           {/if}
-          {#if logTurn.stderr.length > 0}
+          {#if showStdErr && logTurn.stderr.length > 0}
             <div class="stderr-header">stderr</div>
             <div class="stderr-text-box">
               {#each logTurn.stderr as stdErrMsg}

@@ -100,9 +100,7 @@
           <LinkButton href={`/matches?bot=${bot["name"]}&had_errors=true`}>View all</LinkButton>
         </div>
       {:else}
-        <div class="table-placeholder">
-          Nothing here yet
-        </div>
+        <div class="table-placeholder">Nothing here yet</div>
       {/if}
     </div>
   {/if}
@@ -115,9 +113,7 @@
         <LinkButton href={`/matches?bot=${bot["name"]}`}>All matches</LinkButton>
       </div>
     {:else}
-      <div class="table-placeholder">
-        No matches played yet
-      </div>
+      <div class="table-placeholder">No matches played yet</div>
     {/if}
   </div>
 </div>

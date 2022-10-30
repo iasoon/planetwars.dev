@@ -39,6 +39,7 @@
     <a class="current-user-name" href="/users/{$currentUser['username']}">
       {$currentUser["username"]}
     </a>
+    <!-- svelte-ignore a11y-click-events-have-key-events -->
     <div class="sign-out" on:click={signOut}>Sign out</div>
   {:else}
     <a class="account-href" href="/login">Sign in</a>

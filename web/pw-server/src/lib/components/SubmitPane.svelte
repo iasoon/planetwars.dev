@@ -122,13 +122,7 @@
     </div>
     <span>Map</span>
     <div class="map-select">
-      <Select
-        itemId="name"
-        label="name"
-        items={maps}
-        bind:value={$selectedMap}
-        clearable={false}
-      />
+      <Select itemId="name" label="name" items={maps} bind:value={$selectedMap} clearable={false} />
     </div>
     <button class="submit-button play-button" on:click={submitBot}>Play</button>
   </div>
