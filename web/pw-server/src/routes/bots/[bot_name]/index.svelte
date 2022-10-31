@@ -57,15 +57,6 @@
 </form> -->
 
 <div class="container">
-  <div class="header">
-    <h1 class="bot-name">{bot["name"]}</h1>
-    {#if owner}
-      <a class="owner-name" href="/users/{owner['username']}">
-        {owner["username"]}
-      </a>
-    {/if}
-  </div>
-
   {#if $currentUser && $currentUser["user_id"] === bot["owner_id"]}
     <div>
       <!-- TODO: can we avoid hardcoding the url? -->
@@ -124,28 +115,6 @@
     max-width: 80%;
     margin: 50px auto;
     padding-bottom: 24px;
-  }
-
-  .header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-end;
-    margin-bottom: 60px;
-    border-bottom: 1px solid black;
-  }
-
-  $header-space-above-line: 12px;
-
-  .bot-name {
-    font-size: 24pt;
-    margin-bottom: $header-space-above-line;
-  }
-
-  .owner-name {
-    font-size: 14pt;
-    text-decoration: none;
-    color: #333;
-    margin-bottom: $header-space-above-line;
   }
 
   .btn-container {

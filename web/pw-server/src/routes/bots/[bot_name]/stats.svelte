@@ -12,11 +12,10 @@
         apiClient.get("/api/leaderboard"),
       ]);
 
-      const { bot, owner } = botData;
+      const { bot } = botData;
       return {
         props: {
           bot,
-          owner,
           botStats,
           leaderboard,
         },
@@ -29,7 +28,7 @@
     }
   }
 
-  function mergedStats(rawStats: object) {
+  function calcMergedStats(rawStats: object) {
     return Object.fromEntries(
       Object.entries(rawStats).map(([opponent, ms]) => {
         const mapStats = ms as { k: MatchupStats };
@@ -59,23 +58,13 @@
 
 <script lang="ts">
   export let bot: object;
-  export let owner: object;
   export let botStats: object;
   export let leaderboard: object[];
 
-  $: mergedStats = mergedStats(botStats);
+  $: mergedStats = calcMergedStats(botStats);
 </script>
 
 <div class="container">
-  <div class="header">
-    <h1 class="bot-name">{bot["name"]}</h1>
-    {#if owner}
-      <a class="owner-name" href="/users/{owner['username']}">
-        {owner["username"]}
-      </a>
-    {/if}
-  </div>
-  <h2>Stats</h2>
   <table class="leaderboard">
     <tr class="leaderboard-row leaderboard-header">
       <th class="leaderboard-rank">Rank</th>
