@@ -16,6 +16,8 @@
 </script>
 
 <script lang="ts">
+  import { currentUser } from "$lib/stores/current_user";
+
   export let bot;
   export let owner;
 </script>
@@ -36,6 +38,9 @@
     <a class="bot-tab" href={`/bots/${bot.name}`}>index</a>
     <a class="bot-tab" href={`/bots/${bot.name}/matches`}>matches</a>
     <a class="bot-tab" href={`/bots/${bot.name}/stats`}>stats</a>
+    {#if $currentUser && $currentUser["user_id"] === bot["owner_id"]}
+      <a class="bot-tab" href={`/bots/${bot.name}/versions`}>versions</a>
+    {/if}
   </div>
 </div>
 <slot />

@@ -20,8 +20,6 @@
       return {
         props: {
           bot,
-          owner,
-          versions,
           botStats,
           matches: matchesPage["matches"],
           errorMatches: errorMatchesPage["matches"],
@@ -43,8 +41,6 @@
   import LinkButton from "$lib/components/LinkButton.svelte";
 
   export let bot: object;
-  export let owner: object;
-  export let versions: object[];
   export let matches: object[];
   export let errorMatches: object[];
 </script>
@@ -58,31 +54,6 @@
 
 <div class="container">
   {#if $currentUser && $currentUser["user_id"] === bot["owner_id"]}
-    <div>
-      <!-- TODO: can we avoid hardcoding the url? -->
-      Publish a new version by pushing a docker container to
-      <code>registry.planetwars.dev/{bot["name"]}:latest</code>, or using the web editor.
-    </div>
-
-    <div class="versions">
-      <h3>Versions</h3>
-      <ul class="version-list">
-        {#each versions.slice(0, 10) as version}
-          <li class="bot-version">
-            {dayjs(version["created_at"]).format("YYYY-MM-DD HH:mm")}
-            {#if version["container_digest"]}
-              <span class="container-digest">{version["container_digest"]}</span>
-            {:else}
-              <a href={`/code/${version["id"]}`}>view code</a>
-            {/if}
-          </li>
-        {/each}
-      </ul>
-      {#if versions.length == 0}
-        This bot does not have any versions yet.
-      {/if}
-    </div>
-
     <div class="matches">
       <h3>Matches with errors</h3>
       <MatchList matches={errorMatches} />
@@ -125,19 +96,5 @@
   .table-placeholder {
     padding: 12px;
     text-align: center;
-  }
-
-  .versions {
-    margin: 30px 0;
-  }
-
-  .version-list {
-    padding: 0;
-  }
-
-  .bot-version {
-    display: flex;
-    justify-content: space-between;
-    padding: 4px 24px;
   }
 </style>
