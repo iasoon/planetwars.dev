@@ -16,7 +16,8 @@
 </script>
 
 <script lang="ts">
-  import { currentUser } from "$lib/stores/current_user";
+  import NavTab from "$lib/components/NavTab.svelte";
+import { currentUser } from "$lib/stores/current_user";
 
   export let bot;
   export let owner;
@@ -35,11 +36,11 @@
     {/if}
   </div>
   <div class="bot-tabs">
-    <a class="bot-tab" href={`/bots/${bot.name}`}>index</a>
-    <a class="bot-tab" href={`/bots/${bot.name}/matches`}>matches</a>
-    <a class="bot-tab" href={`/bots/${bot.name}/stats`}>stats</a>
+    <NavTab href={`/bots/${bot.name}`}>index</NavTab>
+    <NavTab href={`/bots/${bot.name}/matches`}>matches</NavTab>
+    <NavTab href={`/bots/${bot.name}/stats`}>stats</NavTab>
     {#if $currentUser && $currentUser["user_id"] === bot["owner_id"]}
-      <a class="bot-tab" href={`/bots/${bot.name}/versions`}>versions</a>
+      <NavTab href={`/bots/${bot.name}/versions`}>versions</NavTab>
     {/if}
   </div>
 </div>
@@ -78,15 +79,5 @@
 
   .bot-tabs {
     display: flex;
-  }
-
-  .bot-tab {
-    padding: 8px;
-    text-decoration: none;
-    color: black;
-  }
-
-  .bot-tab:hover {
-    background-color: rgb(246, 248, 250);
   }
 </style>
