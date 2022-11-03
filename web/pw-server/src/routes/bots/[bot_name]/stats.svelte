@@ -116,28 +116,6 @@
     margin: 50px auto;
   }
 
-  .header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-end;
-    margin-bottom: 60px;
-    border-bottom: 1px solid black;
-  }
-
-  $header-space-above-line: 12px;
-
-  .bot-name {
-    font-size: 24pt;
-    margin-bottom: $header-space-above-line;
-  }
-
-  .owner-name {
-    font-size: 14pt;
-    text-decoration: none;
-    color: #333;
-    margin-bottom: $header-space-above-line;
-  }
-
   .leaderboard {
     margin: 18px 10px;
     text-align: center;

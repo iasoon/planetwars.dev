@@ -52,6 +52,7 @@
     font-size: 18px;
     font-family: Helvetica, sans-serif;
     padding: 4px 8px;
+    font-weight: 400;
   }
 
   .account-href {
@@ -75,5 +76,13 @@
   .user-controls {
     display: flex;
     align-items: center;
+  }
+
+  // TODO: pretty hacky
+  @media screen and (max-width: 600px) {
+    .user-controls {
+      flex-direction: column;
+      align-items: flex-start;
+    }
   }
 </style>
