@@ -17,11 +17,15 @@
 
 <script lang="ts">
   import NavTab from "$lib/components/NavTab.svelte";
-import { currentUser } from "$lib/stores/current_user";
+  import { currentUser } from "$lib/stores/current_user";
 
   export let bot;
   export let owner;
 </script>
+
+<svelte:head>
+  <title>{bot["name"]}</title>
+</svelte:head>
 
 <div class="header">
   <div class="header-title-line">

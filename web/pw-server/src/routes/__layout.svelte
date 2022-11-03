@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { afterNavigate, beforeNavigate } from "$app/navigation";
+  import { afterNavigate, beforeNavigate } from "$app/navigation";
   import UserControls from "$lib/components/navbar/UserControls.svelte";
 
   import "./style.css";
@@ -15,12 +15,17 @@
   });
 </script>
 
+<svelte:head>
+  <title>Planetwars</title>
+</svelte:head>
+
 <div class="outer-container">
   <div class="navbar" class:expanded={isExpanded}>
     <div class="navbar-left">
-      <div class="navbar-header">
-        <a href="/">PlanetWars</a>
-      </div>
+      <a href="/" class="navbar-header">
+        <img alt="logo" src="/ship.svg" height="32px'" />
+        PlanetWars
+      </a>
       <div class="navbar-item">
         <a href="/editor">Editor</a>
       </div>
@@ -30,17 +35,14 @@
       <div class="navbar-item">
         <a href="/docs/rules">How to play</a>
       </div>
-      <div class="navbar-divider"></div>
+      <div class="navbar-divider" />
       <div class="navbar-item">
         <UserControls />
       </div>
-
     </div>
     <!-- <div class="navbar-right">
     </div> -->
-    <div class="navbar-expand" on:click={toggleExpanded}>
-      expand
-    </div>
+    <div class="navbar-expand" on:click={toggleExpanded}>expand</div>
   </div>
   <slot />
 </div>
@@ -48,7 +50,7 @@
 <style lang="scss" global>
   @import "src/styles/global.scss";
 
-  $navbarHeight: 48px;
+  $navbarHeight: 52px;
 
   .outer-container {
     width: 100vw;
@@ -59,6 +61,7 @@
 
   .navbar {
     height: $navbarHeight;
+    // height: 52px;
     background-color: $bg-color;
     border-bottom: 1px solid;
     flex-shrink: 0;
@@ -70,6 +73,7 @@
   .navbar-left {
     display: flex;
     width: 100%;
+    align-items: center;
   }
 
   .navbar-right {
@@ -82,13 +86,20 @@
 
   .navbar-header {
     height: $navbarHeight;
-    padding-top: 12px;
     padding-right: 24px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
   }
 
-  .navbar-header a {
+  .navbar-header img {
+    display: block;
+  }
+
+  .navbar-header {
     font-size: 20px;
     color: #fff;
+    font-weight: 500;
     text-decoration: none;
   }
   .navbar-item {
@@ -104,10 +115,9 @@
 
   .navbar-expand {
     color: white;
-    // margin: auto 0px;
     display: none;
     font-size: 16px;
-    padding-top: 14px;
+    height: $navbarHeight;
   }
   @media screen and (max-width: 600px) {
     .navbar-item {
@@ -124,6 +134,7 @@
 
     .navbar.expanded .navbar-left {
       flex-direction: column;
+      align-items: flex-start;
     }
 
     .navbar.expanded .navbar-item {
@@ -140,7 +151,8 @@
     }
 
     .navbar-expand {
-      display: block;
+      display: flex;
+      align-items: center;
     }
   }
 </style>

@@ -1,12 +1,12 @@
 <script lang="ts">
-  import { page } from '$app/stores';
+  import { page } from "$app/stores";
   export let href: string;
 
   $: isActive = $page.url.pathname == href;
 </script>
 
 <a class="nav-tab" {href} class:active={isActive}>
-  <slot></slot>
+  <slot />
 </a>
 
 <style lang="scss">
