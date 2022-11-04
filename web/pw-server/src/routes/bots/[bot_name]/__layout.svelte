@@ -23,10 +23,6 @@
   export let owner;
 </script>
 
-<svelte:head>
-  <title>{bot["name"]}</title>
-</svelte:head>
-
 <div class="header">
   <div class="header-title-line">
     <h1 class="bot-name">{bot["name"]}</h1>
