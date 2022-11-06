@@ -140,6 +140,7 @@ export class GameInstance {
 
   renderer: Renderer;
   planet_count: number;
+  planet_names: string[];
 
   vor_builder: VoronoiBuilder;
 
@@ -162,7 +163,12 @@ export class GameInstance {
   ) {
     this.game = game;
     const planets = game.get_planets();
-    this.planet_count = planets.length;
+    this.planet_count = planets.length / 3;
+
+    this.planet_names = [];
+    for (let i = 0; i < this.planet_count; i++) {
+      this.planet_names.push(this.game.get_planet_name(i));
+    }
 
     this.shader = shaders["normal"].create_shader(GL, {
       MAX_CIRCLES: "" + planets.length,
@@ -285,12 +291,30 @@ export class GameInstance {
           1,
           0,
           -planets[i * 3],
-          -planets[i * 3 + 1] - 1.171875,
+          -planets[i * 3 + 1] + 0.2 - 2*1.171875,
           1,
         ]);
 
         const label = this.msdf_text_factory.build(GL, transform);
         this.planet_labels.push(label);
+        this.renderer.addRenderable(label.getRenderable(), LAYERS.planet_label);
+      }
+
+      {
+        const transform = new UniformMatrix3fv([
+          1,
+          0,
+          0,
+          0,
+          1,
+          0,
+          -planets[i * 3],
+          -planets[i * 3 + 1] + 0.2 - 1*1.171875,
+          1,
+        ]);
+
+        const label = this.msdf_text_factory.build(GL, transform);
+        label.setText(GL, this.planet_names[i], Align.Middle, Align.Begin);
         this.renderer.addRenderable(label.getRenderable(), LAYERS.planet_label);
       }
     }
@@ -337,6 +361,7 @@ export class GameInstance {
 
       this.planet_labels[i].setText(
         GL,
+        // this.planet_names[i] + " " + 
         "" + planet_ships[i],
         Align.Middle,
         Align.Begin

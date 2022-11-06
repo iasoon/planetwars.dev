@@ -150,7 +150,6 @@ pub struct Game {
 
     planet_map: HashMap<(String, String), Circle>,
 
-    /* put extra shit here */
     view_box: Vec<f32>,
 
     planets: Vec<f32>,
@@ -238,6 +237,10 @@ impl Game {
 
     pub fn get_planet_colors(&self) -> Vec<f32> {
         self.current_planet_colours.clone()
+    }
+
+    pub fn get_planet_name(&self, planet_idx: usize) -> String {
+        self.states[self.turn].planets[planet_idx].name.clone()
     }
 
     pub fn turn_count(&self) -> usize {
