@@ -25,6 +25,7 @@ import { defaultLabelFactory, LabelFactory, Align, Label } from "./webgl/text";
 import { VoronoiBuilder } from "./voronoi/voronoi";
 import * as assets from "./assets";
 import { loadImage, Texture } from "./webgl/texture";
+import { defaultMsdfLabelFactory, MsdfLabelFactory, Label as MsdfLabel } from "./webgl/msdf_text";
 
 
 function to_bbox(box: number[]): BBox {
@@ -84,7 +85,7 @@ export function init() {
   
   ms_per_frame = parseInt(ELEMENTS["speed"].value);
   
-  GL = CANVAS.getContext("webgl");
+  GL = CANVAS.getContext("webgl", { antialias: true });
   
   GL.clearColor(0, 0, 0, 1);
   GL.clear(GL.COLOR_BUFFER_BIT);
@@ -124,9 +125,12 @@ export class GameInstance {
   image_shader: Shader;
   masked_image_shader: Shader;
 
+  msdf_shader: Shader;
+
   text_factory: LabelFactory;
-  planet_labels: Label[];
-  ship_labels: Label[];
+  msdf_text_factory: MsdfLabelFactory;
+  planet_labels: MsdfLabel[];
+  ship_labels: MsdfLabel[];
 
   ship_ibo: IndexBuffer;
   ship_vao: VertexArray;
@@ -153,6 +157,7 @@ export class GameInstance {
     planets_textures: Texture[],
     ship_texture: Texture,
     font_texture: Texture,
+    robotoMsdfTexture: Texture,
     shaders: Dictionary<ShaderFactory>
   ) {
     this.game = game;
@@ -168,7 +173,9 @@ export class GameInstance {
     });
     this.masked_image_shader = shaders["masked_image"].create_shader(GL);
 
+    this.msdf_shader = shaders["msdf"].create_shader(GL);
     this.text_factory = defaultLabelFactory(GL, font_texture, this.image_shader);
+    this.msdf_text_factory = defaultMsdfLabelFactory(GL, robotoMsdfTexture, this.msdf_shader);
     this.planet_labels = [];
     this.ship_labels = [];
 
@@ -278,11 +285,11 @@ export class GameInstance {
           1,
           0,
           -planets[i * 3],
-          -planets[i * 3 + 1] - 1.2,
+          -planets[i * 3 + 1] - 1.171875,
           1,
         ]);
 
-        const label = this.text_factory.build(GL, transform);
+        const label = this.msdf_text_factory.build(GL, transform);
         this.planet_labels.push(label);
         this.renderer.addRenderable(label.getRenderable(), LAYERS.planet_label);
       }
@@ -330,7 +337,7 @@ export class GameInstance {
 
       this.planet_labels[i].setText(
         GL,
-        "*" + planet_ships[i],
+        "" + planet_ships[i],
         Align.Middle,
         Align.Begin
       );
@@ -375,7 +382,7 @@ export class GameInstance {
 
       const renderable = new DefaultRenderable(ib, vao, this.masked_image_shader, [this.ship_texture], {});
       this.renderer.addRenderable(renderable, LAYERS.ship);
-      const label = this.text_factory.build(GL);
+      const label = this.msdf_text_factory.build(GL);
 
       this.ship_labels.push(label);
       this.renderer.addRenderable(label.getRenderable(), LAYERS.ship_label);
@@ -451,10 +458,11 @@ export class GameInstance {
       this.shader,
       this.image_shader,
       this.masked_image_shader,
+      this.msdf_shader,
     ];
 
 
-    // If not playing, still reder with different viewbox, so people can still pan etc.
+    // If not playing, still render with different viewbox, so that panning is still possible
     if (!this.playing) {
       this.last_time = time;
 
@@ -595,6 +603,7 @@ export async function set_instance(source: string): Promise<GameInstance> {
       loadImage(assets.fontPng),
       loadImage(assets.shipPng),
       loadImage(assets.earthPng),
+      loadImage(assets.robotoMsdfPng),
     ];
 
     const shader_promies = [
@@ -630,7 +639,14 @@ export async function set_instance(source: string): Promise<GameInstance> {
             assets.simpleVertexShader,
           ),
         ])(),
-
+      (async () =>
+        <[string, ShaderFactory]>[
+          "msdf",
+          await ShaderFactory.create_factory(
+            assets.msdfFragmentShader,
+            assets.simpleVertexShader,
+          ),
+        ])(),
     ];
     let shaders_array: [string, ShaderFactory][];
     [texture_images, shaders_array] = await Promise.all([
@@ -646,12 +662,15 @@ export async function set_instance(source: string): Promise<GameInstance> {
   const fontTexture = Texture.fromImage(GL, texture_images[0], "font");
   const shipTexture = Texture.fromImage(GL, texture_images[1], "ship");
   const earthTexture = Texture.fromImage(GL, texture_images[2], "earth");
+  const robotoMsdfTexture = Texture.fromImage(GL, texture_images[3], "robotoMsdf");
+
 
   game_instance = new GameInstance(
     Game.new(source),
     [earthTexture],
     shipTexture,
     fontTexture,
+    robotoMsdfTexture,
     shaders
   );
 

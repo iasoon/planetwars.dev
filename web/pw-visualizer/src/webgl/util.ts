@@ -74,6 +74,7 @@ export class Resizer {
     mouse_pos = [0, 0];
     last_drag = [0, 0];
 
+    // x, y, w, h
     viewbox: number[];
     orig_viewbox: number[];
 
