@@ -35,12 +35,14 @@
     "vite-plugin-wasm-pack": "^0.1.9"
   },
   "dependencies": {
+    "@fortawesome/free-solid-svg-icons": "^6.2.0",
     "@sveltejs/adapter-node": "^1.0.0-next.69",
     "@types/luxon": "^2.0.9",
     "ace-builds": "^1.4.14",
     "dayjs": "^1.10.7",
     "planetwars-rs": "file:../planetwars-rs/pkg",
     "pw-visualizer": "file:../pw-visualizer",
+    "svelte-fa": "^3.0.3",
     "svelte-select": "^5.0.0-beta.31"
   },
   "type": "module"

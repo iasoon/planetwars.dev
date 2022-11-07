@@ -2,9 +2,12 @@
   import { afterNavigate } from "$app/navigation";
 
   import "./style.css";
+  import Fa from 'svelte-fa'
+  import { faBars } from '@fortawesome/free-solid-svg-icons'
 
   import { get_session_token, clear_session_token } from "$lib/auth";
   import { currentUser } from "$lib/stores/current_user";
+  
 
   import { onMount } from "svelte";
 
@@ -60,7 +63,7 @@
       <img alt="logo" src="/ship.svg" height="32px'" />
       PlanetWars
     </a>
-    <div class="navbar-expand" on:click={toggleExpanded}>expand</div>
+    <div class="navbar-expand" on:click={toggleExpanded}><Fa icon={faBars} /></div>
     <div class="navbar-items">
       <div class="navbar-item">
         <a href="/editor">Editor</a>
@@ -184,6 +187,7 @@
     display: none;
     font-size: 16px;
     height: $navbarHeight;
+    cursor: pointer;
   }
   @media screen and (max-width: 600px) {
     .navbar-items {
