@@ -2,6 +2,7 @@
   import { onDestroy, onMount } from "svelte";
   import * as visualizer from "pw-visualizer";
   import init_wasm_module from "planetwars-rs";
+  import planetwars_wasm_module from "planetwars-rs/planetwars_rs_bg.wasm?url";
   import { PLAYER_COLORS } from "$lib/constants";
 
   export let matchLog = null;
@@ -10,7 +11,7 @@
   let initialized = false;
 
   onMount(async () => {
-    await init_wasm_module();
+    await init_wasm_module(planetwars_wasm_module);
 
     visualizer.init();
     initialized = true;
