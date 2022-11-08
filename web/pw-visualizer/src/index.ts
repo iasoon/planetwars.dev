@@ -361,7 +361,6 @@ export class GameInstance {
 
       this.planet_labels[i].setText(
         GL,
-        // this.planet_names[i] + " " + 
         "" + planet_ships[i],
         Align.Middle,
         Align.Begin
@@ -563,15 +562,8 @@ export class GameInstance {
 
   updateTurn(turn: number) {
     this.frame = Math.max(0, turn);
-    const new_frame = this.game.update_turn(this.frame);
-    if (new_frame < this.frame) {
-      this.frame = new_frame;
-      this.playing = false;
-    } else {
-      this._update_state();
-      this.playing = true;
-    }
-
+    this.game.update_turn(this.frame);
+    this._update_state();
     this.updateTurnCounters();
   }
 
@@ -583,36 +575,17 @@ export class GameInstance {
   } 
 
   handleKey(event: KeyboardEvent) {
-    // Space
-    if (event.keyCode == 32) {
-      if (this.playing) {
-        this.playing = false;
-      } else {
-        this.playing = true;
-      }
-    }
-
-    // Arrow left
-    if (event.keyCode == 37) {
-      // This feels more natural than -1 what it should be, I think
-      this.updateTurn(this.frame - 2);
-    }
-
-    // Arrow right
-    if (event.keyCode == 39) {
-      this.updateTurn(this.frame + 1);
-    }
-
-    // d key
-    if (event.keyCode == 68) {
-      ELEMENTS["speed"].value = ms_per_frame + 10 + "";
-      ELEMENTS["speed"].onchange(undefined);
-    }
-
-    // a key
-    if (event.keyCode == 65) {
-      ELEMENTS["speed"].value = Math.max(ms_per_frame - 10, 0) + "";
-      ELEMENTS["speed"].onchange(undefined);
+    let delta = event.shiftKey ? 5 : 1;
+    switch (event.code) {
+      case "Space":
+        this.playing = !this.playing;
+        break;
+      case "ArrowLeft":
+        this.updateTurn(this.frame - delta);
+        break;
+      case "ArrowRight":
+        this.updateTurn(this.frame + delta);
+        break;
     }
   }
 }
