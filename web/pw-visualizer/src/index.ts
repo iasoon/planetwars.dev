@@ -51,6 +51,16 @@ export function set_loading(loading: boolean) {
   }
 }
 
+function clamp(min: number, max: number, value: number): number {
+  if (value < min) {
+    return min;
+  }
+  if (value > max) {
+    return max;
+  }
+  return value;
+}
+
 const ELEMENTS: any = {};
 var CANVAS: any;
 var RESOLUTION: any;
@@ -561,7 +571,7 @@ export class GameInstance {
   }
 
   updateTurn(turn: number) {
-    this.frame = Math.max(0, turn);
+    this.frame = clamp(0, this.turn_count-1, turn);
     this.game.update_turn(this.frame);
     this._update_state();
     this.updateTurnCounters();
