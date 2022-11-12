@@ -47,11 +47,14 @@
 <div id="main" class="loading">
   <canvas id="canvas" />
   <div id="name" />
-  <ul class="player-labels">
-    {#each matchData["players"] as player, i}
-      <li style="color:{PLAYER_COLORS[i]}">{player["bot_name"] || "player"}</li>
-    {/each}
-  </ul>
+  <div class="ui-topright">
+    <slot name="menu" />
+    <ul class="player-labels">
+      {#each matchData["players"] as player, i}
+        <li style="color:{PLAYER_COLORS[i]}">{player["bot_name"] || "player"}</li>
+      {/each}
+    </ul>
+  </div>
 
   <div id="meta">
     <div id="turnCounter">0 / 0</div>
@@ -78,15 +81,21 @@
 <style scoped>
   @import "pw-visualizer/src/style.css";
 
-  .player-labels {
+  .ui-topright {
     position: absolute;
     top: 10px;
     right: 10px;
     color: white;
+  }
+
+  .player-labels {
     list-style: none;
+    padding-left: 0;
+    margin-top: 0.5em;
   }
 
   .player-labels li {
+    text-align: right;
     margin-bottom: 0.5em;
   }
 </style>

@@ -29,6 +29,7 @@
 
   export let matchLog: string | undefined;
   export let matchData: object;
+  let showSidebar = true;
 
   onMount(async () => {
     const apiClient = new ApiClient();
@@ -54,6 +55,10 @@
     return matchPlayer["owner_id"] === user?.["user_id"];
   }
 
+  function toggleSidebar() {
+    showSidebar = !showSidebar;
+  }
+
   // using the same value here causes svelte to freeze
   let dropdownSelectedPlayer: any;
   let selectedPlayer: any;
@@ -65,8 +70,14 @@
 </script>
 
 <div class="container">
-  <Visualizer {matchLog} {matchData} />
-  {#if playersWithVisibleLog.length > 0}
+  <Visualizer {matchLog} {matchData}>
+    <div slot="menu">
+      {#if playersWithVisibleLog.length > 0}
+        <div class="toggle-sidebar" on:click={toggleSidebar}>toggle sidebar</div>
+      {/if}
+    </div>
+  </Visualizer>
+  {#if showSidebar && playersWithVisibleLog.length > 0}
     <div class="output-pane">
       <div class="player-select">
         {#if playersWithVisibleLog.length == 1}
@@ -125,5 +136,10 @@
     display: flex;
     flex-direction: column;
     background-color: variables.$bg-color;
+  }
+
+  .toggle-sidebar:hover {
+    cursor: pointer;
+    color: #ccc;
   }
 </style>

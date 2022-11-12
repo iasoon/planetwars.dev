@@ -2,12 +2,11 @@
   import { afterNavigate } from "$app/navigation";
 
   import "./style.css";
-  import Fa from 'svelte-fa'
-  import { faBars } from '@fortawesome/free-solid-svg-icons'
+  import Fa from "svelte-fa";
+  import { faBars } from "@fortawesome/free-solid-svg-icons";
 
   import { get_session_token, clear_session_token } from "$lib/auth";
   import { currentUser } from "$lib/stores/current_user";
-  
 
   import { onMount } from "svelte";
 
