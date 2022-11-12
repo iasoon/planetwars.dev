@@ -1,5 +1,5 @@
 <script lang="ts">
-  import PlayerLog from "./PlayerLog.svelte";
+  import PlayerLog from "./log_viewer/PlayerLog.svelte";
 
   export let matchLog: string;
 </script>

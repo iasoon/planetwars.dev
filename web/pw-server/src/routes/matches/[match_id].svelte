@@ -22,7 +22,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import Visualizer from "$lib/components/Visualizer.svelte";
-  import PlayerLog from "$lib/components/PlayerLog.svelte";
+  import PlayerLog from "$lib/components/log_viewer/PlayerLog.svelte";
   import Select from "svelte-select";
   import { PLAYER_COLORS } from "$lib/constants";
   import { currentUser } from "$lib/stores/current_user";

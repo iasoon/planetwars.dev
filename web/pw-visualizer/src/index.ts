@@ -51,6 +51,15 @@ export function set_loading(loading: boolean) {
   }
 }
 
+// this function should be called after resizes happen
+function do_resize() {
+  resizeCanvasToDisplaySize(CANVAS);
+
+  if (game_instance) {
+    game_instance.on_resize();
+  }
+}
+
 function clamp(min: number, max: number, value: number): number {
   if (value < min) {
     return min;
@@ -103,17 +112,7 @@ export function init() {
   GL.enable(GL.BLEND);
   GL.blendFunc(GL.SRC_ALPHA, GL.ONE_MINUS_SRC_ALPHA);
 
-  window.addEventListener(
-    "resize",
-    function () {
-      resizeCanvasToDisplaySize(CANVAS);
-  
-      if (game_instance) {
-        game_instance.on_resize();
-      }
-    },
-    { capture: false, passive: true }
-  );
+  new ResizeObserver(do_resize).observe(ELEMENTS["canvas"]);
   
   ELEMENTS["turnSlider"].oninput = function () {
     if (game_instance) {
