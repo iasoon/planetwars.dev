@@ -101,7 +101,7 @@
         {/if}
       </div>
       <div class="player-log">
-        <PlayerLog {matchLog} playerId={selectedPlayer?.["playerId"]} />
+        <PlayerLog {matchData} {matchLog} playerId={selectedPlayer?.["playerId"]} />
       </div>
     </div>
   {/if}

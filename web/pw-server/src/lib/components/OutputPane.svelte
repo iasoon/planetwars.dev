@@ -1,12 +1,13 @@
 <script lang="ts">
   import PlayerLog from "./log_viewer/PlayerLog.svelte";
 
+  export let matchData: object;
   export let matchLog: string;
 </script>
 
 <div class="output-pane">
   <h3 class="output-header">Player log</h3>
-  <PlayerLog {matchLog} playerId={1} />
+  <PlayerLog {matchData} {matchLog} playerId={1} />
 </div>
 
 <style lang="scss">

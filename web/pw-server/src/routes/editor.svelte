@@ -157,7 +157,7 @@
   </div>
   <div class="sidebar-right">
     {#if viewMode === ViewMode.MatchVisualizer}
-      <OutputPane matchLog={selectedMatchLog} />
+      <OutputPane matchData={selectedMatch} matchLog={selectedMatchLog} />
     {:else if viewMode === ViewMode.Editor}
       <SubmitPane {editSession} on:matchCreated={onMatchCreated} />
     {/if}

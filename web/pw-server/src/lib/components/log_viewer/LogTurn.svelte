@@ -1,10 +1,11 @@
 <script lang="ts">
   import type { PlayerLogTurn } from "$lib/log_parser";
   import Fa from "svelte-fa";
-  import { faAngleRight, faAngleDown } from "@fortawesome/free-solid-svg-icons";
+  import { faAngleRight, faAngleDown, faCopy } from "@fortawesome/free-solid-svg-icons";
 
   export let turnNum: number;
   export let logTurn: PlayerLogTurn;
+  export let copyTurn: () => void;
   let expanded = false;
 
   const PLURAL_MAP = {
@@ -49,8 +50,13 @@
   </div>
   {#if expanded}
     <div class="turn-content">
-      {#if logTurn.action?.type === "dispatches"}
+      <div class="copy-turn" on:click={copyTurn}>
+        <Fa icon={faCopy} />
+        copy turn to clipboard
+      </div>
+      {#if logTurn.action?.type === "dispatches" && logTurn.action.dispatches.length > 0}
         <div class="dispatches-container">
+          <div class="dispatches-header">dispatches</div>
           {#each logTurn.action.dispatches as dispatch}
             <div class="dispatch">
               <div class="dispatch-text">
@@ -102,6 +108,16 @@
     background-color: #333;
   }
 
+  .copy-turn {
+    margin: 4px 0;
+  }
+
+  .copy-turn:hover {
+    text-decoration: underline;
+    cursor: pointer;
+    color: #fff;
+  }
+
   .turn-header-text {
     color: #eee;
     font-size: 14px;
@@ -111,15 +127,22 @@
 
   .turn-content {
     margin-bottom: 12px;
+    margin-left: 8px;
   }
 
   .turn-error {
     color: red;
   }
 
+  .dispatches-header {
+    color: #fff;
+    padding-top: 4px;
+  }
+
   .dispatch {
     display: flex;
     justify-content: space-between;
+    padding-left: 8px;
   }
 
   .dispatch-error {
