@@ -57,10 +57,12 @@
   </div>
 
   <div id="meta">
-    <div id="turnCounter">0 / 0</div>
-    <div>
-      <span>Ms per frame:&nbsp;</span>
-      <input type="number" id="speed" value="300" />
+    <div class="infocontainer">
+      <div id="turnCounter">0 / 0</div>
+      <div>
+        <span>Ms per frame:&nbsp;</span>
+        <input type="number" id="speed" value="300" />
+      </div>
     </div>
     <div class="slidecontainer">
       <input type="range" min="0" max="1" value="1" class="slider" id="turnSlider" />
