@@ -21,11 +21,10 @@ import {
 import { DefaultRenderable, Renderer } from "./webgl/renderer";
 import { VertexBuffer, IndexBuffer } from "./webgl/buffer";
 import { VertexBufferLayout, VertexArray } from "./webgl/vertexBufferLayout";
-import { defaultLabelFactory, LabelFactory, Align, Label } from "./webgl/text";
 import { VoronoiBuilder } from "./voronoi/voronoi";
 import * as assets from "./assets";
 import { loadImage, Texture } from "./webgl/texture";
-import { defaultMsdfLabelFactory, MsdfLabelFactory, Label as MsdfLabel } from "./webgl/msdf_text";
+import { defaultMsdfLabelFactory, MsdfLabelFactory, Label as MsdfLabel, Align } from "./webgl/msdf_text";
 
 
 function to_bbox(box: number[]): BBox {
@@ -133,10 +132,8 @@ export class GameInstance {
   vor_shader: Shader;
   image_shader: Shader;
   masked_image_shader: Shader;
-
   msdf_shader: Shader;
 
-  text_factory: LabelFactory;
   msdf_text_factory: MsdfLabelFactory;
   planet_labels: MsdfLabel[];
   ship_labels: MsdfLabel[];
@@ -166,7 +163,6 @@ export class GameInstance {
     game: Game,
     planets_textures: Texture[],
     ship_texture: Texture,
-    font_texture: Texture,
     robotoMsdfTexture: Texture,
     shaders: Dictionary<ShaderFactory>
   ) {
@@ -189,7 +185,6 @@ export class GameInstance {
     this.masked_image_shader = shaders["masked_image"].create_shader(GL);
 
     this.msdf_shader = shaders["msdf"].create_shader(GL);
-    this.text_factory = defaultLabelFactory(GL, font_texture, this.image_shader);
     this.msdf_text_factory = defaultMsdfLabelFactory(GL, robotoMsdfTexture, this.msdf_shader);
     this.planet_labels = [];
     this.ship_labels = [];
@@ -607,7 +602,6 @@ export async function set_instance(source: string): Promise<GameInstance> {
   // TODO: this loading code is a mess. Please clean me up!
   if (!texture_images || !shaders) {
     const image_promises = [
-      loadImage(assets.fontPng),
       loadImage(assets.shipPng),
       loadImage(assets.earthPng),
       loadImage(assets.robotoMsdfPng),
@@ -666,17 +660,15 @@ export async function set_instance(source: string): Promise<GameInstance> {
   }
 
   resizeCanvasToDisplaySize(CANVAS);
-  const fontTexture = Texture.fromImage(GL, texture_images[0], "font");
-  const shipTexture = Texture.fromImage(GL, texture_images[1], "ship");
-  const earthTexture = Texture.fromImage(GL, texture_images[2], "earth");
-  const robotoMsdfTexture = Texture.fromImage(GL, texture_images[3], "robotoMsdf");
+  const shipTexture = Texture.fromImage(GL, texture_images[0], "ship");
+  const earthTexture = Texture.fromImage(GL, texture_images[1], "earth");
+  const robotoMsdfTexture = Texture.fromImage(GL, texture_images[2], "robotoMsdf");
 
 
   game_instance = new GameInstance(
     Game.new(source),
     [earthTexture],
     shipTexture,
-    fontTexture,
     robotoMsdfTexture,
     shaders
   );

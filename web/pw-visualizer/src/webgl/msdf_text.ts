@@ -4,7 +4,6 @@ import { DefaultRenderable } from "./renderer";
 import { IndexBuffer, VertexBuffer } from "./buffer";
 import { VertexBufferLayout, VertexArray } from "./vertexBufferLayout";
 import { robotoMsdfJson } from "../assets";
-import { GlypInfo } from "./text";
 
 
 export enum Align {

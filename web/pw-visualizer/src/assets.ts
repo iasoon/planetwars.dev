@@ -7,8 +7,6 @@ export {default as venusSvg} from "../assets/res/venus.svg";
 export {default as earthPng} from "../assets/res/earth.png";
 export {default as shipPng} from "../assets/res/ship.png";
 
-export {default as fontPng} from "../assets/res/font.png";
-
 export {default as robotoMsdfPng} from "../assets/res/fonts/roboto.png";
 export {default as robotoMsdfJson} from "../assets/res/fonts/roboto.json";
 
