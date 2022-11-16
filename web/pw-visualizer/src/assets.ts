@@ -1,11 +1,10 @@
 export {default as shipSvg} from "../assets/res/ship.svg";
 
-export {default as earthSvg} from "../assets/res/earth.svg";
-export {default as marsSvg} from "../assets/res/mars.svg";
-export {default as venusSvg} from "../assets/res/venus.svg";
-
-export {default as earthPng} from "../assets/res/earth.png";
 export {default as shipPng} from "../assets/res/ship.png";
+
+export {default as planetAtlasPng} from "../assets/res/planet_atlas.png";
+export {default as planetAtlasJson} from "../assets/res/planet_atlas.json";
+
 
 export {default as robotoMsdfPng} from "../assets/res/fonts/roboto.png";
 export {default as robotoMsdfJson} from "../assets/res/fonts/roboto.json";

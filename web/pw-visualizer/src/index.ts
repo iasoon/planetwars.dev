@@ -25,6 +25,7 @@ import { VoronoiBuilder } from "./voronoi/voronoi";
 import * as assets from "./assets";
 import { loadImage, Texture } from "./webgl/texture";
 import { defaultMsdfLabelFactory, MsdfLabelFactory, Label as MsdfLabel, Align } from "./webgl/msdf_text";
+import { planetAtlasJson } from "./assets";
 
 
 function to_bbox(box: number[]): BBox {
@@ -68,6 +69,25 @@ function clamp(min: number, max: number, value: number): number {
   }
   return value;
 }
+
+/*
+    cyrb53 (c) 2018 bryc (github.com/bryc)
+    A fast and simple hash function with decent collision resistance.
+    Largely inspired by MurmurHash2/3, but with a focus on speed/simplicity.
+    Public domain. Attribution appreciated.
+*/
+const cyrb53 = function(str, seed = 0) {
+  let h1 = 0xdeadbeef ^ seed, h2 = 0x41c6ce57 ^ seed;
+  for (let i = 0, ch; i < str.length; i++) {
+      ch = str.charCodeAt(i);
+      h1 = Math.imul(h1 ^ ch, 2654435761);
+      h2 = Math.imul(h2 ^ ch, 1597334677);
+  }
+  h1 = Math.imul(h1 ^ (h1>>>16), 2246822507) ^ Math.imul(h2 ^ (h2>>>13), 3266489909);
+  h2 = Math.imul(h2 ^ (h2>>>16), 2246822507) ^ Math.imul(h1 ^ (h1>>>13), 3266489909);
+  return 4294967296 * (2097151 & h2) + (h1>>>0);
+};
+
 
 const ELEMENTS: any = {};
 var CANVAS: any;
@@ -161,7 +181,7 @@ export class GameInstance {
 
   constructor(
     game: Game,
-    planets_textures: Texture[],
+    planet_atlas: Texture,
     ship_texture: Texture,
     robotoMsdfTexture: Texture,
     shaders: Dictionary<ShaderFactory>
@@ -200,7 +220,7 @@ export class GameInstance {
 
     // List of [(x, y, r)] for all planets
     this._create_voronoi(planets);
-    this._create_planets(planets, planets_textures);
+    this._create_planets(planets, planet_atlas);
 
     this.max_num_ships = 0;
 
@@ -238,7 +258,7 @@ export class GameInstance {
     this.renderer.addRenderable(this.vor_builder.getRenderable(), LAYERS.vor);
   }
 
-  _create_planets(planets: Float32Array, planets_textures: Texture[]) {
+  _create_planets(planets: Float32Array, planet_atlas: Texture) {
     for (let i = 0; i < this.planet_count; i++) {
       {
         const transform = new UniformMatrix3fv([
@@ -258,11 +278,21 @@ export class GameInstance {
           -1, -1,
            1, -1
         ]);
+
+        const textureData = planetAtlasJson[cyrb53(this.planet_names[i]) % planetAtlasJson.length];
+        // apply half-pixel correction to prevent texture bleeding
+        // we should address the center of each texel, not the border
+        // https://gamedev.stackexchange.com/questions/46963/how-to-avoid-texture-bleeding-in-a-texture-atlas
+        const x0 = (textureData.x + 0.5) / planet_atlas.getWidth();
+        const x1 = (textureData.x + textureData.w - 0.5) / planet_atlas.getWidth();
+        const y0 = (textureData.y + 0.5) / planet_atlas.getHeight();
+        const y1 = (textureData.y + textureData.h - 0.5) / planet_atlas.getHeight();
+
         const vb_tex = new VertexBuffer(gl, [
-          0, 0,
-          1, 0,
-          0, 1,
-          1, 1]);
+          x0, y0,
+          x1, y0,
+          x0, y1,
+          x1, y1]);
     
         const layout_pos = new VertexBufferLayout();
         // 2?
@@ -280,7 +310,7 @@ export class GameInstance {
           u_trans_next: transform,
         };
   
-        const renderable = new DefaultRenderable(ib, vao, this.masked_image_shader, [planets_textures[0]], uniforms);
+        const renderable = new DefaultRenderable(ib, vao, this.masked_image_shader, [planet_atlas], uniforms);
     
         this.renderer.addRenderable(renderable, LAYERS.planet);
     
@@ -603,7 +633,7 @@ export async function set_instance(source: string): Promise<GameInstance> {
   if (!texture_images || !shaders) {
     const image_promises = [
       loadImage(assets.shipPng),
-      loadImage(assets.earthPng),
+      loadImage(assets.planetAtlasPng),
       loadImage(assets.robotoMsdfPng),
     ];
 
@@ -661,13 +691,13 @@ export async function set_instance(source: string): Promise<GameInstance> {
 
   resizeCanvasToDisplaySize(CANVAS);
   const shipTexture = Texture.fromImage(GL, texture_images[0], "ship");
-  const earthTexture = Texture.fromImage(GL, texture_images[1], "earth");
+  const planetTexture = Texture.fromImage(GL, texture_images[1], "planetAtlas");
   const robotoMsdfTexture = Texture.fromImage(GL, texture_images[2], "robotoMsdf");
 
 
   game_instance = new GameInstance(
     Game.new(source),
-    [earthTexture],
+    planetTexture,
     shipTexture,
     robotoMsdfTexture,
     shaders
