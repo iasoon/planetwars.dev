@@ -93,7 +93,7 @@ const ELEMENTS: any = {};
 var CANVAS: any;
 var RESOLUTION: any;
 var GL: any;
-var ms_per_frame: any;
+var ms_per_turn: any;
 
 const LAYERS = {
   vor: -1, // Background
@@ -121,7 +121,7 @@ export function init() {
   CANVAS = ELEMENTS["canvas"];
   RESOLUTION = [CANVAS.width, CANVAS.height];
   
-  ms_per_frame = parseInt(ELEMENTS["speed"].value);
+  ms_per_turn = parseInt(ELEMENTS["speed"].value);
   
   GL = CANVAS.getContext("webgl", { antialias: true });
   
@@ -140,7 +140,7 @@ export function init() {
   };
   
   ELEMENTS["speed"].onchange = function () {
-    ms_per_frame = parseInt(ELEMENTS["speed"].value);
+    ms_per_turn = parseInt(ELEMENTS["speed"].value);
   };
 }
 
@@ -173,9 +173,12 @@ export class GameInstance {
   vor_counter = 3;
   use_vor = true;
   playing = true;
-  time_stopped_delta = 0;
-  last_time = 0;
-  frame = -1;
+  prev_time: DOMHighResTimeStamp = 0;
+
+
+  turn: number = -1;
+  // non-discrete part of visualizer time
+  fractional_game_time: number = 0.0;
 
   turn_count = 0;
 
@@ -232,7 +235,7 @@ export class GameInstance {
   push_state(state: string) {
       this.game.push_state(state);
 
-      if (this.frame == this.turn_count - 1) {
+      if (this.turn == this.turn_count - 1) {
         this.playing = true;
       }
       
@@ -499,10 +502,13 @@ export class GameInstance {
     }
   }
 
-  render(time: number) {
-    COUNTER.frame(time);
+  render(timestamp: DOMHighResTimeStamp) {
+    const elapsed = timestamp - this.prev_time;
+    this.prev_time = timestamp;
 
-    if (COUNTER.delta(time) < 30) {
+    COUNTER.frame(timestamp);
+
+    if (COUNTER.delta(timestamp) < 30) {
       this.vor_counter = Math.min(3, this.vor_counter + 1);
     } else {
       this.vor_counter = Math.max(-3, this.vor_counter - 1);
@@ -522,8 +528,6 @@ export class GameInstance {
 
     // If not playing, still render with different viewbox, so that panning is still possible
     if (!this.playing) {
-      this.last_time = time;
-
       shaders_to_update.forEach((shader) => {
         shader.uniform(
           GL,
@@ -542,13 +546,15 @@ export class GameInstance {
       return;
     }
 
-    // Check if turn is still correct
-    if (time > this.last_time + ms_per_frame) {
-      this.last_time = time;
-      this.updateTurn(this.frame + 1);
-      if (this.frame == this.turn_count - 1) {
-        this.playing = false;
-      }
+    this.fractional_game_time += elapsed / ms_per_turn;
+
+    this.updateTurn(this.turn + Math.floor(this.fractional_game_time));
+    this.fractional_game_time %= 1
+
+    // TODO
+    if (this.turn == this.turn_count - 1) {
+      this.playing = false;
+      this.fractional_game_time = 0;
     }
 
     // Do GL things
@@ -559,7 +565,7 @@ export class GameInstance {
     this.vor_shader.uniform(
       GL,
       "u_time",
-      new Uniform1f((time - this.last_time) / ms_per_frame)
+      new Uniform1f(this.fractional_game_time)
     );
     this.vor_shader.uniform(
       GL,
@@ -573,7 +579,7 @@ export class GameInstance {
       shader.uniform(
         GL,
         "u_time",
-        new Uniform1f((time - this.last_time) / ms_per_frame)
+        new Uniform1f(this.fractional_game_time)
       );
       shader.uniform(
         GL,
@@ -595,16 +601,16 @@ export class GameInstance {
   }
 
   updateTurn(turn: number) {
-    this.frame = clamp(0, this.turn_count-1, turn);
-    this.game.update_turn(this.frame);
+    this.turn = clamp(0, this.turn_count-1, turn);
+    this.game.update_turn(this.turn);
     this._update_state();
     this.updateTurnCounters();
   }
 
   updateTurnCounters() {
     ELEMENTS["turnCounter"].innerHTML =
-      this.frame + " / " + (this.turn_count - 1);
-    ELEMENTS["turnSlider"].value = this.frame + "";
+      this.turn + " / " + (this.turn_count - 1);
+    ELEMENTS["turnSlider"].value = this.turn + "";
     ELEMENTS["turnSlider"].max = this.turn_count - 1 + "";
   } 
 
@@ -615,10 +621,10 @@ export class GameInstance {
         this.playing = !this.playing;
         break;
       case "ArrowLeft":
-        this.updateTurn(this.frame - delta);
+        this.updateTurn(this.turn - delta);
         break;
       case "ArrowRight":
-        this.updateTurn(this.frame + delta);
+        this.updateTurn(this.turn + delta);
         break;
     }
   }
@@ -723,9 +729,9 @@ export function stop() {
   _animating = false;
 }
 
-function step(time: number) {
+function step(timestamp: DOMHighResTimeStamp) {
   if (game_instance) {
-    game_instance.render(time);
+    game_instance.render(timestamp);
   }
 
   if (_animating) {
