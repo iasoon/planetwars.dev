@@ -176,7 +176,7 @@ export class GameInstance {
   prev_time: DOMHighResTimeStamp = 0;
 
 
-  turn: number = -1;
+  turn: number = 0;
   // non-discrete part of visualizer time
   fractional_game_time: number = 0.0;
 
@@ -722,6 +722,7 @@ export function start() {
     return;
   }
   _animating = true;
+  game_instance.prev_time = window.performance.now();
   requestAnimationFrame(step);
 }
 
