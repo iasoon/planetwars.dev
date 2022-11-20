@@ -79,7 +79,12 @@ async fn main() {
     )
     .await
     .unwrap();
-    run_player(bot_config, created_match.player_key, channel).await;
+    match run_player(bot_config, created_match.player_key, channel).await {
+        Ok(()) => (),
+        Err(RunPlayerError::RunBotError(err)) => {
+            println!("Error running bot: {}", err)
+        }
+    }
     println!(
         "Match completed. Watch the replay at {}",
         created_match.match_url
@@ -102,7 +107,17 @@ async fn create_match(
     res.map(|response| response.into_inner())
 }
 
-async fn run_player(bot_config: BotConfig, player_key: String, channel: Channel) {
+#[derive(thiserror::Error, Debug)]
+enum RunPlayerError {
+    #[error("error running bot")]
+    RunBotError(std::io::Error),
+}
+
+async fn run_player(
+    bot_config: BotConfig,
+    player_key: String,
+    channel: Channel,
+) -> Result<(), RunPlayerError> {
     let mut client = ClientApiServiceClient::with_interceptor(channel, |mut req: Request<()>| {
         let player_key: MetadataValue<_> = player_key.parse().unwrap();
         req.metadata_mut().insert("player_key", player_key);
@@ -128,7 +143,10 @@ async fn run_player(bot_config: BotConfig, player_key: String, channel: Channel)
     while let Some(message) = stream.message().await.unwrap() {
         match message.server_message {
             Some(pb::PlayerApiServerMessageType::ActionRequest(req)) => {
-                let moves = bot_process.communicate(&req.content).await.unwrap();
+                let moves = bot_process
+                    .communicate(&req.content)
+                    .await
+                    .map_err(RunPlayerError::RunBotError)?;
                 let action = pb::PlayerAction {
                     action_request_id: req.action_request_id,
                     content: moves.as_bytes().to_vec(),
@@ -141,4 +159,6 @@ async fn run_player(bot_config: BotConfig, player_key: String, channel: Channel)
             _ => {} // pass
         }
     }
+
+    Ok(())
 }
