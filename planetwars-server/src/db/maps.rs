@@ -14,6 +14,7 @@ pub struct Map {
     pub id: i32,
     pub name: String,
     pub file_path: String,
+    pub is_ranked: bool,
 }
 
 pub fn create_map(new_map: NewMap, conn: &mut PgConnection) -> QueryResult<Map> {
@@ -32,4 +33,10 @@ pub fn find_map_by_name(name: &str, conn: &mut PgConnection) -> QueryResult<Map>
 
 pub fn list_maps(conn: &mut PgConnection) -> QueryResult<Vec<Map>> {
     maps::table.get_results(conn)
+}
+
+pub fn get_ranked_maps(conn: &mut PgConnection) -> QueryResult<Vec<Map>> {
+    maps::table
+        .filter(maps::is_ranked.eq(true))
+        .get_results(conn)
 }

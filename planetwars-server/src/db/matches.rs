@@ -140,12 +140,15 @@ fn fetch_full_match_data(
 }
 
 // TODO: this method should disappear
-pub fn list_matches(amount: i64, conn: &mut PgConnection) -> QueryResult<Vec<FullMatchData>> {
+pub fn fetch_ranked_maps(amount: i64, conn: &mut PgConnection) -> QueryResult<Vec<FullMatchData>> {
     conn.transaction(|conn| {
         let matches = matches::table
+            .inner_join(maps::table)
             .filter(matches::state.eq(MatchState::Finished))
+            .filter(maps::is_ranked.eq(true))
             .order_by(matches::created_at.desc())
             .limit(amount)
+            .select(matches::all_columns)
             .get_results::<MatchBase>(conn)?;
 
         fetch_full_match_data(matches, conn)

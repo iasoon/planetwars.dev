@@ -38,7 +38,7 @@ pub async fn run_ranker(config: Arc<GlobalConfig>, db_pool: DbPool) {
             .cloned()
             .collect();
 
-        let maps = db::maps::list_maps(&mut db_conn).expect("could not load map");
+        let maps = db::maps::get_ranked_maps(&mut db_conn).expect("could not load map");
         let map = match maps.choose(&mut rand::thread_rng()).cloned() {
             None => continue, // no maps available
             Some(map) => map,
@@ -93,7 +93,7 @@ struct MatchStats {
 }
 
 fn fetch_match_stats(db_conn: &mut PgConnection) -> QueryResult<HashMap<(i32, i32), MatchStats>> {
-    let matches = db::matches::list_matches(RANKER_NUM_MATCHES, db_conn)?;
+    let matches = db::matches::fetch_ranked_maps(RANKER_NUM_MATCHES, db_conn)?;
 
     let mut match_stats = HashMap::<(i32, i32), MatchStats>::new();
     for m in matches {

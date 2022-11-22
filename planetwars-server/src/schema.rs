@@ -42,6 +42,7 @@ diesel::table! {
         id -> Int4,
         name -> Text,
         file_path -> Text,
+        is_ranked -> Bool,
     }
 }
 
