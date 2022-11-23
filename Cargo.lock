@@ -1620,6 +1620,7 @@ dependencies = [
  "hyper",
  "parking_lot 0.12.1",
  "planetwars-matchrunner",
+ "planetwars-rules",
  "prost",
  "rand 0.8.4",
  "rust-argon2",

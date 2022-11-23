@@ -137,7 +137,10 @@ fn api() -> Router {
             "/matches/:match_id/log",
             get(routes::matches::get_match_log),
         )
-        .route("/maps", get(routes::maps::list_maps))
+        .route(
+            "/maps",
+            get(routes::maps::list_maps).post(routes::maps::create_map),
+        )
         .route("/leaderboard", get(routes::bots::get_ranking))
         .route("/submit_bot", post(routes::demo::submit_bot))
         .route("/save_bot", post(routes::bots::save_bot))
