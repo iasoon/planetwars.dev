@@ -30,6 +30,7 @@ use axum::{
     Router,
 };
 use tower_http::compression::CompressionLayer;
+use tower_http::cors::CorsLayer;
 
 type ConnectionPool = bb8::Pool<DieselConnectionManager<PgConnection>>;
 
@@ -153,6 +154,7 @@ pub fn create_pw_api(global_config: Arc<GlobalConfig>, db_pool: DbPool) -> Route
         .layer(Extension(db_pool))
         .layer(Extension(global_config))
         .layer(CompressionLayer::new())
+        .layer(CorsLayer::permissive())
 }
 
 pub fn get_config() -> Result<GlobalConfig, ConfigError> {
