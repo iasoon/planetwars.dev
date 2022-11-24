@@ -3,13 +3,14 @@
 use axum::body::{Body, StreamBody};
 use axum::extract::{BodyStream, FromRequest, Path, Query, RequestParts, TypedHeader};
 use axum::headers::authorization::Basic;
-use axum::headers::Authorization;
+use axum::headers::{Authorization, HeaderName};
+use axum::http::HeaderValue;
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, head, post, put};
 use axum::{async_trait, Extension, Router};
 use futures::StreamExt;
-use hyper::StatusCode;
-use serde::Serialize;
+use hyper::{HeaderMap, StatusCode};
+use serde_json::json;
 use sha2::{Digest, Sha256};
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -62,24 +63,7 @@ enum RegistryAuthError {
 
 impl IntoResponse for RegistryAuthError {
     fn into_response(self) -> Response {
-        // TODO: create enum for registry errors
-        let err = RegistryErrors {
-            errors: vec![RegistryError {
-                code: "UNAUTHORIZED".to_string(),
-                message: "please log in".to_string(),
-                detail: serde_json::Value::Null,
-            }],
-        };
-
-        (
-            StatusCode::UNAUTHORIZED,
-            [
-                ("Docker-Distribution-API-Version", "registry/2.0"),
-                ("WWW-Authenticate", "Basic"),
-            ],
-            serde_json::to_string(&err).unwrap(),
-        )
-            .into_response()
+        RegistryError::Unauthorized.into_response()
     }
 }
 
@@ -113,10 +97,9 @@ where
             }
         } else {
             let mut db_conn = DatabaseConnection::from_request(req).await.unwrap();
-            let user = authenticate_user(&credentials, &mut db_conn)
-                .ok_or(RegistryAuthError::InvalidCredentials)?;
-
-            Ok(RegistryAuth::User(user))
+            authenticate_user(&credentials, &mut db_conn)
+                .map(RegistryAuth::User)
+                .ok_or(RegistryAuthError::InvalidCredentials)
         }
     }
 }
@@ -146,25 +129,13 @@ async fn get_root(_auth: RegistryAuth) -> impl IntoResponse {
         .unwrap()
 }
 
-#[derive(Serialize)]
-pub struct RegistryErrors {
-    errors: Vec<RegistryError>,
-}
-
-#[derive(Serialize)]
-pub struct RegistryError {
-    code: String,
-    message: String,
-    detail: serde_json::Value,
-}
-
 async fn check_blob_exists(
     mut db_conn: DatabaseConnection,
     auth: RegistryAuth,
     Path((repository_name, raw_digest)): Path<(String, String)>,
     Extension(config): Extension<Arc<GlobalConfig>>,
-) -> Result<impl IntoResponse, StatusCode> {
-    check_access(&repository_name, &auth, &mut db_conn)?;
+) -> Result<impl IntoResponse, (StatusCode, HeaderMap)> {
+    check_access(&repository_name, &auth, &mut db_conn).map_err(|err| err.into_headers())?;
 
     let digest = raw_digest.strip_prefix("sha256:").unwrap();
     let blob_path = PathBuf::from(&config.registry_directory)
@@ -174,7 +145,7 @@ async fn check_blob_exists(
         let metadata = std::fs::metadata(&blob_path).unwrap();
         Ok((StatusCode::OK, [("Content-Length", metadata.len())]))
     } else {
-        Err(StatusCode::NOT_FOUND)
+        Err(RegistryError::BlobUnknown.into_headers())
     }
 }
 
@@ -183,7 +154,7 @@ async fn get_blob(
     auth: RegistryAuth,
     Path((repository_name, raw_digest)): Path<(String, String)>,
     Extension(config): Extension<Arc<GlobalConfig>>,
-) -> Result<impl IntoResponse, StatusCode> {
+) -> Result<impl IntoResponse, RegistryError> {
     check_access(&repository_name, &auth, &mut db_conn)?;
 
     let digest = raw_digest.strip_prefix("sha256:").unwrap();
@@ -191,7 +162,7 @@ async fn get_blob(
         .join("sha256")
         .join(&digest);
     if !blob_path.exists() {
-        return Err(StatusCode::NOT_FOUND);
+        return Err(RegistryError::BlobUnknown);
     }
     let file = tokio::fs::File::open(&blob_path).await.unwrap();
     let reader_stream = ReaderStream::new(file);
@@ -204,7 +175,7 @@ async fn create_upload(
     auth: RegistryAuth,
     Path(repository_name): Path<String>,
     Extension(config): Extension<Arc<GlobalConfig>>,
-) -> Result<impl IntoResponse, StatusCode> {
+) -> Result<impl IntoResponse, RegistryError> {
     check_access(&repository_name, &auth, &mut db_conn)?;
 
     let uuid = gen_alphanumeric(16);
@@ -234,7 +205,7 @@ async fn patch_upload(
     Path((repository_name, uuid)): Path<(String, String)>,
     mut stream: BodyStream,
     Extension(config): Extension<Arc<GlobalConfig>>,
-) -> Result<impl IntoResponse, StatusCode> {
+) -> Result<impl IntoResponse, RegistryError> {
     check_access(&repository_name, &auth, &mut db_conn)?;
 
     // TODO: support content range header in request
@@ -281,7 +252,7 @@ async fn put_upload(
     Query(params): Query<UploadParams>,
     mut stream: BodyStream,
     Extension(config): Extension<Arc<GlobalConfig>>,
-) -> Result<impl IntoResponse, StatusCode> {
+) -> Result<impl IntoResponse, RegistryError> {
     check_access(&repository_name, &auth, &mut db_conn)?;
 
     let upload_path = PathBuf::from(&config.registry_directory)
@@ -309,7 +280,7 @@ async fn put_upload(
     let digest = file_sha256_digest(&upload_path).unwrap();
     if digest != expected_digest {
         // TODO: return a docker error body
-        return Err(StatusCode::BAD_REQUEST);
+        return Err(RegistryError::DigestInvalid);
     }
 
     let target_path = PathBuf::from(&config.registry_directory)
@@ -336,7 +307,7 @@ async fn get_manifest(
     auth: RegistryAuth,
     Path((repository_name, reference)): Path<(String, String)>,
     Extension(config): Extension<Arc<GlobalConfig>>,
-) -> Result<impl IntoResponse, StatusCode> {
+) -> Result<impl IntoResponse, RegistryError> {
     check_access(&repository_name, &auth, &mut db_conn)?;
 
     let manifest_path = PathBuf::from(&config.registry_directory)
@@ -362,7 +333,7 @@ async fn put_manifest(
     Path((repository_name, reference)): Path<(String, String)>,
     mut stream: BodyStream,
     Extension(config): Extension<Arc<GlobalConfig>>,
-) -> Result<impl IntoResponse, StatusCode> {
+) -> Result<impl IntoResponse, RegistryError> {
     let bot = check_access(&repository_name, &auth, &mut db_conn)?;
 
     let repository_dir = PathBuf::from(&config.registry_directory)
@@ -422,7 +393,7 @@ fn check_access(
     repository_name: &str,
     auth: &RegistryAuth,
     db_conn: &mut DatabaseConnection,
-) -> Result<db::bots::Bot, StatusCode> {
+) -> Result<db::bots::Bot, RegistryError> {
     use diesel::OptionalExtension;
 
     // TODO: it would be nice to provide the found repository
@@ -430,7 +401,8 @@ fn check_access(
     let bot = db::bots::find_bot_by_name(repository_name, db_conn)
         .optional()
         .expect("could not run query")
-        .ok_or(StatusCode::NOT_FOUND)?;
+        // TODO: return an error message here
+        .ok_or(RegistryError::NameUnknown)?;
 
     match &auth {
         RegistryAuth::Admin => Ok(bot),
@@ -438,8 +410,94 @@ fn check_access(
             if bot.owner_id == Some(user.id) {
                 Ok(bot)
             } else {
-                Err(StatusCode::FORBIDDEN)
+                Err(RegistryError::Denied)
             }
         }
+    }
+}
+
+enum RegistryError {
+    Denied,
+    Unauthorized,
+
+    DigestInvalid,
+
+    BlobUnknown,
+    NameUnknown,
+}
+
+impl RegistryError {
+    fn into_headers(self) -> (StatusCode, HeaderMap) {
+        let raw = self.into_raw();
+        (raw.status_code, raw.headers)
+    }
+
+    fn into_raw(self) -> RawRegistryError {
+        match self {
+            RegistryError::Unauthorized => RawRegistryError {
+                status_code: StatusCode::UNAUTHORIZED,
+                error_code: "UNAUTHORIZED",
+                message: "Authenticate to continue",
+                headers: HeaderMap::from_iter([(
+                    HeaderName::from_static("www-authenticate"),
+                    HeaderValue::from_static("Basic"),
+                )]),
+            },
+            RegistryError::Denied => RawRegistryError {
+                status_code: StatusCode::FORBIDDEN,
+                error_code: "DENIED",
+                message: "Access denied",
+                headers: HeaderMap::new(),
+            },
+            RegistryError::BlobUnknown => RawRegistryError {
+                status_code: StatusCode::FORBIDDEN,
+                error_code: "BLOB_UNKNOWN",
+                message: "Blob does not exist",
+                headers: HeaderMap::new(),
+            },
+            RegistryError::NameUnknown => RawRegistryError {
+                status_code: StatusCode::NOT_FOUND,
+                error_code: "NAME_UNKNOWN",
+                message: "Repository does not exist",
+                headers: HeaderMap::new(),
+            },
+            RegistryError::DigestInvalid => RawRegistryError {
+                status_code: StatusCode::UNPROCESSABLE_ENTITY,
+                error_code: "DIGEST_INVALID",
+                message: "Layer digest did not match provided value",
+                headers: HeaderMap::new(),
+            },
+        }
+    }
+}
+
+impl IntoResponse for RegistryError {
+    fn into_response(self) -> Response {
+        self.into_raw().into_response()
+    }
+}
+
+pub struct RawRegistryError {
+    status_code: StatusCode,
+    error_code: &'static str,
+    message: &'static str,
+    headers: HeaderMap,
+    // currently not used
+    // detail: serde_json::Value,
+}
+
+impl IntoResponse for RawRegistryError {
+    fn into_response(self) -> Response {
+        let json_body = json!({
+            "errors": [{
+                "code": self.error_code,
+                "message": self.message,
+                "detail": serde_json::Value::Null,
+            }],
+        });
+
+        let body = serde_json::to_vec(&json_body).unwrap();
+
+        (self.status_code, self.headers, body).into_response()
     }
 }
