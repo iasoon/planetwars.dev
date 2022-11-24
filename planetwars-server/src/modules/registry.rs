@@ -16,6 +16,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::io::AsyncWriteExt;
 use tokio_util::io::ReaderStream;
+use tower_http::set_header::SetResponseHeaderLayer;
 
 use crate::db::bots::NewBotVersion;
 use crate::util::gen_alphanumeric;
@@ -45,9 +46,16 @@ fn registry_api_v2() -> Router {
             "/:name/blobs/uploads/:uuid",
             put(put_upload).patch(patch_upload),
         )
+        .layer(SetResponseHeaderLayer::overriding(
+            DOCKER_DISTRIBUTION_API_VERSION,
+            REGISTRY_V2,
+        ))
 }
 
 const ADMIN_USERNAME: &str = "admin";
+const DOCKER_DISTRIBUTION_API_VERSION: HeaderName =
+    HeaderName::from_static("docker-distribution-api-version");
+const REGISTRY_V2: HeaderValue = HeaderValue::from_static("registry/2.0");
 
 type AuthorizationHeader = TypedHeader<Authorization<Basic>>;
 
@@ -122,11 +130,7 @@ async fn last_byte_pos(file: &tokio::fs::File) -> std::io::Result<u64> {
 
 async fn get_root(_auth: RegistryAuth) -> impl IntoResponse {
     // root should return 200 OK to confirm api compliance
-    Response::builder()
-        .status(StatusCode::OK)
-        .header("Docker-Distribution-API-Version", "registry/2.0")
-        .body(Body::empty())
-        .unwrap()
+    StatusCode::OK
 }
 
 async fn check_blob_exists(
