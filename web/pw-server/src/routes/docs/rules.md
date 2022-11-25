@@ -71,36 +71,34 @@ You can dispatch as many expeditions as you like.
 
 ## Rules
 
-All players send out their commands simultaneously, so there is no player order.
+All players decide on their commands simultaneously, so there is no player order.
 
-The amount of turns an expedition will travel is equal to the ceiled euclidean distance
-between its origin and destination planet.
+After all players have issued their commands, these steps happen in order:
 
-Each turn, one additional ship will be constructed on each player-owned planet.
-Neutral planets do not construct ships.
+1.  **Construct ships**  
+    One new ship is constructed on every planet that is owned by a player.  
+    Neutral planets do not construct ships.
 
-After arriving at a planet, fleets belonging to the same player will merge.  
-When multiple players are present on the planet, their fleets will enter combat after merging.
+2.  **Dispatch expeditions**  
+    All ordered expeditions will depart.
 
-The largest fleet will win the fight, losing an amount of ships equal to the size of the second-largest fleet.
-Its owner will now occupy the planet, and all other fleets will be destroyed.
+    Note: The amount of ships that can be dispatched from a planet is the planet ship count you received in your gamestate. It is not allowed to dispatch the ship constructed in the previous step, as one ship should remain on the planet to maintain control.
 
-When players tie for the largest fleet, all fleets are destroyed, and the planet will end up neutral.
+3.  **Ship movement**  
+    All in-flight expeditions will move one step towards their destination.
 
-A turn progresses as follows:
+    Once an expedition has travelled for an amount of turns equal to the _ceiled euclidean distance between its origin and destination planet_, it will arrive at its destination planet.
 
-1. Construct ships
-2. Dispatch expeditions
-3. Arrivals
-4. Combat
+    Note that expeditions with a travel time of one turn will arrive immediately.
 
-It is not allowed for players to abandon a planet - at least one ship should remain at all times.
-Note that you are still allowed to dispatch the full ship count you observe in the game state,
-as an additional ship will be constructed before the ships depart.
+4.  **Combat**  
+    When multiple owners have fleets at a planet, they will enter combat.
+    - First, fleets belonging to the same owner will be merged, so that each owner has one fleet.
+    - The largest fleet will win the combat. Its owner will gain control of the planet, losing an amount of ships equal to the second-largest fleet. All other fleets will be destroyed.
+    - When there is a tie for the largest fleet, all fleets will be destroyed, and the planet will be neutral.
 
-The game will end when no enemy player ships remain (neutral ships may survive), or when the
-turn limit is reached. When the turn limit is hit, the game will end it a tie.
-Currently, the limit is set at 500 turns.
+The game will end either when no enemy player ships remain (neutral ships may survive), or when the turn limit is reached. If the turn limit was reached, the game ends in a tie.  
+Currently, the turn limit is set at 500 turns.
 
 ## Writing your bot
 
