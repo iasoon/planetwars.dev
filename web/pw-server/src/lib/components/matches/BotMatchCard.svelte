@@ -52,7 +52,6 @@
     width: 75px;
     display: flex;
     justify-content: center;
-    margin-top: -4px;
   }
 
   .bot-match-card-main {

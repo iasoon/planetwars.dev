@@ -38,7 +38,7 @@ export function apiMatchtoBotMatch(bot_name: string, apiMatch: ApiMatch): BotMat
   let outcome: BotMatchOutcome;
   if (apiMatch.winner === playerIndex) {
     outcome = "win";
-  } else if (apiMatch.winner) {
+  } else if (apiMatch.winner !== null) {
     outcome = "loss";
   } else {
     outcome = "tie";
