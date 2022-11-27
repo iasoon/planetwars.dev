@@ -108,9 +108,9 @@ impl Bot {
 
 pub struct BotProcess {
     #[allow(dead_code)]
-    child: process::Child,
-    stdin: process::ChildStdin,
-    stdout: Lines<BufReader<process::ChildStdout>>,
+    pub child: process::Child,
+    pub stdin: process::ChildStdin,
+    pub stdout: Lines<BufReader<process::ChildStdout>>,
 }
 
 impl BotProcess {
