@@ -148,3 +148,20 @@ async fn docker_runner_crash() {
     })
     .await;
 }
+
+#[tokio::test]
+async fn test_long_line() {
+    let bot_spec = simple_python_docker_bot_spec("./bots", "echo_bot.py");
+    let len = 10 * 2_usize.pow(20); // 10 megabytes - hopefully large enough to cause buffering
+    let buf = std::iter::repeat(b'a').take(len).collect::<Vec<u8>>();
+    with_bot_match_ctx(bot_spec, |ctx| {
+        async move {
+            let resp = ctx.request(1, buf, Duration::from_millis(200)).await;
+
+            let resp_bytes = resp.expect("unexpected error");
+            assert_eq!(resp_bytes.len(), len + 1);
+        }
+        .boxed()
+    })
+    .await;
+}

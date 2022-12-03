@@ -5,7 +5,7 @@ use std::sync::{Arc, Mutex};
 use async_trait::async_trait;
 use bollard::container::{self, AttachContainerOptions, AttachContainerResults, LogOutput};
 use bollard::Docker;
-use bytes::Bytes;
+use bytes::{Bytes, BytesMut};
 use futures::{Stream, StreamExt};
 use tokio::io::{AsyncWrite, AsyncWriteExt};
 use tokio::sync::mpsc;
@@ -168,6 +168,8 @@ fn run_docker_bot(
         event_bus,
         match_logger,
         rx,
+
+        stdout_buf: BytesMut::new(),
     };
 
     let join_handle = tokio::spawn(bot_runner.run());
@@ -198,6 +200,9 @@ pub struct DockerBotRunner {
     rx: mpsc::UnboundedReceiver<RequestMessage>,
     match_logger: MatchLogger,
     player_id: u32,
+
+    stdout_buf: BytesMut,
+    // stderr_buf: BytesMut,
 }
 
 impl DockerBotRunner {
@@ -243,8 +248,11 @@ impl DockerBotRunner {
             let log_output = item.expect("failed to get log output");
             match log_output {
                 LogOutput::StdOut { message } => {
-                    // TODO: this is not correct (buffering and such)
-                    return Ok(message);
+                    self.stdout_buf.extend_from_slice(&message);
+                    if let Some(split_idx) = memchr::memchr(b'\n', &self.stdout_buf) {
+                        let line = self.stdout_buf.split_to(split_idx+1);
+                        return Ok(line.freeze())
+                    }
                 }
                 LogOutput::StdErr { mut message } => {
                     // TODO
