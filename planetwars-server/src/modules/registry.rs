@@ -454,7 +454,7 @@ impl RegistryError {
                 headers: HeaderMap::new(),
             },
             RegistryError::BlobUnknown => RawRegistryError {
-                status_code: StatusCode::FORBIDDEN,
+                status_code: StatusCode::NOT_FOUND,
                 error_code: "BLOB_UNKNOWN",
                 message: "Blob does not exist",
                 headers: HeaderMap::new(),
